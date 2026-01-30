@@ -110,7 +110,7 @@
     <EmbeddedResource Include="Resources\icon.png" />
     <EmbeddedResource Include="Resources\WhatsAppPlugin.simhubdash" />
     <EmbeddedResource Include="Resources\whatsapp-server.js" />
-    <EmbeddedResource Include="Resources\baileys-server.js" />
+    <EmbeddedResource Include="Resources\baileys-server.mjs" />
     <EmbeddedResource Include="Resources\package.json" />
   </ItemGroup>
   <ItemGroup>

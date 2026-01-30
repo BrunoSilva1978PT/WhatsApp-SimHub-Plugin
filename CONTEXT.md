@@ -1,6 +1,6 @@
 # 📋 CONTEXT - Estado Atual do Projeto
 
-**Última atualização:** 2026-01-30 20:05  
+**Última atualização:** 2026-01-30 21:15  
 **Sessão:** Claude Code (Zed) - Sonnet 4.5
 
 ---
@@ -29,16 +29,23 @@ Plugin para SimHub que mostra notificações de WhatsApp no VoCore durante corri
 - [x] Repositório GitHub criado: https://github.com/BrunoSilva1978PT/WhatsApp-SimHub-Plugin
 - [x] Build script automatizado (build-and-deploy.bat)
 - [x] Compilação Release funcional
+- [x] **DUAL BACKEND SUPPORT** - Baileys + WhatsApp-Web.js
+  - [x] Backend selector dropdown (Connection tab)
+  - [x] baileys-server.js implementado
+  - [x] WebSocketManager dual mode
+  - [x] UI adaptativa (desativa chat contacts no Baileys)
+  - [x] Auto-save backend selection
 
 ### 🔄 Em Progresso
-- [ ] Dashboard merge V2.0 (Wrapper com 2 Layers) - documentação lida, não implementado
+- [ ] Nada (tudo funcionando!)
 
 ### ⏳ Pendente (TODO)
+- [ ] Testar ambos os backends com WhatsApp real
+- [ ] Dashboard merge V2.0 (Wrapper com 2 Layers) - documentação lida
 - [ ] Implementar auto-merge de dashboards ao iniciar plugin
 - [ ] Overlay renderer com hook no VoCore
 - [ ] Aviso "Disconnected" no VoCore
 - [ ] Cores dinâmicas do SimHub (remover hard-coded)
-- [ ] Auto-save nas configurações
 - [ ] Default Position = "Top"
 
 ---
@@ -82,10 +89,12 @@ whatsapp-plugin/
 ## 🔑 DECISÕES TÉCNICAS IMPORTANTES
 
 ### 1. WhatsApp Web Backend
-**Decisão:** whatsapp-web.js (mantido)  
-**Alternativa explorada:** Baileys (mais leve, sem browser)  
-**Razão:** whatsapp-web.js já integrado, funcional  
-**Nota:** Baileys é válido para projetos futuros
+**Decisão:** DUAL MODE - whatsapp-web.js + Baileys  
+**Implementação:** User escolhe no dropdown (Connection tab)  
+**Razão:** 
+- whatsapp-web.js: completo, suporta chat contacts
+- Baileys: mais leve, sem Puppeteer, mas sem chat contacts
+**Trade-off:** Chat contacts só funciona com whatsapp-web.js
 
 ### 2. Dashboard Merge
 **Decisão:** V2.0 - Wrapper com 2 Layers  

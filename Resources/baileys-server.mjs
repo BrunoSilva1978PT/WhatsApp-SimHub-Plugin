@@ -1,14 +1,14 @@
-const makeWASocket = require('@whiskeysockets/baileys').default;
-const {
+import makeWASocket from '@whiskeysockets/baileys';
+import {
     DisconnectReason,
     useMultiFileAuthState,
     fetchLatestBaileysVersion,
-    makeCacheableSignalKeyStore
-} = require('@whiskeysockets/baileys');
-const WebSocket = require('ws');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+    makeCacheableSignalKeyStore} from '@whiskeysockets/baileys';
+import pino from 'pino';
+import { WebSocket, WebSocketServer } from 'ws';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
 const dataPath = path.join(appData, 'SimHub', 'WhatsAppPlugin', 'data_baileys');
@@ -60,7 +60,7 @@ process.on('unhandledRejection', (err) => {
 log('[BAILEYS] Starting Baileys server...');
 log('[WS] Starting server on port 3000...');
 
-const wss = new WebSocket.Server({
+const wss = new WebSocketServer({
     port: 3000,
     host: '127.0.0.1'
 });
@@ -147,7 +147,7 @@ async function connectToWhatsApp() {
             version,
             auth: {
                 creds: state.creds,
-                keys: makeCacheableSignalKeyStore(state.keys, require('pino')({ level: 'silent' }))
+                keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
             },
             printQRInTerminal: false,
             getMessage: async () => undefined

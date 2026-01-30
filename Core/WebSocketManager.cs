@@ -126,9 +126,9 @@ namespace WhatsAppSimHubPlugin.Core
                 }
             }
 
-            // Copiar baileys-server.js
-            var baileysScriptPath = Path.Combine(_pluginPath, "node", "baileys-server.js");
-            var baileysResourceName = "WhatsAppSimHubPlugin.Resources.baileys-server.js";
+            // Copiar baileys-server.mjs
+            var baileysScriptPath = Path.Combine(_pluginPath, "node", "baileys-server.mjs");
+            var baileysResourceName = "WhatsAppSimHubPlugin.Resources.baileys-server.mjs";
 
             using (Stream stream = assembly.GetManifestResourceStream(baileysResourceName))
             {
@@ -137,6 +137,21 @@ namespace WhatsAppSimHubPlugin.Core
                     using (StreamReader reader = new StreamReader(stream))
                     {
                         File.WriteAllText(baileysScriptPath, reader.ReadToEnd());
+                    }
+                }
+            }
+
+            // Copiar package.json (com ambas as bibliotecas: whatsapp-web.js e Baileys)
+            var packageJsonPath = Path.Combine(_pluginPath, "node", "package.json");
+            var packageJsonResourceName = "WhatsAppSimHubPlugin.Resources.package.json";
+
+            using (Stream stream = assembly.GetManifestResourceStream(packageJsonResourceName))
+            {
+                if (stream != null)
+                {
+                    using (StreamReader reader = new StreamReader(stream))
+                    {
+                        File.WriteAllText(packageJsonPath, reader.ReadToEnd());
                     }
                 }
             }
@@ -401,7 +416,7 @@ namespace WhatsAppSimHubPlugin.Core
             KillOldNodeProcesses();
 
             // Escolher script baseado no backend mode
-            var scriptName = _backendMode == "baileys" ? "baileys-server.js" : "whatsapp-server.js";
+            var scriptName = _backendMode == "baileys" ? "baileys-server.mjs" : "whatsapp-server.js";
             var scriptPath = Path.Combine(_pluginPath, "node", scriptName);
             StatusChanged?.Invoke(this, $"Debug: Starting {_backendMode} backend");
             StatusChanged?.Invoke(this, $"Debug: script path = {scriptPath}");

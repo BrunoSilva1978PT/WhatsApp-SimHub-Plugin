@@ -8,11 +8,12 @@
     "start-baileys": "node baileys-server.js"
   },
   "dependencies": {
-    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#webpack-exodus",
+    "whatsapp-web.js": "github:DouglasReisofc/douglasreiswebjs",
     "@whiskeysockets/baileys": "^6.7.16",
     "ws": "^8.18.0",
     "pino": "^9.6.0",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "puppeteer": "^21.0.0"
   },
   "author": "Bruno Silva",
   "license": "MIT"

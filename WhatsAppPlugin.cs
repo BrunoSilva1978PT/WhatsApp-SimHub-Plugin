@@ -283,7 +283,7 @@ namespace WhatsAppSimHubPlugin
 
             // 🔥 VERIFICAR SE SETUP JÁ FOI COMPLETO (arquivo .setup-complete existe?)
             string setupFlagPath = Path.Combine(_pluginPath, ".setup-complete");
-            if (File.Exists(setupFlagPath))
+            if (Directory.Exists(Path.Combine(_pluginPath, "node", "node_modules", "@whiskeysockets", "baileys")))
             {
                 _setupComplete = true;
                 WriteLog("✅ Setup already completed previously (found .setup-complete flag)");
@@ -2190,12 +2190,12 @@ namespace WhatsAppSimHubPlugin
                 try
                 {
                     string setupFlagPath = Path.Combine(_pluginPath, ".setup-complete");
-                    File.WriteAllText(setupFlagPath, DateTime.Now.ToString());
-                    WriteLog($"✅ Setup flag saved: {setupFlagPath}");
+                    // File.WriteAllText(setupFlagPath, DateTime.Now.ToString()); // DISABLED - using node_modules check instead
+                    // WriteLog($"✅ Setup flag saved: {setupFlagPath}");
                 }
                 catch (Exception ex)
                 {
-                    WriteLog($"⚠️ Could not save setup flag: {ex.Message}");
+                    // WriteLog($"⚠️ Could not save setup flag: {ex.Message}");
                 }
 
                 // Mostrar botão Continue!
@@ -2439,12 +2439,12 @@ namespace WhatsAppSimHubPlugin
             try
             {
                 string setupFlagPath = Path.Combine(_pluginPath, ".setup-complete");
-                File.WriteAllText(setupFlagPath, DateTime.Now.ToString());
-                WriteLog($"✅ Created setup flag file: {setupFlagPath}");
+                // File.WriteAllText(setupFlagPath, DateTime.Now.ToString()); // DISABLED - using node_modules check instead
+                // WriteLog($"✅ Created setup flag file: {setupFlagPath}");
             }
             catch (Exception ex)
             {
-                WriteLog($"⚠️ Could not create setup flag file: {ex.Message}");
+                // WriteLog($"⚠️ Could not create setup flag file: {ex.Message}");
             }
 
             // Esconder botão e mostrar mensagem de restart
@@ -2573,16 +2573,36 @@ namespace WhatsAppSimHubPlugin
                         WriteLog($"⚠️ Could not use PluginManager restart: {ex.Message}");
                     }
 
-                    // FALLBACK: Restart manual
-                    WriteLog("🔄 Using fallback: Process.Start + Exit");
+                    // FALLBACK: Criar script que aguarda 5s e reabre SimHub
+                    WriteLog("🔄 Using fallback: delayed restart script");
                     var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
                     string simHubPath = currentProcess.MainModule.FileName;
-
-                    WriteLog($"🔄 Starting new SimHub from: {simHubPath}");
-                    System.Diagnostics.Process.Start(simHubPath);
-
-                    await System.Threading.Tasks.Task.Delay(500);
-
+                    
+                    // Criar batch script temporário
+                    string batchPath = Path.Combine(Path.GetTempPath(), "simhub_restart.bat");
+                    string batchContent = $@"@echo off
+timeout /t 5 /nobreak >nul
+start """" ""{simHubPath}""
+del ""%~f0""
+";
+                    
+                    File.WriteAllText(batchPath, batchContent);
+                    WriteLog($"🔄 Created restart script: {batchPath}");
+                    
+                    // Executar script silenciosamente
+                    var startInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = batchPath,
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                    };
+                    
+                    System.Diagnostics.Process.Start(startInfo);
+                    WriteLog("🔄 Restart script launched. Closing SimHub in 1 second...");
+                    
+                    await System.Threading.Tasks.Task.Delay(1000);
+                    
                     WriteLog("🔄 Closing current SimHub instance...");
                     System.Environment.Exit(0);
                 }
