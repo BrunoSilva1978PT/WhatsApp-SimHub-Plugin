@@ -990,7 +990,7 @@ namespace WhatsAppSimHubPlugin.UI
         /// <summary>
         /// Backend Mode ComboBox changed
         /// </summary>
-        private void BackendModeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void BackendModeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (BackendModeCombo.SelectedItem == null) return;
 
@@ -1003,17 +1003,41 @@ namespace WhatsAppSimHubPlugin.UI
             _settings.BackendMode = newMode;
             _plugin.SaveSettings();
 
-            // Informar user que precisa reconectar
-            MessageBox.Show(
-                $"Backend changed to {selected.Content}.\n\nPlease disconnect and reconnect for changes to take effect.",
-                "Backend Changed",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information
-            );
-
             // Atualizar UI da tab Contacts
             UpdateContactsTabForBackend();
+
+            // Fazer switch automático do backend
+            try
+            {
+                // Mostrar mensagem que vai fazer reconnect
+                MessageBox.Show(
+                    $"Backend mudado para {selected.Content}.\n\nA fazer reconnect automático...",
+                    "Backend Mudado",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information
+                );
+
+                // Fazer switch do backend (para, aguarda, cria novo, inicia)
+                await _plugin.SwitchBackend(newMode);
+
+                MessageBox.Show(
+                    $"Backend {selected.Content} conectado com sucesso!\n\nPodes fazer scan do QR code agora.",
+                    "Reconnect Completo",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information
+                );
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Erro ao mudar backend: {ex.Message}",
+                    "Erro",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error
+                );
+            }
         }
+
 
         /// <summary>
         /// Checkbox VIP changed

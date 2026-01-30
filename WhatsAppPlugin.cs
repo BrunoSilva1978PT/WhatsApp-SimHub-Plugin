@@ -1161,6 +1161,58 @@ namespace WhatsAppSimHubPlugin
             }
         }
 
+        /// <summary>
+        /// Muda o backend (whatsapp-web.js <-> Baileys) e faz reconnect automático
+        /// </summary>
+        public async System.Threading.Tasks.Task SwitchBackend(string newBackend)
+        {
+            WriteLog($"🔄 Switching backend to: {newBackend}");
+
+            try
+            {
+                // 1. Parar o nodeManager atual completamente
+                WriteLog("Stopping current backend...");
+                _nodeManager?.Stop();
+
+                // 2. Aguardar para garantir que Node.js/Chrome terminaram
+                await System.Threading.Tasks.Task.Delay(2000);
+
+                // 3. Desregistar eventos do nodeManager antigo
+                if (_nodeManager != null)
+                {
+                    _nodeManager.OnQrCode -= NodeManager_OnQrCode;
+                    _nodeManager.OnReady -= NodeManager_OnReady;
+                    _nodeManager.OnMessage -= NodeManager_OnMessage;
+                    _nodeManager.OnError -= NodeManager_OnError;
+                    _nodeManager.StatusChanged -= NodeManager_OnStatusChanged;
+                    _nodeManager.ChatContactsListReceived -= NodeManager_OnChatContactsListReceived;
+                    _nodeManager.ChatContactsError -= NodeManager_OnChatContactsError;
+                }
+
+                // 4. Criar novo nodeManager com o backend escolhido
+                WriteLog($"Creating new WebSocketManager with backend: {newBackend}");
+                _nodeManager = new WebSocketManager(_pluginPath, newBackend);
+                _nodeManager.OnQrCode += NodeManager_OnQrCode;
+                _nodeManager.OnReady += NodeManager_OnReady;
+                _nodeManager.OnMessage += NodeManager_OnMessage;
+                _nodeManager.OnError += NodeManager_OnError;
+                _nodeManager.StatusChanged += NodeManager_OnStatusChanged;
+                _nodeManager.ChatContactsListReceived += NodeManager_OnChatContactsListReceived;
+                _nodeManager.ChatContactsError += NodeManager_OnChatContactsError;
+
+                // 5. Iniciar o novo backend
+                WriteLog($"Starting {newBackend} backend...");
+                await _nodeManager.StartAsync();
+
+                WriteLog($"✅ Backend switched to {newBackend} successfully!");
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"❌ Error switching backend: {ex.Message}");
+                throw;
+            }
+        }
+
         public async void RefreshChatContacts()
         {
             WriteLog("🔄 Refreshing chat contacts list...");
