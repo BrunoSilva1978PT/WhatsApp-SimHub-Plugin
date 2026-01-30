@@ -918,5 +918,35 @@
                 </ScrollViewer>
             </styles:SHTabItem>
         </styles:SHTabControl>
+
+    <!-- Toast Notification -->
+    <Border x:Name="ToastNotification"
+            Background="#2D2D30"
+            BorderBrush="#007ACC"
+            BorderThickness="1"
+            CornerRadius="5"
+            Padding="15,10"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Top"
+            Margin="0,20,0,0"
+            Visibility="Collapsed"
+            MaxWidth="500">
+        <Border.Effect>
+            <DropShadowEffect Color="#007ACC" Opacity="0.6" BlurRadius="15" ShadowDepth="0"/>
+        </Border.Effect>
+        <StackPanel Orientation="Horizontal">
+            <TextBlock x:Name="ToastIcon"
+                       Text="ℹ️"
+                       FontSize="20"
+                       Margin="0,0,10,0"
+                       VerticalAlignment="Center"/>
+            <TextBlock x:Name="ToastMessage"
+                       Text="Notification"
+                       FontSize="14"
+                       Foreground="White"
+                       TextWrapping="Wrap"
+                       VerticalAlignment="Center"/>
+        </StackPanel>
+    </Border>
     </Grid>
 </UserControl>

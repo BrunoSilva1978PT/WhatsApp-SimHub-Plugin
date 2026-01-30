@@ -670,8 +670,7 @@ namespace WhatsAppSimHubPlugin.UI
 
             ChatContactsComboBox.SelectedIndex = -1;
 
-            MessageBox.Show($"✅ {newContact.Name} added to allowed contacts!", "Added",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            ShowToast($"{newContact.Name} adicionado aos contactos permitidos!", "✅");
         }
 
         /// <summary>
@@ -1252,6 +1251,30 @@ namespace WhatsAppSimHubPlugin.UI
                 ChatsStatusText.Text = "Click Refresh to load contacts from active chats";
                 ChatsStatusText.Foreground = new SolidColorBrush(Color.FromRgb(133, 133, 133)); // Gray
             }
+        }
+
+        /// <summary>
+        /// Mostra notificação toast que desaparece após 10 segundos
+        /// </summary>
+        private void ShowToast(string message, string icon = "ℹ️", int durationSeconds = 10)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                ToastMessage.Text = message;
+                ToastIcon.Text = icon;
+                ToastNotification.Visibility = Visibility.Visible;
+
+                var timer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(durationSeconds)
+                };
+                timer.Tick += (s, e) =>
+                {
+                    ToastNotification.Visibility = Visibility.Collapsed;
+                    timer.Stop();
+                };
+                timer.Start();
+            });
         }
     }
 }
