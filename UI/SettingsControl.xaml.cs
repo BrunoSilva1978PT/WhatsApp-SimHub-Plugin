@@ -1020,22 +1020,12 @@ namespace WhatsAppSimHubPlugin.UI
             try
             {
                 // Mostrar mensagem que vai fazer reconnect
-                MessageBox.Show(
-                    $"Backend mudado para {selected.Content}.\n\nA fazer reconnect automático...",
-                    "Backend Mudado",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information
-                );
+                ShowToast($"A mudar para {selected.Content}...", "🔄", 3);
 
                 // Fazer switch do backend (para, aguarda, cria novo, inicia)
                 await _plugin.SwitchBackend(newMode);
 
-                MessageBox.Show(
-                    $"Backend {selected.Content} conectado com sucesso!\n\nPodes fazer scan do QR code agora.",
-                    "Reconnect Completo",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information
-                );
+                ShowToast($"{selected.Content} conectado com sucesso!", "✅", 5);
             }
             catch (Exception ex)
             {
