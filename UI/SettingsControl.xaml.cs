@@ -247,8 +247,7 @@ namespace WhatsAppSimHubPlugin.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading settings: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowToast($"Error loading settings: {ex.Message}", "❌", 10);
             }
 
             // Verificar se o script Node.js está a correr
@@ -432,8 +431,7 @@ namespace WhatsAppSimHubPlugin.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error disconnecting: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowToast($"Error disconnecting: {ex.Message}", "❌", 10);
             }
         }
 
@@ -443,13 +441,11 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 _plugin.RefreshDevices();
                 LoadAvailableDevices();
-                MessageBox.Show("Devices refreshed! VoCores should now appear if connected.",
-                    "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowToast("Devices refreshed! VoCores should now appear if connected.", "✅", 5);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error refreshing devices: {ex.Message}",
-                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowToast($"Error refreshing devices: {ex.Message}", "❌", 10);
             }
         }
 
@@ -460,21 +456,18 @@ namespace WhatsAppSimHubPlugin.UI
                 // Verificar se há device selecionado
                 if (string.IsNullOrEmpty(_settings.TargetDevice))
                 {
-                    MessageBox.Show("Please select a VoCore device first!",
-                        "No Device Selected", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    ShowToast("Please select a VoCore device first!", "⚠️", 5);
                     return;
                 }
 
                 // ✅ NOVO TESTE: Não muda VoCore, não muda dashboard, só mostra mensagem
                 _plugin.ShowTestMessage();
 
-                MessageBox.Show($"Test message displayed for 5 seconds on {_settings.TargetDevice}!",
-                    "Test Sent", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowToast("Testing selected VoCore for 5s", "✅", 5);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error testing overlay: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowToast($"Error testing overlay: {ex.Message}", "❌", 10);
             }
         }
 
@@ -594,8 +587,7 @@ namespace WhatsAppSimHubPlugin.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error reconnecting: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowToast($"Error reconnecting: {ex.Message}", "❌", 10);
             }
         }
 
@@ -641,8 +633,7 @@ namespace WhatsAppSimHubPlugin.UI
 
             if (selected == null)
             {
-                MessageBox.Show("Please select a contact from the list.", "No Selection",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                ShowToast("Please select a contact from the list.", "⚠️", 5);
                 return;
             }
 
@@ -653,8 +644,7 @@ namespace WhatsAppSimHubPlugin.UI
 
             if (existing != null)
             {
-                MessageBox.Show($"{existing.Name} is already in your allowed contacts list.", "Already Added",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowToast($"{existing.Name} is already in your allowed contacts list.", "ℹ️", 5);
                 return;
             }
 
@@ -700,16 +690,14 @@ namespace WhatsAppSimHubPlugin.UI
 
             if (string.IsNullOrEmpty(keyword))
             {
-                MessageBox.Show("Please enter a keyword", "Validation",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                ShowToast("Please enter a keyword", "⚠️", 5);
                 return;
             }
 
             // Verificar duplicados (case-insensitive)
             if (_keywords.Any(k => k.ToLowerInvariant() == keyword))
             {
-                MessageBox.Show("This keyword already exists", "Validation",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                ShowToast("This keyword already exists", "ℹ️", 5);
                 return;
             }
 
@@ -934,15 +922,13 @@ namespace WhatsAppSimHubPlugin.UI
             // Validar
             if (string.IsNullOrWhiteSpace(name) || name == "Name")
             {
-                MessageBox.Show("Please enter a name.", "Name Required",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                ShowToast("Please enter a name.", "⚠️", 5);
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(number) || number == "+351..." || !number.StartsWith("+"))
             {
-                MessageBox.Show("Please enter a valid phone number.\n\nFormat: +[country code][number]\nExample: +351912345678",
-                    "Invalid Number", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ShowToast("Please enter a valid phone number.\n\nFormat: +[country code][number]\nExample: +351912345678", "⚠️", 8);
                 return;
             }
 
@@ -953,8 +939,7 @@ namespace WhatsAppSimHubPlugin.UI
 
             if (existing != null)
             {
-                MessageBox.Show("A contact with this number already exists.", "Duplicate",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowToast("A contact with this number already exists.", "ℹ️", 5);
                 return;
             }
 
@@ -973,8 +958,7 @@ namespace WhatsAppSimHubPlugin.UI
             ManualNameTextBox.Text = "Name";
             ManualNumberTextBox.Text = "+351...";
 
-            MessageBox.Show($"✅ {contact.Name} added to allowed contacts!", "Added",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            ShowToast($"{contact.Name} added to allowed contacts!", "✅", 5);
         }
 
         /// <summary>

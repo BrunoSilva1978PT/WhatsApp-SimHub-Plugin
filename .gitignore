@@ -93,3 +93,9 @@ npm-debug.log*
 # Plugin specific
 scripts/node/
 scripts/auth_info/
+
+# Documentation files (internal guides - not for GitHub)
+# Exclude all .md files except README.md
+*.md
+!README.md
+!lib/README.md
