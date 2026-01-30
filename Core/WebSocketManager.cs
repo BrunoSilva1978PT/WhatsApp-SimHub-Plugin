@@ -497,6 +497,9 @@ namespace WhatsAppSimHubPlugin.Core
                     _isConnected = true;
                     StatusChanged?.Invoke(this, "Connected");
                     _ = Task.Run(() => ReceiveMessages());
+
+                    // Enviar comando "connect" para Baileys iniciar conexão
+                    await SendCommandAsync("connect");
                     return;
                 }
                 catch (Exception ex)
