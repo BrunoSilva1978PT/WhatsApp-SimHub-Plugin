@@ -68,26 +68,53 @@
                 </StackPanel>
             </Border>
             
-            <!-- npm packages Status -->
-            <Border Background="#252526" 
-                    CornerRadius="5" 
+            <!-- WhatsApp-Web.js Status -->
+            <Border Background="#252526"
+                    CornerRadius="5"
                     Padding="15"
-                    Margin="0,0,0,20">
+                    Margin="0,0,0,10">
                 <StackPanel>
                     <DockPanel>
-                        <TextBlock x:Name="NpmStatusIcon" 
-                                   Text="⏸️" 
+                        <TextBlock x:Name="WhatsAppWebJsStatusIcon"
+                                   Text="⏸️"
                                    FontSize="20"
                                    Foreground="#858585"
                                    DockPanel.Dock="Left"
                                    Margin="0,0,10,0"/>
-                        <TextBlock Text="npm packages" 
+                        <TextBlock Text="whatsapp-web.js"
                                    FontSize="16"
                                    FontWeight="SemiBold"
                                    Foreground="White"
                                    VerticalAlignment="Center"/>
                     </DockPanel>
-                    <TextBlock x:Name="NpmStatusText"
+                    <TextBlock x:Name="WhatsAppWebJsStatusText"
+                               Text="Waiting for Node.js and Git..."
+                               FontSize="12"
+                               Foreground="#858585"
+                               Margin="30,5,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Baileys Status -->
+            <Border Background="#252526"
+                    CornerRadius="5"
+                    Padding="15"
+                    Margin="0,0,0,20">
+                <StackPanel>
+                    <DockPanel>
+                        <TextBlock x:Name="BaileysStatusIcon"
+                                   Text="⏸️"
+                                   FontSize="20"
+                                   Foreground="#858585"
+                                   DockPanel.Dock="Left"
+                                   Margin="0,0,10,0"/>
+                        <TextBlock Text="Baileys"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Foreground="White"
+                                   VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock x:Name="BaileysStatusText"
                                Text="Waiting for Node.js and Git..."
                                FontSize="12"
                                Foreground="#858585"

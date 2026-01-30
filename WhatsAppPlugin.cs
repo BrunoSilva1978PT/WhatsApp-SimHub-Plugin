@@ -2024,7 +2024,8 @@ namespace WhatsAppSimHubPlugin
 
                     if (_setupControl != null)
                     {
-                        _setupControl.UpdateNpmStatus("Installing packages (this may take 1-2 minutes)...", false);
+                        _setupControl.UpdateWhatsAppWebJsStatus("Installing...", false);
+                        _setupControl.UpdateBaileysStatus("Installing...", false);
                         _setupControl.UpdateProgress(70, "Installing npm packages...");
                     }
 
@@ -2033,10 +2034,43 @@ namespace WhatsAppSimHubPlugin
                     if (success)
                     {
                         WriteLog("✅ npm packages installed successfully!");
+                        
+                        // Verificar individualmente cada biblioteca
+                        bool whatsappWebJsInstalled = _dependencyManager.IsWhatsAppWebJsInstalled();
+                        bool baileysInstalled = _dependencyManager.IsBaileysInstalled();
+                        
                         if (_setupControl != null)
                         {
-                            _setupControl.UpdateNpmStatus("Installed (whatsapp-web.js + dependencies)", true);
-                            _setupControl.UpdateProgress(100, "All dependencies ready!");
+                            if (whatsappWebJsInstalled)
+                            {
+                                _setupControl.UpdateWhatsAppWebJsStatus("Installed", true);
+                                WriteLog("✅ whatsapp-web.js library verified");
+                            }
+                            else
+                            {
+                                _setupControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
+                                WriteLog("⚠️ whatsapp-web.js library not found after installation");
+                            }
+                            
+                            if (baileysInstalled)
+                            {
+                                _setupControl.UpdateBaileysStatus("Installed", true);
+                                WriteLog("✅ Baileys library verified");
+                            }
+                            else
+                            {
+                                _setupControl.UpdateBaileysStatus("Not found", false, true);
+                                WriteLog("⚠️ Baileys library not found after installation");
+                            }
+                            
+                            if (whatsappWebJsInstalled && baileysInstalled)
+                            {
+                                _setupControl.UpdateProgress(100, "All dependencies ready!");
+                            }
+                            else
+                            {
+                                _setupControl.UpdateProgress(90, "Some libraries missing - plugin may not work correctly");
+                            }
                         }
                     }
                     else
@@ -2044,22 +2078,57 @@ namespace WhatsAppSimHubPlugin
                         WriteLog("❌ ERROR: Failed to install npm packages!");
                         if (_setupControl != null)
                         {
-                            _setupControl.UpdateNpmStatus("Installation failed", false, true);
+                            _setupControl.UpdateWhatsAppWebJsStatus("Installation failed", false, true);
+                            _setupControl.UpdateBaileysStatus("Installation failed", false, true);
                             _setupControl.UpdateProgress(0, "ERROR: npm install failed");
-                            _setupControl.ShowRetryButton(); // MOSTRAR BOTÃO RETRY!
+                            _setupControl.ShowRetryButton();
                         }
                         return;
                     }
                 }
                 else
                 {
-                    WriteLog("✅ npm packages already installed");
+                    WriteLog("✅ npm packages already installed - verifying libraries...");
+                    
+                    // Verificar individualmente cada biblioteca
+                    bool whatsappWebJsInstalled = _dependencyManager.IsWhatsAppWebJsInstalled();
+                    bool baileysInstalled = _dependencyManager.IsBaileysInstalled();
+                    
                     if (_setupControl != null)
                     {
-                        _setupControl.UpdateNpmStatus("Already installed", true);
-                        _setupControl.UpdateProgress(100, "All dependencies ready!");
+                        if (whatsappWebJsInstalled)
+                        {
+                            _setupControl.UpdateWhatsAppWebJsStatus("Already installed", true);
+                            WriteLog("✅ whatsapp-web.js library found");
+                        }
+                        else
+                        {
+                            _setupControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
+                            WriteLog("⚠️ whatsapp-web.js library not found");
+                        }
+                        
+                        if (baileysInstalled)
+                        {
+                            _setupControl.UpdateBaileysStatus("Already installed", true);
+                            WriteLog("✅ Baileys library found");
+                        }
+                        else
+                        {
+                            _setupControl.UpdateBaileysStatus("Not found", false, true);
+                            WriteLog("⚠️ Baileys library not found");
+                        }
+                        
+                        if (whatsappWebJsInstalled && baileysInstalled)
+                        {
+                            _setupControl.UpdateProgress(100, "All dependencies ready!");
+                        }
+                        else
+                        {
+                            _setupControl.UpdateProgress(90, "Some libraries missing - plugin may not work correctly");
+                        }
                     }
                 }
+
 
                 // ============ TUDO PRONTO! ============
                 WriteLog("✅ All dependencies installed - starting Node.js...");

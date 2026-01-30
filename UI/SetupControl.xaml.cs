@@ -65,26 +65,56 @@ namespace WhatsAppSimHubPlugin.UI
             });
         }
         
+        // Legacy method - delegates to both library status updates
         public void UpdateNpmStatus(string status, bool isComplete, bool isError = false)
+        {
+            UpdateWhatsAppWebJsStatus(status, isComplete, isError);
+            UpdateBaileysStatus(status, isComplete, isError);
+        }
+
+        public void UpdateWhatsAppWebJsStatus(string status, bool isComplete, bool isError = false)
         {
             Dispatcher.Invoke(() =>
             {
                 if (isError)
                 {
-                    NpmStatusIcon.Text = "❌";
-                    NpmStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
+                    WhatsAppWebJsStatusIcon.Text = "❌";
+                    WhatsAppWebJsStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
                 }
                 else if (isComplete)
                 {
-                    NpmStatusIcon.Text = "✅";
-                    NpmStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(14, 231, 160));
+                    WhatsAppWebJsStatusIcon.Text = "✅";
+                    WhatsAppWebJsStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(14, 231, 160));
                 }
                 else
                 {
-                    NpmStatusIcon.Text = "⏳";
-                    NpmStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
+                    WhatsAppWebJsStatusIcon.Text = "⏳";
+                    WhatsAppWebJsStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
                 }
-                NpmStatusText.Text = status;
+                WhatsAppWebJsStatusText.Text = status;
+            });
+        }
+
+        public void UpdateBaileysStatus(string status, bool isComplete, bool isError = false)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (isError)
+                {
+                    BaileysStatusIcon.Text = "❌";
+                    BaileysStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
+                }
+                else if (isComplete)
+                {
+                    BaileysStatusIcon.Text = "✅";
+                    BaileysStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(14, 231, 160));
+                }
+                else
+                {
+                    BaileysStatusIcon.Text = "⏳";
+                    BaileysStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
+                }
+                BaileysStatusText.Text = status;
             });
         }
         

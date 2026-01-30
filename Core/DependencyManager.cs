@@ -369,6 +369,64 @@ namespace WhatsAppSimHubPlugin.Core
         
         /// <summary>
         /// Instala npm packages localmente
+
+        /// <summary>
+        /// Verifica se whatsapp-web.js está instalado
+        /// </summary>
+        public bool IsWhatsAppWebJsInstalled()
+        {
+            try
+            {
+                string whatsappWebPath = Path.Combine(_pluginPath, "node", "node_modules", "whatsapp-web.js");
+                
+                if (Directory.Exists(whatsappWebPath))
+                {
+                    // Verificar se tem package.json para confirmar instalação válida
+                    string packageJson = Path.Combine(whatsappWebPath, "package.json");
+                    if (File.Exists(packageJson))
+                    {
+                        Log("whatsapp-web.js library found");
+                        return true;
+                    }
+                }
+
+                Log("whatsapp-web.js library NOT found");
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Verifica se Baileys está instalado
+        /// </summary>
+        public bool IsBaileysInstalled()
+        {
+            try
+            {
+                string baileysPath = Path.Combine(_pluginPath, "node", "node_modules", "@whiskeysockets", "baileys");
+                
+                if (Directory.Exists(baileysPath))
+                {
+                    // Verificar se tem package.json para confirmar instalação válida
+                    string packageJson = Path.Combine(baileysPath, "package.json");
+                    if (File.Exists(packageJson))
+                    {
+                        Log("Baileys library found");
+                        return true;
+                    }
+                }
+
+                Log("Baileys library NOT found");
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
         /// </summary>
         public async Task<bool> InstallNpmPackages()
         {
