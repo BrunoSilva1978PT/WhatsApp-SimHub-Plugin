@@ -341,16 +341,27 @@ namespace WhatsAppSimHubPlugin.UI
                         break;
 
                     case "connecting":
+                        StatusIndicator.Fill = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
+
+                        // Disconnect deve estar sempre disponível
+                        DisconnectButton.IsEnabled = true;
+                        DisconnectButton.Opacity = 1.0;
+                        ReconnectButton.IsEnabled = false;
+                        ReconnectButton.Opacity = 0.5;
+                        ConnectedNumberText.Text = "Connecting to WhatsApp...";
+                        break;
+
                     case "qr":
                         StatusIndicator.Fill = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
 
-                        // Both disabled while connecting
-                        DisconnectButton.IsEnabled = false;
-                        DisconnectButton.Opacity = 0.5;
+                        // Disconnect deve estar sempre disponível
+                        DisconnectButton.IsEnabled = true;
+                        DisconnectButton.Opacity = 1.0;
                         ReconnectButton.IsEnabled = false;
                         ReconnectButton.Opacity = 0.5;
                         ConnectedNumberText.Text = "Waiting for QR code scan...";
                         break;
+
 
                     case "node.js not installed":
                         StatusIndicator.Fill = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange

@@ -101,6 +101,15 @@ wss.on('connection', (socket) => {
             const data = JSON.parse(msg);
             log('[WS] Received: ' + data.type);
 
+            if (data.type === 'connect') {
+                if (!sock || !isConnected) {
+                    log('[BAILEYS] Connecting to WhatsApp...');
+                    await connectToWhatsApp();
+                } else {
+                    log('[BAILEYS] Already connected');
+                    send({ type: 'already_connected' });
+                }
+            }
             if (data.type === 'sendReply') {
                 try {
                     log(`[REPLY] Sending to: ${data.chatId}`);
@@ -294,5 +303,4 @@ async function connectToWhatsApp() {
     }
 }
 
-log('[BAILEYS] Initializing...');
-connectToWhatsApp();
+log("[BAILEYS] Server ready - waiting for plugin connection...");
