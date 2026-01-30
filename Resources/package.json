@@ -1,0 +1,19 @@
+{
+  "name": "whatsapp-simhub-plugin",
+  "version": "1.0.0",
+  "description": "WhatsApp integration for SimHub with dual backend support",
+  "main": "whatsapp-server.js",
+  "scripts": {
+    "start-whatsapp": "node whatsapp-server.js",
+    "start-baileys": "node baileys-server.js"
+  },
+  "dependencies": {
+    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#webpack-exodus",
+    "@whiskeysockets/baileys": "^6.7.16",
+    "ws": "^8.18.0",
+    "pino": "^9.6.0",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "author": "Bruno Silva",
+  "license": "MIT"
+}

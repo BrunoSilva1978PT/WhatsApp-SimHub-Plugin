@@ -12,7 +12,7 @@
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
-    
+
     <!-- Caminho padrão do SimHub -->
     <SimHubPath Condition="'$(SimHubPath)' == ''">C:\Program Files (x86)\SimHub\</SimHubPath>
   </PropertyGroup>
@@ -45,19 +45,19 @@
       <HintPath>$(SimHubPath)SimHub.Plugins.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    
+
     <!-- GameReaderCommon.dll - Para IDataPlugin e GameData -->
     <Reference Include="GameReaderCommon">
       <HintPath>$(SimHubPath)GameReaderCommon.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    
+
     <!-- SimHubWPF.exe - Contém os controlos de UI como InputSelectionDialog -->
     <Reference Include="SimHubWPF">
       <HintPath>$(SimHubPath)SimHubWPF.exe</HintPath>
       <Private>False</Private>
     </Reference>
-    
+
     <!-- System References -->
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -110,6 +110,8 @@
     <EmbeddedResource Include="Resources\icon.png" />
     <EmbeddedResource Include="Resources\WhatsAppPlugin.simhubdash" />
     <EmbeddedResource Include="Resources\whatsapp-server.js" />
+    <EmbeddedResource Include="Resources\baileys-server.js" />
+    <EmbeddedResource Include="Resources\package.json" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\WhatsAppPlugin.simhubdash">

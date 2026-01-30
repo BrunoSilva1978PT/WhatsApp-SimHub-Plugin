@@ -4,6 +4,9 @@ namespace WhatsAppSimHubPlugin.Models
 {
     public class PluginSettings
     {
+        // Backend Mode
+        public string BackendMode { get; set; } = "whatsapp-web.js"; // "whatsapp-web.js" ou "baileys"
+
         // Display
         public string TargetDevice { get; set; } = "";
 
@@ -40,7 +43,7 @@ namespace WhatsAppSimHubPlugin.Models
         {
             // Construtor vazio - keywords default são adicionadas via EnsureDefaults()
         }
-        
+
         public void EnsureDefaults()
         {
             // Adicionar keywords default só se a lista estiver completamente vazia
