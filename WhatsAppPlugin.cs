@@ -34,6 +34,7 @@ namespace WhatsAppSimHubPlugin
         private bool _isTestingMessage = false; // 🔥 Flag para bloquear queues durante teste
         private Timer _dashboardCheckTimer; // 🔥 Timer para verificar dashboard de 30 em 30s
         private DashboardInstaller _dashboardInstaller; // 🔥 Installer para reinstalar dashboard
+        private DashboardMerger _dashboardMerger; // 🔥 Merger para juntar dashboards
 
         // 🎮 QUICK REPLIES: Agora funcionam via Actions registadas!
         // Ver RegisterActions() e SendQuickReply(int)
@@ -313,6 +314,11 @@ namespace WhatsAppSimHubPlugin
             // 📦 INSTALAR DASHBOARD AUTOMATICAMENTE
             WriteLog("=== Dashboard Installation ===");
             _dashboardInstaller = new DashboardInstaller(PluginManager, WriteLog);
+
+            // Inicializar dashboard merger
+            string dashTemplatesPath = _dashboardInstaller.GetDashboardsPath();
+            _dashboardMerger = new DashboardMerger(dashTemplatesPath, WriteLog);
+
             bool installed = _dashboardInstaller.InstallDashboard();
 
             if (installed)
@@ -329,7 +335,7 @@ namespace WhatsAppSimHubPlugin
             WriteLog($"Dashboard accessible: {dashExists}");
 
             // 🔥 INICIAR TIMER: Verificar dashboard de 30 em 30s
-            _dashboardCheckTimer = new Timer(30000);
+            _dashboardCheckTimer = new Timer(30000); // 30 segundos
             _dashboardCheckTimer.Elapsed += DashboardCheckTimer_Elapsed;
             _dashboardCheckTimer.AutoReset = true;
             _dashboardCheckTimer.Start();
@@ -1400,30 +1406,55 @@ namespace WhatsAppSimHubPlugin
                     // ✅ Já está ligado - não faz log (silencioso)
                 }
 
-                // PASSO 2: Verificar se dashboard está correto
+                // PASSO 2: Verificar e configurar dashboard (com merge se necessário)
                 var overlayDashboardProp = settingsType.GetProperty("CurrentOverlayDashboard");
                 if (overlayDashboardProp != null)
                 {
                     var overlayDashboard = overlayDashboardProp.GetValue(_vocoreSettings);
                     if (overlayDashboard != null)
                     {
-                        // Verificar dashboard atual
-                        var getCurrentMethod = overlayDashboard.GetType().GetMethod("Get");
-                        string currentDashboard = null;
 
-                        if (getCurrentMethod != null)
+                        // Obter dashboard atual usando propriedade Dashboard
+                        string currentDashboard = null;
+                        var dashProp = overlayDashboard.GetType().GetProperty("Dashboard");
+                        if (dashProp != null)
                         {
-                            currentDashboard = getCurrentMethod.Invoke(overlayDashboard, null) as string;
+                            currentDashboard = dashProp.GetValue(overlayDashboard) as string;
+                        }
+                        else
+                        {
                         }
 
-                        // Só mudar se não for WhatsAppPlugin
-                        if (currentDashboard != "WhatsAppPlugin")
+                        // 🔥 NOVA LÓGICA COM MERGE
+
+                        // Verificar se dashboard atual existe (user pode ter apagado)
+                        if (!string.IsNullOrEmpty(currentDashboard) &&
+                            !_dashboardMerger.DashboardExists(currentDashboard))
+                        {
+                            WriteLog($"⚠️ Current dashboard '{currentDashboard}' does not exist (user deleted it)!");
+                            WriteLog($"→ Treating as empty - will install WhatsAppPlugin");
+                            // Tratar como vazio para forçar instalação do plugin
+                            currentDashboard = null;
+                        }
+
+                        string targetDashboard = DetermineDashboardToSet(currentDashboard);
+                        
+                        // Se precisa mudar dashboard
+                        if (targetDashboard != null && targetDashboard != currentDashboard)
                         {
                             var trySetMethod = overlayDashboard.GetType().GetMethod("TrySet");
                             if (trySetMethod != null)
                             {
-                                trySetMethod.Invoke(overlayDashboard, new object[] { "WhatsAppPlugin" });
-                                WriteLog($"✅ Dashboard changed: {currentDashboard ?? "none"} → WhatsAppPlugin");
+                                WriteLog($"📊 Changing dashboard: {currentDashboard ?? "none"} → {targetDashboard}");
+                                var result = trySetMethod.Invoke(overlayDashboard, new object[] { targetDashboard });
+
+                                // Verificar se realmente mudou
+                                System.Threading.Thread.Sleep(500);
+                                var verifyProp = overlayDashboard.GetType().GetProperty("Dashboard");
+                                if (verifyProp != null)
+                                {
+                                    string newDashboard = verifyProp.GetValue(overlayDashboard) as string;
+                                }
                             }
                         }
                         // ✅ Já está correto - não faz log (silencioso)
@@ -1434,6 +1465,74 @@ namespace WhatsAppSimHubPlugin
             catch (Exception ex)
             {
                 WriteLog($"⚠️ EnsureOverlayActive error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Determina qual dashboard deve ser configurado no Information Overlay
+        /// Lógica:
+        /// - Nenhum dashboard → Nosso dashboard (WhatsAppPlugin)
+        /// - Outro dashboard → Fazer merge e retornar merged
+        /// - Nosso dashboard → null (não mudar)
+        /// - Merged dashboard → null (não mudar)
+        /// </summary>
+        private string DetermineDashboardToSet(string currentDashboard)
+        {
+            try
+            {
+                const string OUR_DASHBOARD = "WhatsAppPlugin";
+                string MERGED_DASHBOARD = DashboardMerger.MergedDashboardName;
+
+                // Caso 1: Nenhum dashboard definido → instalar o nosso
+                if (string.IsNullOrEmpty(currentDashboard))
+                {
+                    WriteLog("📋 No dashboard in Information Overlay → Setting WhatsAppPlugin");
+                    return OUR_DASHBOARD;
+                }
+
+                // Caso 2: Já está o nosso dashboard → não mexer
+                if (currentDashboard == OUR_DASHBOARD)
+                {
+                    // Silencioso - já está OK
+                    return null;
+                }
+
+                // Caso 3: Já está o merged → não mexer
+                if (currentDashboard == MERGED_DASHBOARD)
+                {
+                    // Silencioso - já está OK
+                    return null;
+                }
+
+                // Caso 4: Está outro dashboard → verificar se existe e fazer merge
+                WriteLog($"🔀 Found different dashboard: {currentDashboard}");
+                
+                // ⚠️ VALIDAR SE O DASHBOARD EXISTE REALMENTE
+                if (!_dashboardMerger.DashboardExists(currentDashboard))
+                {
+                    WriteLog($"⚠️ Dashboard '{currentDashboard}' does not exist in DashTemplates (user may have deleted it)");
+                    WriteLog($"→ Installing WhatsAppPlugin only");
+                    return OUR_DASHBOARD;
+                }
+                
+                WriteLog($"✅ Dashboard exists → Merging with WhatsAppPlugin");
+                string mergedDashboard = _dashboardMerger.MergeDashboards(currentDashboard, OUR_DASHBOARD);
+
+                if (mergedDashboard != null)
+                {
+                    WriteLog($"✅ Merge successful → {mergedDashboard}");
+                    return mergedDashboard;
+                }
+                else
+                {
+                    WriteLog("❌ Merge failed → Falling back to WhatsAppPlugin only");
+                    return OUR_DASHBOARD;
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"⚠️ DetermineDashboardToSet error: {ex.Message}");
+                return "WhatsAppPlugin"; // Fallback
             }
         }
 
@@ -2086,11 +2185,11 @@ namespace WhatsAppSimHubPlugin
                     if (success)
                     {
                         WriteLog("✅ npm packages installed successfully!");
-                        
+
                         // Verificar individualmente cada biblioteca
                         bool whatsappWebJsInstalled = _dependencyManager.IsWhatsAppWebJsInstalled();
                         bool baileysInstalled = _dependencyManager.IsBaileysInstalled();
-                        
+
                         if (_setupControl != null)
                         {
                             if (whatsappWebJsInstalled)
@@ -2103,7 +2202,7 @@ namespace WhatsAppSimHubPlugin
                                 _setupControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
                                 WriteLog("⚠️ whatsapp-web.js library not found after installation");
                             }
-                            
+
                             if (baileysInstalled)
                             {
                                 _setupControl.UpdateBaileysStatus("Installed", true);
@@ -2114,7 +2213,7 @@ namespace WhatsAppSimHubPlugin
                                 _setupControl.UpdateBaileysStatus("Not found", false, true);
                                 WriteLog("⚠️ Baileys library not found after installation");
                             }
-                            
+
                             if (whatsappWebJsInstalled && baileysInstalled)
                             {
                                 _setupControl.UpdateProgress(100, "All dependencies ready!");
@@ -2141,11 +2240,11 @@ namespace WhatsAppSimHubPlugin
                 else
                 {
                     WriteLog("✅ npm packages already installed - verifying libraries...");
-                    
+
                     // Verificar individualmente cada biblioteca
                     bool whatsappWebJsInstalled = _dependencyManager.IsWhatsAppWebJsInstalled();
                     bool baileysInstalled = _dependencyManager.IsBaileysInstalled();
-                    
+
                     if (_setupControl != null)
                     {
                         if (whatsappWebJsInstalled)
@@ -2158,7 +2257,7 @@ namespace WhatsAppSimHubPlugin
                             _setupControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
                             WriteLog("⚠️ whatsapp-web.js library not found");
                         }
-                        
+
                         if (baileysInstalled)
                         {
                             _setupControl.UpdateBaileysStatus("Already installed", true);
@@ -2169,7 +2268,7 @@ namespace WhatsAppSimHubPlugin
                             _setupControl.UpdateBaileysStatus("Not found", false, true);
                             WriteLog("⚠️ Baileys library not found");
                         }
-                        
+
                         if (whatsappWebJsInstalled && baileysInstalled)
                         {
                             _setupControl.UpdateProgress(100, "All dependencies ready!");
@@ -2577,7 +2676,7 @@ namespace WhatsAppSimHubPlugin
                     WriteLog("🔄 Using fallback: delayed restart script");
                     var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
                     string simHubPath = currentProcess.MainModule.FileName;
-                    
+
                     // Criar batch script temporário
                     string batchPath = Path.Combine(Path.GetTempPath(), "simhub_restart.bat");
                     string batchContent = $@"@echo off
@@ -2585,10 +2684,10 @@ timeout /t 5 /nobreak >nul
 start """" ""{simHubPath}""
 del ""%~f0""
 ";
-                    
+
                     File.WriteAllText(batchPath, batchContent);
                     WriteLog($"🔄 Created restart script: {batchPath}");
-                    
+
                     // Executar script silenciosamente
                     var startInfo = new System.Diagnostics.ProcessStartInfo
                     {
@@ -2597,12 +2696,12 @@ del ""%~f0""
                         CreateNoWindow = true,
                         WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
                     };
-                    
+
                     System.Diagnostics.Process.Start(startInfo);
                     WriteLog("🔄 Restart script launched. Closing SimHub in 1 second...");
-                    
+
                     await System.Threading.Tasks.Task.Delay(1000);
-                    
+
                     WriteLog("🔄 Closing current SimHub instance...");
                     System.Environment.Exit(0);
                 }

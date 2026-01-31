@@ -12,6 +12,7 @@
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <RuntimeIdentifiers>win-x86</RuntimeIdentifiers>
 
     <!-- Caminho padrão do SimHub -->
     <SimHubPath Condition="'$(SimHubPath)' == ''">C:\Program Files (x86)\SimHub\</SimHubPath>
@@ -88,6 +89,7 @@
     <Compile Include="Core\OverlayRenderer.cs" />
     <Compile Include="Core\DashboardGenerator.cs" />
     <Compile Include="Core\DashboardInstaller.cs" />
+    <Compile Include="Core\DashboardMerger.cs" />
     <Compile Include="Core\PluginState.cs" />
     <Compile Include="Core\DependencyManager.cs" />
     <Compile Include="UI\SettingsControl.xaml.cs">

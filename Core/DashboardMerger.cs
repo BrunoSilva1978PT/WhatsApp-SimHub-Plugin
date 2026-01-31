@@ -1,0 +1,428 @@
+using System;
+using System.IO;
+using Newtonsoft.Json.Linq;
+using System.Linq;
+using Newtonsoft.Json;
+
+namespace WhatsAppSimHubPlugin.Core
+{
+    public class DashboardMerger
+    {
+        private const string MERGED_DASHBOARD_NAME = "WhatsApp_merged_overlay_dash";
+        private readonly Action<string> _log;
+        private readonly string _dashTemplatesPath;
+
+        public DashboardMerger(string dashTemplatesPath, Action<string> log = null)
+        {
+            _dashTemplatesPath = dashTemplatesPath;
+            _log = log;
+        }
+
+        public bool DashboardExists(string dashboardName)
+        {
+            if (string.IsNullOrEmpty(dashboardName)) return false;
+            string dashPath = Path.Combine(_dashTemplatesPath, dashboardName);
+            string djsonPath = Path.Combine(_dashTemplatesPath, dashboardName + ".djson");
+            return Directory.Exists(dashPath) || File.Exists(djsonPath);
+        }
+
+        public string MergeDashboards(string baseDashboardName, string overlayDashboardName)
+        {
+            try
+            {
+                _log?.Invoke($"Starting dashboard merge: {baseDashboardName} + {overlayDashboardName}");
+                if (!DashboardExists(baseDashboardName))
+                {
+                    _log?.Invoke($"Base dashboard not found: {baseDashboardName}");
+                    return null;
+                }
+                if (!DashboardExists(overlayDashboardName))
+                {
+                    _log?.Invoke($"Overlay dashboard not found: {overlayDashboardName}");
+                    return null;
+                }
+                var baseDash = LoadDashboard(baseDashboardName);
+                var overlayDash = LoadDashboard(overlayDashboardName);
+                if (baseDash == null || overlayDash == null)
+                {
+                    _log?.Invoke("Failed to load dashboards");
+                    return null;
+                }
+                var mergedDash = CreateWrapperDashboard(baseDash, overlayDash, baseDashboardName, overlayDashboardName);
+                if (mergedDash == null)
+                {
+                    _log?.Invoke("Failed to create wrapper dashboard");
+                    return null;
+                }
+                bool saved = SaveMergedDashboard(mergedDash, MERGED_DASHBOARD_NAME);
+                if (!saved)
+                {
+                    _log?.Invoke("Failed to save merged dashboard");
+                    return null;
+                }
+                CopyDashboardResources(baseDashboardName, MERGED_DASHBOARD_NAME);
+                CopyDashboardResources(overlayDashboardName, MERGED_DASHBOARD_NAME);
+                _log?.Invoke($"Dashboard merge completed: {MERGED_DASHBOARD_NAME}");
+                return MERGED_DASHBOARD_NAME;
+            }
+            catch (Exception ex)
+            {
+                _log?.Invoke($"MergeDashboards error: {ex.Message}");
+                return null;
+            }
+        }
+
+        private JObject LoadDashboard(string dashboardName)
+        {
+            try
+            {
+                string djsonPath = null;
+                string folderPath = Path.Combine(_dashTemplatesPath, dashboardName);
+                if (Directory.Exists(folderPath))
+                {
+                    string djsonInFolder = Path.Combine(folderPath, dashboardName + ".djson");
+                    if (File.Exists(djsonInFolder))
+                        djsonPath = djsonInFolder;
+                }
+                if (djsonPath == null)
+                {
+                    string directPath = Path.Combine(_dashTemplatesPath, dashboardName + ".djson");
+                    if (File.Exists(directPath))
+                        djsonPath = directPath;
+                }
+                if (djsonPath == null)
+                {
+                    _log?.Invoke($".djson file not found for dashboard: {dashboardName}");
+                    return null;
+                }
+                _log?.Invoke($"Loading dashboard from: {djsonPath}");
+                string jsonContent = File.ReadAllText(djsonPath);
+                return JObject.Parse(jsonContent);
+            }
+            catch (Exception ex)
+            {
+                _log?.Invoke($"LoadDashboard error ({dashboardName}): {ex.Message}");
+                return null;
+            }
+        }
+
+        private JObject CreateWrapperDashboard(JObject baseDash, JObject overlayDash, string baseDashName, string overlayDashName)
+        {
+            try
+            {
+                var baseItems = baseDash["Screens"]?[0]?["Items"] as JArray;
+                var overlayItems = overlayDash["Screens"]?[0]?["Items"] as JArray;
+                if (baseItems == null || overlayItems == null)
+                {
+                    _log?.Invoke("Could not extract Items from dashboards");
+                    return null;
+                }
+                _log?.Invoke($"Base dashboard has {baseItems.Count} items");
+                _log?.Invoke($"Overlay dashboard has {overlayItems.Count} items");
+
+                // Obter dimensões originais
+                int baseHeight = baseDash["BaseHeight"]?.Value<int>() ?? 480;
+                int baseWidth = baseDash["BaseWidth"]?.Value<int>() ?? 850;
+                int overlayHeight = overlayDash["BaseHeight"]?.Value<int>() ?? 480;
+                int overlayWidth = overlayDash["BaseWidth"]?.Value<int>() ?? 850;
+
+                // Usar a maior resolução para o merged
+                int finalWidth = Math.Max(baseWidth, overlayWidth);
+                int finalHeight = Math.Max(baseHeight, overlayHeight);
+
+                // Calcular scale mantendo aspect ratio
+                double scaleX = (double)finalWidth / overlayWidth;
+                double scaleY = (double)finalHeight / overlayHeight;
+                double overlayScale = Math.Min(scaleX, scaleY);
+
+                // Calcular tamanho escalado
+                double scaledOverlayWidth = overlayWidth * overlayScale;
+                double scaledOverlayHeight = overlayHeight * overlayScale;
+
+                // Centrar overlay
+                double overlayLeft = (finalWidth - scaledOverlayWidth) / 2.0;
+                double overlayTop = (finalHeight - scaledOverlayHeight) / 2.0;
+
+                _log?.Invoke($"📐 Merged: {finalWidth}x{finalHeight}, Scale: {overlayScale:F2}x");
+                var baseLayer = new JObject();
+                baseLayer["$type"] = "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.Layer, SimHub.Plugins";
+                baseLayer["Name"] = "BaseDashboardLayer";
+                baseLayer["Top"] = 0.0;
+                baseLayer["Left"] = 0.0;
+                baseLayer["Height"] = finalHeight;
+                baseLayer["Width"] = finalWidth;
+                baseLayer["BackgroundColor"] = baseDash["BackgroundColor"]?.ToString() ?? "#FF000000";
+                baseLayer["Visible"] = true;
+                baseLayer["Group"] = false;
+                // Clonar items com logging detalhado
+                var clonedBaseItems = new JArray();
+                foreach (var item in baseItems)
+                {
+                    var cloned = item.DeepClone();
+                    clonedBaseItems.Add(cloned);
+                    var itemName = item["Name"]?.ToString() ?? "unnamed";
+                }
+                baseLayer["Childrens"] = clonedBaseItems;
+
+                var overlayLayer = new JObject();
+                overlayLayer["$type"] = "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.Layer, SimHub.Plugins";
+                overlayLayer["Name"] = "OverlayLayer";
+                overlayLayer["Top"] = overlayTop;
+                overlayLayer["Left"] = overlayLeft;
+                overlayLayer["Height"] = overlayHeight;
+                overlayLayer["Width"] = overlayWidth;
+                overlayLayer["BackgroundColor"] = "#00FFFFFF";
+                overlayLayer["Visible"] = true;
+                overlayLayer["Group"] = false;
+                // Clonar e escalar overlay items
+                var clonedOverlayItems = new JArray();
+                foreach (var item in overlayItems)
+                {
+                    var cloned = item.DeepClone();
+
+                    // Escalar item (mas SEM tocar nas fórmulas JavaScript)
+                    if (overlayScale != 1.0)
+                    {
+                        ScaleItem(cloned, overlayScale);
+                    }
+
+                    clonedOverlayItems.Add(cloned);
+                }
+                overlayLayer["Childrens"] = clonedOverlayItems;
+                overlayLayer["Childrens"] = clonedOverlayItems;
+
+                var bindings = new JObject();
+                var visibleBinding = new JObject();
+                var formula = new JObject();
+                formula["Expression"] = "return $prop(\"WhatsAppPlugin.showmessage\")";
+                formula["JSExt"] = 1;
+                formula["Interpreter"] = 1;
+                visibleBinding["Formula"] = formula;
+                visibleBinding["Mode"] = 2;
+                visibleBinding["TargetPropertyName"] = "Visible";
+                bindings["Visible"] = visibleBinding;
+                overlayLayer["Bindings"] = bindings;
+                var wrapper = new JObject();
+                wrapper["DashboardDebugManager"] = new JObject();
+                ((JObject)wrapper["DashboardDebugManager"])["Maximized"] = false;
+                wrapper["Version"] = 2;
+                wrapper["Id"] = Guid.NewGuid().ToString();
+                wrapper["BackgroundColor"] = "#00FFFFFF";
+                wrapper["BaseWidth"] = finalWidth;
+                wrapper["BaseHeight"] = finalHeight;
+                var screens = new JArray();
+                var screen = new JObject();
+                screen["Name"] = "MainScreen";
+                screen["InGameScreen"] = true;
+                screen["IdleScreen"] = false;
+                screen["PitScreen"] = false;
+                screen["ScreenId"] = Guid.NewGuid().ToString();
+                screen["IsForegroundLayer"] = false;
+                screen["IsBackgroundLayer"] = false;
+                screen["BackgroundColor"] = "#00FFFFFF";
+                screen["Background"] = "None";
+                var items = new JArray();
+                items.Add(baseLayer);
+                items.Add(overlayLayer);
+                screen["Items"] = items;
+                screens.Add(screen);
+                wrapper["Screens"] = screens;
+                wrapper["SnapToGrid"] = false;
+                wrapper["HideLabels"] = false;
+                wrapper["ShowForeground"] = true;
+                wrapper["ForegroundOpacity"] = 50.0;
+                wrapper["ShowBackground"] = true;
+                wrapper["BackgroundOpacity"] = 50.0;
+                wrapper["ShowBoundingRectangles"] = false;
+                wrapper["GridSize"] = 10;
+                wrapper["Images"] = baseDash["Images"] ?? new JArray();
+                var metadata = new JObject();
+                metadata["Author"] = "WhatsAppSimHubPlugin (wrapper)";
+                metadata["ScreenCount"] = 1.0;
+                var inGameIndexs = new JArray();
+                inGameIndexs.Add(0);
+                metadata["InGameScreensIndexs"] = inGameIndexs;
+                metadata["IdleScreensIndexs"] = new JArray();
+                metadata["MainPreviewIndex"] = 0;
+                metadata["IsOverlay"] = false;
+                metadata["Width"] = baseWidth;
+                metadata["Height"] = baseHeight;
+                metadata["OverlaySizeWarning"] = true;
+                metadata["MetadataVersion"] = 2.0;
+                metadata["EnableOnDashboardMessaging"] = true;
+                metadata["PitScreensIndexs"] = new JArray();
+                metadata["Title"] = $"{baseDashName} + WhatsApp (Wrapper)";
+                metadata["DashboardVersion"] = "V2.0";
+                wrapper["Metadata"] = metadata;
+                wrapper["ShowOnScreenControls"] = true;
+                wrapper["UseStrictJSIsolation"] = false;
+                wrapper["IsOverlay"] = false;
+                wrapper["EnableClickThroughOverlay"] = true;
+                wrapper["EnableOnDashboardMessaging"] = true;
+                _log?.Invoke("Created wrapper dashboard with 2 layers");
+                return wrapper;
+            }
+            catch (Exception ex)
+            {
+                _log?.Invoke($"CreateWrapperDashboard error: {ex.Message}");
+                return null;
+            }
+        }
+
+        private bool SaveMergedDashboard(JObject dashboard, string dashboardName)
+        {
+            try
+            {
+                string dashPath = Path.Combine(_dashTemplatesPath, dashboardName);
+                if (Directory.Exists(dashPath))
+                {
+                    _log?.Invoke($"Removing old merged dashboard: {dashPath}");
+                    Directory.Delete(dashPath, true);
+                }
+                Directory.CreateDirectory(dashPath);
+                string djsonPath = Path.Combine(dashPath, dashboardName + ".djson");
+                string jsonContent = dashboard.ToString(Formatting.Indented);
+                File.WriteAllText(djsonPath, jsonContent);
+                _log?.Invoke($"Saved merged dashboard: {djsonPath}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _log?.Invoke($"SaveMergedDashboard error: {ex.Message}");
+                return false;
+            }
+        }
+
+        private void CopyDashboardResources(string sourceDashName, string targetDashName)
+        {
+            try
+            {
+                string sourcePath = Path.Combine(_dashTemplatesPath, sourceDashName);
+                string targetPath = Path.Combine(_dashTemplatesPath, targetDashName);
+                if (!Directory.Exists(sourcePath))
+                {
+                    _log?.Invoke($"Source dashboard folder not found: {sourcePath}");
+                    return;
+                }
+                if (!Directory.Exists(targetPath))
+                {
+                    _log?.Invoke($"Target dashboard folder not found: {targetPath}");
+                    return;
+                }
+                foreach (var file in Directory.GetFiles(sourcePath))
+                {
+                    string fileName = Path.GetFileName(file);
+                    if (fileName.Equals(sourceDashName + ".djson", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    string targetFile = Path.Combine(targetPath, fileName);
+                    if (!File.Exists(targetFile))
+                    {
+                        File.Copy(file, targetFile);
+                        _log?.Invoke($"Copied: {fileName}");
+                    }
+                }
+                foreach (var dir in Directory.GetDirectories(sourcePath))
+                {
+                    string dirName = Path.GetFileName(dir);
+                    string targetDir = Path.Combine(targetPath, dirName);
+                    if (!Directory.Exists(targetDir))
+                    {
+                        CopyDirectory(dir, targetDir);
+                        _log?.Invoke($"Copied folder: {dirName}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _log?.Invoke($"CopyDashboardResources warning ({sourceDashName}): {ex.Message}");
+            }
+        }
+
+        private void CopyDirectory(string sourceDir, string targetDir)
+        {
+            Directory.CreateDirectory(targetDir);
+            foreach (var file in Directory.GetFiles(sourceDir))
+            {
+                string fileName = Path.GetFileName(file);
+                string targetFile = Path.Combine(targetDir, fileName);
+                File.Copy(file, targetFile, overwrite: false);
+            }
+            foreach (var dir in Directory.GetDirectories(sourceDir))
+            {
+                string dirName = Path.GetFileName(dir);
+                string targetSubDir = Path.Combine(targetDir, dirName);
+                CopyDirectory(dir, targetSubDir);
+            }
+        }
+
+
+
+
+        private void ScaleItem(JToken item, double scale)
+        {
+            // NÃO escalar posição (Left/Top) porque os items estão dentro de um Layer
+            // que já está posicionado e escalado. Left/Top são relativos ao Layer.
+            // Só escalamos Width, Height, FontSize, etc.
+
+            // Escalar tamanho
+            if (item["Width"] != null)
+                item["Width"] = item["Width"].Value<double>() * scale;
+
+            if (item["Height"] != null)
+                item["Height"] = item["Height"].Value<double>() * scale;
+
+            // Escalar font size
+            if (item["FontSize"] != null)
+                item["FontSize"] = item["FontSize"].Value<double>() * scale;
+
+            // Escalar BorderRadius se existir
+            if (item["BorderStyle"] != null)
+            {
+                var border = item["BorderStyle"] as JObject;
+                if (border["RadiusTopLeft"] != null) border["RadiusTopLeft"] = border["RadiusTopLeft"].Value<int>() * scale;
+                if (border["RadiusTopRight"] != null) border["RadiusTopRight"] = border["RadiusTopRight"].Value<int>() * scale;
+                if (border["RadiusBottomLeft"] != null) border["RadiusBottomLeft"] = border["RadiusBottomLeft"].Value<int>() * scale;
+                if (border["RadiusBottomRight"] != null) border["RadiusBottomRight"] = border["RadiusBottomRight"].Value<int>() * scale;
+            }
+
+            // NÃO escalar fórmulas JavaScript - deixar como estão
+            // (causava crash no rendering)
+        }
+
+        private void ScaleBinding(JObject bindings, string propertyName, double scale)
+        {
+            var binding = bindings[propertyName];
+            if (binding?["Formula"]?["Expression"] != null)
+            {
+                string expr = binding["Formula"]["Expression"].ToString();
+                string scaledExpr = WrapFormulaWithScale(expr, scale);
+                binding["Formula"]["Expression"] = scaledExpr;
+                _log?.Invoke($"📐 Scaled {propertyName} formula: {expr.Length}→{scaledExpr.Length} chars");
+            }
+        }
+
+        private string WrapFormulaWithScale(string expression, double scale)
+        {
+            // Multiplicar o resultado final da fórmula por scale
+            // Isto funciona para qualquer fórmula JavaScript sem ter que parseá-la
+            string trimmed = expression.Trim();
+
+            // Remover ponto e vírgula final se existir
+            if (trimmed.EndsWith(";"))
+                trimmed = trimmed.Substring(0, trimmed.Length - 1).Trim();
+
+            // Se tem múltiplas linhas/statements, envolver a última expressão após o último return
+            int lastReturnIndex = trimmed.LastIndexOf("return ", StringComparison.OrdinalIgnoreCase);
+            if (lastReturnIndex >= 0)
+            {
+                string beforeLastReturn = trimmed.Substring(0, lastReturnIndex);
+                string afterReturn = trimmed.Substring(lastReturnIndex + 7).Trim();
+                return $"{beforeLastReturn}return ({afterReturn}) * {scale.ToString(System.Globalization.CultureInfo.InvariantCulture)};";
+            }
+
+            // Fallback: se não tem return, envolver toda a expressão
+            return $"return ({trimmed}) * {scale.ToString(System.Globalization.CultureInfo.InvariantCulture)};";
+        }
+        public static string MergedDashboardName => MERGED_DASHBOARD_NAME;
+    }
+}

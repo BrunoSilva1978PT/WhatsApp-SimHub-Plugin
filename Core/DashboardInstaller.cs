@@ -41,7 +41,7 @@ namespace WhatsAppSimHubPlugin.Core
 
                 // Tentar importar via DashboardManager (raramente funciona)
                 bool imported = ImportDashboardViaManager(tempDashFile);
-                
+
                 if (imported)
                 {
                     // Limpar ficheiro temporário
@@ -51,14 +51,14 @@ namespace WhatsAppSimHubPlugin.Core
                             File.Delete(tempDashFile);
                     }
                     catch { }
-                    
+
                     _log?.Invoke($"✅ WhatsApp dashboard installed successfully!");
                     return true;
                 }
-                
+
                 // Usar método de extração direta (sempre funciona)
                 bool extracted = InstallDashboardFallback();
-                
+
                 if (extracted)
                 {
                     // Limpar ficheiro temporário
@@ -69,7 +69,7 @@ namespace WhatsAppSimHubPlugin.Core
                     }
                     catch { }
                 }
-                
+
                 return extracted;
             }
             catch (Exception ex)
@@ -132,7 +132,7 @@ namespace WhatsAppSimHubPlugin.Core
 
                 var pluginManagerType = _pluginManager.GetType();
                 var dashboardManagerProp = pluginManagerType.GetProperty("DashboardManager");
-                
+
                 if (dashboardManagerProp == null)
                 {
                     // DashboardManager não disponível - usar fallback (extração direta)
@@ -153,7 +153,7 @@ namespace WhatsAppSimHubPlugin.Core
                 return false;
             }
         }
-        
+
         /// <summary>
         /// Tenta importar usando uma instância de DashboardManager
         /// </summary>
@@ -165,9 +165,9 @@ namespace WhatsAppSimHubPlugin.Core
                 _log?.Invoke($"✅ Got DashboardManager instance: {dashboardManagerType.Name}");
 
                 // Tentar método ImportDashboard (usado pelo Lovely Dashboard Plugin)
-                var importMethod = dashboardManagerType.GetMethod("ImportDashboard", 
+                var importMethod = dashboardManagerType.GetMethod("ImportDashboard",
                     new Type[] { typeof(string) });
-                
+
                 if (importMethod != null)
                 {
                     _log?.Invoke($"✅ Found ImportDashboard method, importing...");
@@ -179,7 +179,7 @@ namespace WhatsAppSimHubPlugin.Core
                 // Fallback: Tentar método ImportDashboardFromFile
                 importMethod = dashboardManagerType.GetMethod("ImportDashboardFromFile",
                     new Type[] { typeof(string) });
-                
+
                 if (importMethod != null)
                 {
                     _log?.Invoke($"✅ Found ImportDashboardFromFile method, importing...");
@@ -230,7 +230,7 @@ namespace WhatsAppSimHubPlugin.Core
 
                     // Criar ficheiro temporário
                     string tempZipFile = Path.Combine(Path.GetTempPath(), DASHBOARD_FILENAME);
-                    
+
                     using (FileStream fileStream = File.Create(tempZipFile))
                     {
                         stream.CopyTo(fileStream);
@@ -306,7 +306,7 @@ namespace WhatsAppSimHubPlugin.Core
         /// <summary>
         /// Obtém o caminho da pasta de dashboards do SimHub
         /// </summary>
-        private string GetDashboardsPath()
+        public string GetDashboardsPath()
         {
             try
             {
@@ -315,21 +315,21 @@ namespace WhatsAppSimHubPlugin.Core
                 string simHubExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
                 string simHubFolder = Path.GetDirectoryName(simHubExePath);
                 string dashTemplatesPath = Path.Combine(simHubFolder, "DashTemplates");
-                
+
                 if (Directory.Exists(dashTemplatesPath))
                 {
                     return dashTemplatesPath;
                 }
-                
+
                 // OPÇÃO 2: AppData (fallback, caso SimHub use este em vez do acima)
                 string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 string appDataDashPath = Path.Combine(appDataPath, "SimHub", "DashboardTemplates");
-                
+
                 if (Directory.Exists(appDataDashPath))
                 {
                     return appDataDashPath;
                 }
-                
+
                 // OPÇÃO 3: Tentar criar na pasta de instalação
                 if (!Directory.Exists(dashTemplatesPath))
                 {
@@ -337,7 +337,7 @@ namespace WhatsAppSimHubPlugin.Core
                     _log?.Invoke($"✅ Created DashTemplates folder: {dashTemplatesPath}");
                     return dashTemplatesPath;
                 }
-                
+
                 _log?.Invoke("❌ Could not find or create DashTemplates folder");
                 return null;
             }
