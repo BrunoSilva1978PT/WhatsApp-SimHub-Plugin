@@ -121,29 +121,39 @@ namespace WhatsAppSimHubPlugin.Core
                 _log?.Invoke($"Overlay dashboard has {overlayItems.Count} items");
 
                 // Obter dimensões originais
-                int baseHeight = baseDash["BaseHeight"]?.Value<int>() ?? 480;
                 int baseWidth = baseDash["BaseWidth"]?.Value<int>() ?? 850;
-                int overlayHeight = overlayDash["BaseHeight"]?.Value<int>() ?? 480;
-                int overlayWidth = overlayDash["BaseWidth"]?.Value<int>() ?? 850;
+                int baseHeight = baseDash["BaseHeight"]?.Value<int>() ?? 480;
 
-                // Usar a maior resolução para o merged
-                int finalWidth = Math.Max(baseWidth, overlayWidth);
-                int finalHeight = Math.Max(baseHeight, overlayHeight);
+                // Resolução nativa do plugin overlay (sempre 850x480)
+                const int OVERLAY_NATIVE_WIDTH = 850;
+                const int OVERLAY_NATIVE_HEIGHT = 480;
 
-                // Calcular scale mantendo aspect ratio
-                double scaleX = (double)finalWidth / overlayWidth;
-                double scaleY = (double)finalHeight / overlayHeight;
-                double overlayScale = Math.Min(scaleX, scaleY);
+                // Resolução final é SEMPRE a do base dash (1º dash nunca se mexe)
+                int finalWidth = baseWidth;
+                int finalHeight = baseHeight;
 
-                // Calcular tamanho escalado
-                double scaledOverlayWidth = overlayWidth * overlayScale;
-                double scaledOverlayHeight = overlayHeight * overlayScale;
+                // Calcular scale apenas se base > overlay nativo
+                double overlayScale = 1.0;
+                double overlayLeft = 0.0;
+                double overlayTop = 0.0;
 
-                // Centrar overlay
-                double overlayLeft = (finalWidth - scaledOverlayWidth) / 2.0;
-                double overlayTop = (finalHeight - scaledOverlayHeight) / 2.0;
+                if (baseWidth > OVERLAY_NATIVE_WIDTH || baseHeight > OVERLAY_NATIVE_HEIGHT)
+                {
+                    // Base é maior - precisamos escalar o overlay para caber
+                    overlayScale = Math.Min(
+                        (double)baseWidth / OVERLAY_NATIVE_WIDTH,
+                        (double)baseHeight / OVERLAY_NATIVE_HEIGHT
+                    );
 
-                _log?.Invoke($"📐 Merged: {finalWidth}x{finalHeight}, Scale: {overlayScale:F2}x");
+                    _log?.Invoke($"Base ({baseWidth}x{baseHeight}) > Overlay native ({OVERLAY_NATIVE_WIDTH}x{OVERLAY_NATIVE_HEIGHT})");
+                    _log?.Invoke($"Scaling overlay: {overlayScale:F3}x");
+                }
+                else
+                {
+                    _log?.Invoke($"Base ({baseWidth}x{baseHeight}) <= Overlay native - no scaling needed");
+                }
+
+                _log?.Invoke($"Final merged resolution: {finalWidth}x{finalHeight}");
                 var baseLayer = new JObject();
                 baseLayer["$type"] = "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.Layer, SimHub.Plugins";
                 baseLayer["Name"] = "BaseDashboardLayer";
@@ -164,23 +174,28 @@ namespace WhatsAppSimHubPlugin.Core
                 }
                 baseLayer["Childrens"] = clonedBaseItems;
 
+                // Calcular dimensões do overlay layer (escaladas se necessário)
+                double layerWidth = OVERLAY_NATIVE_WIDTH * overlayScale;
+                double layerHeight = OVERLAY_NATIVE_HEIGHT * overlayScale;
+
                 var overlayLayer = new JObject();
                 overlayLayer["$type"] = "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.Layer, SimHub.Plugins";
                 overlayLayer["Name"] = "OverlayLayer";
                 overlayLayer["Top"] = overlayTop;
                 overlayLayer["Left"] = overlayLeft;
-                overlayLayer["Height"] = overlayHeight;
-                overlayLayer["Width"] = overlayWidth;
+                overlayLayer["Height"] = layerHeight;
+                overlayLayer["Width"] = layerWidth;
                 overlayLayer["BackgroundColor"] = "#00FFFFFF";
                 overlayLayer["Visible"] = true;
                 overlayLayer["Group"] = false;
+
                 // Clonar e escalar overlay items
                 var clonedOverlayItems = new JArray();
                 foreach (var item in overlayItems)
                 {
                     var cloned = item.DeepClone();
 
-                    // Escalar item (mas SEM tocar nas fórmulas JavaScript)
+                    // Escalar item (X, Y, Width, Height) se necessário
                     if (overlayScale != 1.0)
                     {
                         ScaleItem(cloned, overlayScale);
@@ -188,7 +203,6 @@ namespace WhatsAppSimHubPlugin.Core
 
                     clonedOverlayItems.Add(cloned);
                 }
-                overlayLayer["Childrens"] = clonedOverlayItems;
                 overlayLayer["Childrens"] = clonedOverlayItems;
 
                 var bindings = new JObject();
@@ -360,33 +374,82 @@ namespace WhatsAppSimHubPlugin.Core
 
         private void ScaleItem(JToken item, double scale)
         {
-            // NÃO escalar posição (Left/Top) porque os items estão dentro de um Layer
-            // que já está posicionado e escalado. Left/Top são relativos ao Layer.
-            // Só escalamos Width, Height, FontSize, etc.
+            // Tudo em pixels = inteiros
+
+            // Escalar posição
+            if (item["Left"] != null)
+                item["Left"] = (int)(item["Left"].Value<double>() * scale);
+
+            if (item["Top"] != null)
+                item["Top"] = (int)(item["Top"].Value<double>() * scale);
 
             // Escalar tamanho
             if (item["Width"] != null)
-                item["Width"] = item["Width"].Value<double>() * scale;
+                item["Width"] = (int)(item["Width"].Value<double>() * scale);
 
             if (item["Height"] != null)
-                item["Height"] = item["Height"].Value<double>() * scale;
+                item["Height"] = (int)(item["Height"].Value<double>() * scale);
 
             // Escalar font size
             if (item["FontSize"] != null)
-                item["FontSize"] = item["FontSize"].Value<double>() * scale;
+                item["FontSize"] = (int)(item["FontSize"].Value<double>() * scale);
 
-            // Escalar BorderRadius se existir
+            // Escalar BorderRadius
             if (item["BorderStyle"] != null)
             {
                 var border = item["BorderStyle"] as JObject;
-                if (border["RadiusTopLeft"] != null) border["RadiusTopLeft"] = border["RadiusTopLeft"].Value<int>() * scale;
-                if (border["RadiusTopRight"] != null) border["RadiusTopRight"] = border["RadiusTopRight"].Value<int>() * scale;
-                if (border["RadiusBottomLeft"] != null) border["RadiusBottomLeft"] = border["RadiusBottomLeft"].Value<int>() * scale;
-                if (border["RadiusBottomRight"] != null) border["RadiusBottomRight"] = border["RadiusBottomRight"].Value<int>() * scale;
+                if (border != null)
+                {
+                    if (border["RadiusTopLeft"] != null)
+                        border["RadiusTopLeft"] = (int)(border["RadiusTopLeft"].Value<double>() * scale);
+                    if (border["RadiusTopRight"] != null)
+                        border["RadiusTopRight"] = (int)(border["RadiusTopRight"].Value<double>() * scale);
+                    if (border["RadiusBottomLeft"] != null)
+                        border["RadiusBottomLeft"] = (int)(border["RadiusBottomLeft"].Value<double>() * scale);
+                    if (border["RadiusBottomRight"] != null)
+                        border["RadiusBottomRight"] = (int)(border["RadiusBottomRight"].Value<double>() * scale);
+                }
             }
 
-            // NÃO escalar fórmulas JavaScript - deixar como estão
-            // (causava crash no rendering)
+            // Escalar Bindings de propriedades de tamanho/posição
+            var bindings = item["Bindings"] as JObject;
+            if (bindings != null)
+            {
+                ScaleBindingFormula(bindings, "Height", scale);
+                ScaleBindingFormula(bindings, "Width", scale);
+                ScaleBindingFormula(bindings, "Left", scale);
+                ScaleBindingFormula(bindings, "Top", scale);
+            }
+
+            // Escalar Childrens recursivamente
+            var childrens = item["Childrens"] as JArray;
+            if (childrens != null)
+            {
+                foreach (var child in childrens)
+                {
+                    ScaleItem(child, scale);
+                }
+            }
+        }
+
+        private void ScaleBindingFormula(JObject bindings, string propertyName, double scale)
+        {
+            var binding = bindings[propertyName];
+            if (binding?["Formula"]?["Expression"] != null)
+            {
+                string expr = binding["Formula"]["Expression"].ToString();
+
+                // Substituir cada "return X;" por "return (X) * scale;"
+                // Regex para encontrar "return ...;" e envolver com scale
+                string scaleStr = scale.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                string scaledExpr = System.Text.RegularExpressions.Regex.Replace(
+                    expr,
+                    @"return\s+(.+?);",
+                    m => $"return ({m.Groups[1].Value}) * {scaleStr};"
+                );
+
+                binding["Formula"]["Expression"] = scaledExpr;
+            }
         }
 
         private void ScaleBinding(JObject bindings, string propertyName, double scale)
