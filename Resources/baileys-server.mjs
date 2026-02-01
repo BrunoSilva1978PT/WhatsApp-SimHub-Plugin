@@ -264,24 +264,58 @@ async function connectToWhatsApp() {
 
     sock.ev.on("creds.update", saveCreds);
 
-    // Listener para capturar info de contatos e popular cache LID
+    // NOVO: Listener para atualizações automáticas de LID mapping
+    sock.ev.on("lid-mapping.update", (mapping) => {
+      if (mapping && mapping.lid && mapping.pn) {
+        const lid = mapping.lid;
+        const pn = mapping.pn.replace("@s.whatsapp.net", "");
+        lidToNumberCache.set(lid, pn);
+        log("[LID-MAPPING] Auto-stored: " + lid + " → " + pn);
+      }
+    });
+
+    // Listener para capturar info de contatos e popular cache LID (ATUALIZADO v7)
     sock.ev.on("messaging-history.set", ({ contacts }) => {
       if (!contacts) return;
       log("[LID-CACHE] Received contacts from history: " + contacts.length);
 
       for (const contact of contacts) {
-        if (contact.id && contact.id.includes("@lid")) {
-          // Verificar se temos o número real em algum campo
-          const realNumber =
-            contact.notify || contact.name || contact.verifiedName;
-          if (realNumber && /^\d{10,15}$/.test(realNumber)) {
-            lidToNumberCache.set(contact.id, realNumber);
-            log(
-              "[LID-CACHE] Mapped from history: " +
-                contact.id +
-                " → " +
-                realNumber,
-            );
+        // v7 structure: id + (lid OR phoneNumber)
+        if (contact.id && contact.id.includes("@lid") && contact.phoneNumber) {
+          const lid = contact.id;
+          const pn = contact.phoneNumber.replace("@s.whatsapp.net", "");
+          lidToNumberCache.set(lid, pn);
+          log("[LID-CACHE] Mapped from history: " + lid + " → " + pn);
+        } else if (
+          contact.lid &&
+          contact.id &&
+          contact.id.includes("@s.whatsapp.net")
+        ) {
+          // Alternative case: id is PN, lid field exists
+          const lid = contact.lid;
+          const pn = contact.id.replace("@s.whatsapp.net", "");
+          lidToNumberCache.set(lid, pn);
+          log("[LID-CACHE] Mapped from history (alt): " + lid + " → " + pn);
+        }
+      }
+    });
+
+    // Listener para grupos - participantes têm LID + PN pairings
+    sock.ev.on("groups.upsert", async (groups) => {
+      for (const group of groups) {
+        if (!group.participants) continue;
+
+        for (const participant of group.participants) {
+          // Participantes seguem estrutura Contact (id + lid/phoneNumber)
+          if (
+            participant.id &&
+            participant.id.includes("@lid") &&
+            participant.phoneNumber
+          ) {
+            const lid = participant.id;
+            const pn = participant.phoneNumber.replace("@s.whatsapp.net", "");
+            lidToNumberCache.set(lid, pn);
+            log("[LID-CACHE] Mapped from group: " + lid + " → " + pn);
           }
         }
       }
@@ -343,46 +377,31 @@ async function connectToWhatsApp() {
         isLid = true;
         log("[MSG] WARNING: LinkedID detected in sender: " + sender);
 
-        // PRIORIDADE 1: Verificar cache de LID → número real
-        if (lidToNumberCache.has(sender)) {
-          number = lidToNumberCache.get(sender);
-          log("[MSG] ✅ Got real number from LID cache: " + number);
-        }
-        // PRIORIDADE 2: Tentar buscar info do contato via onWhatsApp
-        else {
-          try {
-            log("[MSG] Attempting to fetch contact info for LID...");
-            const contactInfo = await sock.onWhatsApp(sender.split("@")[0]);
+        // PRIORIDADE 1: Usar signalRepository.lidMapping (sistema interno Baileys)
+        try {
+          const pn = await sock.signalRepository.lidMapping.getPNForLID(sender);
+          if (pn) {
+            number = pn.replace("@s.whatsapp.net", "");
+            log("[MSG] ✅ Got PN from signalRepository: " + number);
+            // Guardar também na cache local
+            lidToNumberCache.set(sender, number);
+          } else {
+            throw new Error("No PN in signalRepository");
+          }
+        } catch (e) {
+          log("[MSG] signalRepository lookup failed: " + e.message);
 
-            if (contactInfo && contactInfo.length > 0 && contactInfo[0].jid) {
-              const realJid = contactInfo[0].jid;
-              if (realJid.includes("@s.whatsapp.net")) {
-                number = realJid.replace("@s.whatsapp.net", "");
-                log("[MSG] ✅ Got real number from onWhatsApp: " + number);
-                // Guardar na cache para próximas vezes
-                lidToNumberCache.set(sender, number);
-              } else {
-                throw new Error("No real JID found");
-              }
-            } else {
-              throw new Error("No contact info returned");
-            }
-          } catch (e) {
-            log("[MSG] Could not resolve LID via onWhatsApp: " + e.message);
-
-            // FALLBACK: Tentar normalizar com jidNormalizedUser
-            try {
-              const normalized = jidNormalizedUser(sender);
-              number = normalized
-                .replace("@s.whatsapp.net", "")
-                .replace("@lid", "");
-              log("[MSG] Got number from jidNormalizedUser: " + number);
-            } catch (e2) {
-              // ÚLTIMO RECURSO: usar o LID como está
-              number = sender.split("@")[0];
-              log("[MSG] ⚠️ Using LID as number (fallback): " + number);
-              log("[MSG] Real number not available - C# will try LID matching");
-            }
+          // PRIORIDADE 2: Verificar cache local de LID → número real
+          if (lidToNumberCache.has(sender)) {
+            number = lidToNumberCache.get(sender);
+            log("[MSG] ✅ Got real number from LID cache: " + number);
+          } else {
+            // PRIORIDADE 3: Usar LID como fallback (C# vai tentar fazer matching)
+            number = sender.split("@")[0];
+            log("[MSG] ⚠️ Using LID as number (fallback): " + number);
+            log(
+              "[MSG] Real number not available - C# will try LID matching or wait for mapping",
+            );
           }
         }
       }
