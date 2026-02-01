@@ -348,24 +348,32 @@ async function connectToWhatsApp() {
       if (msg.key.participant) {
         // Mensagem de grupo
         const participant = msg.key.participant;
-        if (participant.includes("@lid")) {
-          isLid = true;
-          // Tentar normalizar o LID para número real
-          try {
-            const normalized = jidNormalizedUser(participant);
-            number = normalized
-              .replace("@s.whatsapp.net", "")
-              .replace("@lid", "");
-            log(
-              "[MSG] Got number from participant LID (normalized): " + number,
-            );
-          } catch (e) {
-            number = participant.split("@")[0];
-            log("[MSG] Got number from participant LID (fallback): " + number);
+
+        // NOVO v7: Verificar participantAlt primeiro (tem PN se participant é LID)
+        if (msg.key.participantAlt) {
+          const alt = msg.key.participantAlt;
+          if (alt.includes("@s.whatsapp.net")) {
+            number = alt.replace("@s.whatsapp.net", "");
+            log("[MSG] ✅ Got number from participantAlt: " + number);
+            // Se participant é LID, guardar mapeamento
+            if (participant.includes("@lid")) {
+              isLid = true;
+              lidToNumberCache.set(participant, number);
+              log("[MSG] Stored LID mapping: " + participant + " → " + number);
+            }
           }
-        } else {
-          number = participant.replace("@s.whatsapp.net", "");
-          log("[MSG] Got number from participant: " + number);
+        }
+
+        // Se não tem participantAlt, processar participant normal
+        if (!number) {
+          if (participant.includes("@lid")) {
+            isLid = true;
+            log("[MSG] WARNING: LinkedID in participant, no participantAlt");
+            number = participant.split("@")[0]; // fallback
+          } else {
+            number = participant.replace("@s.whatsapp.net", "");
+            log("[MSG] Got number from participant: " + number);
+          }
         }
       } else if (msg.key.senderPn) {
         number = msg.key.senderPn.replace("@s.whatsapp.net", "");
@@ -377,31 +385,40 @@ async function connectToWhatsApp() {
         isLid = true;
         log("[MSG] WARNING: LinkedID detected in sender: " + sender);
 
-        // PRIORIDADE 1: Usar signalRepository.lidMapping (sistema interno Baileys)
-        try {
-          const pn = await sock.signalRepository.lidMapping.getPNForLID(sender);
-          if (pn) {
-            number = pn.replace("@s.whatsapp.net", "");
-            log("[MSG] ✅ Got PN from signalRepository: " + number);
-            // Guardar também na cache local
-            lidToNumberCache.set(sender, number);
-          } else {
-            throw new Error("No PN in signalRepository");
-          }
-        } catch (e) {
-          log("[MSG] signalRepository lookup failed: " + e.message);
+        // NOVO v7: Verificar remoteJidAlt primeiro (tem PN se remoteJid é LID)
+        if (
+          msg.key.remoteJidAlt &&
+          msg.key.remoteJidAlt.includes("@s.whatsapp.net")
+        ) {
+          number = msg.key.remoteJidAlt.replace("@s.whatsapp.net", "");
+          log("[MSG] ✅ Got number from remoteJidAlt: " + number);
+          // Guardar mapeamento
+          lidToNumberCache.set(sender, number);
+        }
+        // PRIORIDADE 2: Usar signalRepository.lidMapping
+        else {
+          try {
+            const pn =
+              await sock.signalRepository.lidMapping.getPNForLID(sender);
+            if (pn) {
+              number = pn.replace("@s.whatsapp.net", "");
+              log("[MSG] ✅ Got PN from signalRepository: " + number);
+              lidToNumberCache.set(sender, number);
+            } else {
+              throw new Error("No PN in signalRepository");
+            }
+          } catch (e) {
+            log("[MSG] signalRepository lookup failed: " + e.message);
 
-          // PRIORIDADE 2: Verificar cache local de LID → número real
-          if (lidToNumberCache.has(sender)) {
-            number = lidToNumberCache.get(sender);
-            log("[MSG] ✅ Got real number from LID cache: " + number);
-          } else {
-            // PRIORIDADE 3: Usar LID como fallback (C# vai tentar fazer matching)
-            number = sender.split("@")[0];
-            log("[MSG] ⚠️ Using LID as number (fallback): " + number);
-            log(
-              "[MSG] Real number not available - C# will try LID matching or wait for mapping",
-            );
+            // PRIORIDADE 3: Verificar cache local
+            if (lidToNumberCache.has(sender)) {
+              number = lidToNumberCache.get(sender);
+              log("[MSG] ✅ Got real number from LID cache: " + number);
+            } else {
+              // FALLBACK: Usar LID
+              number = sender.split("@")[0];
+              log("[MSG] ⚠️ Using LID as number (fallback): " + number);
+            }
           }
         }
       }
