@@ -995,42 +995,38 @@ namespace WhatsAppSimHubPlugin
                 _nodeManager.Stop();
                 _nodeManager.Dispose();
                 WriteLog("Node.js process stopped");
+
+                // Give time for Node.js to cleanup Chrome/CefSharp properly
+                System.Threading.Thread.Sleep(2000);
             }
 
             _messageQueue?.Dispose();
 
-            // 🔥 MATAR PROCESSOS CHROME (puppeteer do whatsapp-web.js)
+            // 🔥 MATAR APENAS PROCESSOS CEFSHARP ÓRFÃOS (não Chrome do usuário)
             try
             {
-                WriteLog("Killing Chrome processes from WhatsApp plugin...");
-                var chromeProcesses = System.Diagnostics.Process.GetProcessesByName("chrome");
+                WriteLog("Cleaning up orphaned CefSharp processes...");
+                var cefProcesses = System.Diagnostics.Process.GetProcessesByName("CefSharp.BrowserSubprocess");
                 int killedCount = 0;
 
-                foreach (var proc in chromeProcesses)
+                foreach (var proc in cefProcesses)
                 {
                     try
                     {
-                        // Tentar verificar se é Chrome do nosso plugin
-                        // (vai estar na pasta do plugin ou com --user-data-dir do puppeteer)
-                        var cmdLine = GetProcessCommandLine(proc);
-                        if (cmdLine != null &&
-                            (cmdLine.IndexOf("WhatsAppPlugin", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                             cmdLine.IndexOf("puppeteer", StringComparison.OrdinalIgnoreCase) >= 0))
-                        {
-                            WriteLog($"  Killing Chrome process {proc.Id}");
-                            proc.Kill();
-                            proc.WaitForExit(1000);
-                            killedCount++;
-                        }
+                        WriteLog($"  Killing CefSharp subprocess {proc.Id}");
+                        proc.Kill();
+                        killedCount++;
                     }
                     catch (Exception ex)
                     {
-                        WriteLog($"  Could not kill Chrome process {proc.Id}: {ex.Message}");
+                        WriteLog($"  Could not kill CefSharp process {proc.Id}: {ex.Message}");
                     }
                 }
 
                 if (killedCount > 0)
-                    WriteLog($"✅ Killed {killedCount} Chrome process(es)");
+                    WriteLog($"✅ Cleaned up {killedCount} CefSharp process(es)");
+                else
+                    WriteLog("No orphaned CefSharp processes found");
             }
             catch (Exception ex)
             {
@@ -1953,6 +1949,15 @@ namespace WhatsAppSimHubPlugin
                 {
                     WriteLog("✅ Setup UI ready! Initializing status...");
 
+                    // DESACTIVAR BOTÕES CONNECTION DURANTE INSTALAÇÃO
+                    _settingsControl.Dispatcher.Invoke(() =>
+                    {
+                        _settingsControl.DisconnectButton.IsEnabled = false;
+                        _settingsControl.DisconnectButton.ToolTip = "Installing dependencies...";
+                        _settingsControl.ReconnectButton.IsEnabled = false;
+                        _settingsControl.ReconnectButton.ToolTip = "Installing dependencies...";
+                    });
+
                     // INICIALIZAR TODOS OS STATUS EXPLICITAMENTE
                     _settingsControl.UpdateNodeStatus("Checking...", false);
                     _settingsControl.UpdateGitStatus("Waiting...", false);
@@ -1974,6 +1979,8 @@ namespace WhatsAppSimHubPlugin
                 bool nodeInstalled = _dependencyManager.IsNodeInstalled();
                 WriteLog($"Node.js check result: {nodeInstalled}");
 
+                bool nodeWasInstalled = false;
+
                 if (!nodeInstalled)
                 {
                     WriteLog("⚠️ Node.js not found - installing automatically...");
@@ -1989,6 +1996,7 @@ namespace WhatsAppSimHubPlugin
                     if (success)
                     {
                         WriteLog("✅ Node.js portable installed!");
+                        nodeWasInstalled = true;
 
                         // Aguardar 500ms para filesystem atualizar
                         await Task.Delay(500).ConfigureAwait(false);
@@ -2087,6 +2095,7 @@ namespace WhatsAppSimHubPlugin
                 WriteLog("🔍 Checking Git...");
 
                 bool gitInstalled = _dependencyManager.IsGitInstalled();
+                bool gitWasInstalled = false;
 
                 if (!gitInstalled)
                 {
@@ -2103,6 +2112,7 @@ namespace WhatsAppSimHubPlugin
                     if (success)
                     {
                         WriteLog("✅ Git portable installed!");
+                        gitWasInstalled = true;
 
                         // Aguardar 500ms para filesystem atualizar
                         await Task.Delay(500).ConfigureAwait(false);
@@ -2188,6 +2198,25 @@ namespace WhatsAppSimHubPlugin
                 // ============ NPM PACKAGES ============
                 WriteLog("🔍 Checking npm packages...");
 
+                // SE instalou Node OU Git, apagar node_modules por segurança
+                if (nodeWasInstalled || gitWasInstalled)
+                {
+                    WriteLog("⚠️ Node or Git was just installed - deleting node_modules for safety...");
+                    string nodeModulesPath = Path.Combine(_pluginPath, "node", "node_modules");
+                    if (Directory.Exists(nodeModulesPath))
+                    {
+                        try
+                        {
+                            Directory.Delete(nodeModulesPath, true);
+                            WriteLog("✅ node_modules deleted successfully");
+                        }
+                        catch (Exception ex)
+                        {
+                            WriteLog($"⚠️ Could not delete node_modules: {ex.Message}");
+                        }
+                    }
+                }
+
                 bool packagesInstalled = _dependencyManager.AreNpmPackagesInstalled();
 
                 if (!packagesInstalled)
@@ -2196,9 +2225,11 @@ namespace WhatsAppSimHubPlugin
 
                     if (_settingsControl != null)
                     {
-                        // _settingsControl.UpdateWhatsAppWebJsStatus("Installing...", false);
-                        // _settingsControl.UpdateBaileysStatus("Installing...", false);
-                        // _settingsControl.UpdateProgress(70, "Installing npm packages...");
+                        _settingsControl.Dispatcher.Invoke(() =>
+                        {
+                            _settingsControl.SetDependenciesInstalling(true, "Installing npm packages...");
+                            _settingsControl.UpdateNpmStatus("Installing...", false);
+                        });
                     }
 
                     bool success = await _dependencyManager.InstallNpmPackages().ConfigureAwait(false);
@@ -2213,35 +2244,28 @@ namespace WhatsAppSimHubPlugin
 
                         if (_settingsControl != null)
                         {
+                            _settingsControl.Dispatcher.Invoke(() =>
+                            {
+                                _settingsControl.UpdateNpmStatus("Installed", true);
+                                _settingsControl.SetDependenciesInstalling(false);
+                            });
+
                             if (whatsappWebJsInstalled)
                             {
-                                // _settingsControl.UpdateWhatsAppWebJsStatus("Installed", true);
                                 WriteLog("✅ whatsapp-web.js library verified");
                             }
                             else
                             {
-                                // _settingsControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
                                 WriteLog("⚠️ whatsapp-web.js library not found after installation");
                             }
 
                             if (baileysInstalled)
                             {
-                                // _settingsControl.UpdateBaileysStatus("Installed", true);
                                 WriteLog("✅ Baileys library verified");
                             }
                             else
                             {
-                                // _settingsControl.UpdateBaileysStatus("Not found", false, true);
                                 WriteLog("⚠️ Baileys library not found after installation");
-                            }
-
-                            if (whatsappWebJsInstalled && baileysInstalled)
-                            {
-                                // _settingsControl.UpdateProgress(100, "All dependencies ready!");
-                            }
-                            else
-                            {
-                                // _settingsControl.UpdateProgress(90, "Some libraries missing - plugin may not work correctly");
                             }
                         }
                     }
@@ -2250,8 +2274,11 @@ namespace WhatsAppSimHubPlugin
                         WriteLog("❌ ERROR: Failed to install npm packages!");
                         if (_settingsControl != null)
                         {
-                            // _settingsControl.UpdateWhatsAppWebJsStatus("Installation failed", false, true);
-                            // _settingsControl.UpdateBaileysStatus("Installation failed", false, true);
+                            _settingsControl.Dispatcher.Invoke(() =>
+                            {
+                                _settingsControl.UpdateNpmStatus("Installation failed", false, true);
+                                _settingsControl.SetDependenciesInstalling(false);
+                            });
                             // _settingsControl.UpdateProgress(0, "ERROR: npm install failed");
                             // _settingsControl.ShowRetryButton();
                         }
@@ -2261,6 +2288,15 @@ namespace WhatsAppSimHubPlugin
                 else
                 {
                     WriteLog("✅ npm packages already installed - verifying libraries...");
+
+                    // Actualizar UI para mostrar que já estão instalados
+                    if (_settingsControl != null)
+                    {
+                        _settingsControl.Dispatcher.Invoke(() =>
+                        {
+                            _settingsControl.UpdateNpmStatus("Installed", true);
+                        });
+                    }
 
                     // Verificar individualmente cada biblioteca
                     bool whatsappWebJsInstalled = _dependencyManager.IsWhatsAppWebJsInstalled();
@@ -2305,6 +2341,19 @@ namespace WhatsAppSimHubPlugin
                 // ============ TUDO PRONTO! ============
                 WriteLog("✅ All dependencies installed - starting Node.js...");
                 _setupComplete = true;
+
+                // REACTIVAR BOTÕES CONNECTION
+                if (_settingsControl != null)
+                {
+                    _settingsControl.Dispatcher.Invoke(() =>
+                    {
+                        _settingsControl.DisconnectButton.IsEnabled = false; // Disconnected state
+                        _settingsControl.DisconnectButton.ToolTip = null;
+                        _settingsControl.ReconnectButton.IsEnabled = true;   // Allow reconnect
+                        _settingsControl.ReconnectButton.ToolTip = null;
+                    });
+                    WriteLog("✅ Connection buttons re-enabled");
+                }
 
                 // SALVAR FLAG DE SETUP COMPLETO (persiste entre restarts!)
                 try

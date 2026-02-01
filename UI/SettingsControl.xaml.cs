@@ -1686,11 +1686,11 @@ namespace WhatsAppSimHubPlugin.UI
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                     "SimHub", "WhatsAppPlugin", "node");
 
-                // Run npm install
+                // Run npm install - use cmd.exe /c because npm is a batch script on Windows
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = "npm",
-                    Arguments = $"install {packageName}@{version}",
+                    FileName = "cmd.exe",
+                    Arguments = $"/c npm install {packageName}@{version}",
                     WorkingDirectory = nodePath,
                     UseShellExecute = false,
                     CreateNoWindow = true,
@@ -1700,7 +1700,12 @@ namespace WhatsAppSimHubPlugin.UI
 
                 using (var process = Process.Start(startInfo))
                 {
+                    var outputTask = process.StandardOutput.ReadToEndAsync();
+                    var errorTask = process.StandardError.ReadToEndAsync();
+
                     await process.WaitForExitAsync();
+
+                    var error = await errorTask;
 
                     if (process.ExitCode == 0)
                     {
@@ -1723,7 +1728,6 @@ namespace WhatsAppSimHubPlugin.UI
                     }
                     else
                     {
-                        var error = await process.StandardError.ReadToEndAsync();
                         ShowToast($"npm install failed: {error}", "❌", 10);
                     }
                 }
@@ -1832,7 +1836,7 @@ namespace WhatsAppSimHubPlugin.UI
                 if (Directory.Exists(nodeModulesPath))
                 {
                     SetDependenciesInstalling(true, "Deleting node_modules...");
-                    Directory.Delete(nodeModulesPath, true);
+                    await Task.Run(() => Directory.Delete(nodeModulesPath, true));
                     await Task.Delay(500);
                 }
 
@@ -1847,10 +1851,12 @@ namespace WhatsAppSimHubPlugin.UI
                 SetDependenciesInstalling(true, "Running npm install...");
                 UpdateNpmStatus("Installing...", false);
 
+                // IMPORTANT: On Windows, npm is a batch script (npm.cmd), not an executable
+                // We need to use cmd.exe /c to run it properly
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = "npm",
-                    Arguments = "install",
+                    FileName = "cmd.exe",
+                    Arguments = "/c npm install",
                     WorkingDirectory = nodePath,
                     UseShellExecute = false,
                     CreateNoWindow = true,
@@ -1858,23 +1864,67 @@ namespace WhatsAppSimHubPlugin.UI
                     RedirectStandardError = true
                 };
 
+                WriteDebugLog($"[InstallLibrary] Running npm install in {nodePath}");
+
                 var process = Process.Start(startInfo);
                 if (process != null)
                 {
-                    await Task.Run(() => process.WaitForExit());
+                    // Capture output for debugging
+                    var outputTask = process.StandardOutput.ReadToEndAsync();
+                    var errorTask = process.StandardError.ReadToEndAsync();
+
+                    // Use async wait to avoid blocking UI thread
+                    await process.WaitForExitAsync();
+
+                    var output = await outputTask;
+                    var error = await errorTask;
+
+                    WriteDebugLog($"[InstallLibrary] npm install exit code: {process.ExitCode}");
+                    WriteDebugLog($"[InstallLibrary] npm output: {output}");
+                    if (!string.IsNullOrEmpty(error))
+                        WriteDebugLog($"[InstallLibrary] npm error: {error}");
 
                     if (process.ExitCode == 0)
                     {
-                        UpdateNpmStatus("Installed", true);
-                        ShowToast($"{packageName} {version} installed successfully!", "✅", 5);
+                        Dispatcher.Invoke(() =>
+                        {
+                            UpdateNpmStatus("Installed", true);
+                            ShowToast($"{packageName} {version} installed successfully!", "✅", 5);
+
+                            // Update settings with the new installed version
+                            if (packageName == "whatsapp-web.js")
+                            {
+                                _settings.WhatsAppWebJsVersion = version;
+                                WhatsAppWebJsInstallButton.Visibility = Visibility.Collapsed;
+                            }
+                            else if (packageName.Contains("baileys"))
+                            {
+                                _settings.BaileysVersion = version;
+                                BaileysInstallButton.Visibility = Visibility.Collapsed;
+                            }
+                            _plugin.SaveSettings();
+                            LoadInstalledVersions();
+                        });
                     }
                     else
                     {
-                        UpdateNpmStatus("Installation failed", false, true);
-                        ShowToast($"npm install failed (exit code {process.ExitCode})", "❌", 10);
+                        Dispatcher.Invoke(() =>
+                        {
+                            UpdateNpmStatus("Installation failed", false, true);
+                            ShowToast($"npm install failed: {error}", "❌", 10);
+                        });
                     }
 
                     process.Dispose();
+                }
+                else
+                {
+                    WriteDebugLog("[InstallLibrary] Failed to start npm process!");
+                    Dispatcher.Invoke(() =>
+                    {
+                        UpdateNpmStatus("Failed to start npm", false, true);
+                        ShowToast("Failed to start npm process", "❌", 10);
+                    });
                 }
 
                 // Step 7: Finish
@@ -1901,26 +1951,24 @@ namespace WhatsAppSimHubPlugin.UI
         {
             try
             {
-                // Kill node processes
+                // Kill node processes only - let them clean up Chrome properly
                 foreach (var proc in Process.GetProcessesByName("node"))
-                {
-                    try { proc.Kill(); } catch { }
-                }
-
-                // Kill chrome processes started by puppeteer (careful with user's Chrome)
-                // Only kill headless chrome instances
-                foreach (var proc in Process.GetProcessesByName("chrome"))
                 {
                     try
                     {
-                        // Check if it's a headless instance by command line
-                        // This is a simplified check - in production you'd want to be more careful
-                        if (proc.MainWindowHandle == IntPtr.Zero) // No visible window = headless
-                        {
-                            proc.Kill();
-                        }
+                        proc.Kill();
+                        proc.WaitForExit(3000); // Give it time to cleanup
                     }
                     catch { }
+                }
+
+                // Wait a bit for Chrome/CefSharp to close naturally when node exits
+                System.Threading.Thread.Sleep(2000);
+
+                // Only kill remaining orphaned CefSharp processes to avoid the breakpoint dialog
+                foreach (var proc in Process.GetProcessesByName("CefSharp.BrowserSubprocess"))
+                {
+                    try { proc.Kill(); } catch { }
                 }
             }
             catch (Exception ex)
@@ -2064,10 +2112,11 @@ namespace WhatsAppSimHubPlugin.UI
                 // Format: npm install github:user/repo#branch
                 var npmPackage = $"github:{repo}";
 
+                // Use cmd.exe /c because npm is a batch script on Windows
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = "npm",
-                    Arguments = $"install {npmPackage}",
+                    FileName = "cmd.exe",
+                    Arguments = $"/c npm install {npmPackage}",
                     WorkingDirectory = nodePath,
                     UseShellExecute = false,
                     CreateNoWindow = true,
@@ -2077,7 +2126,12 @@ namespace WhatsAppSimHubPlugin.UI
 
                 using (var process = Process.Start(startInfo))
                 {
+                    var outputTask = process.StandardOutput.ReadToEndAsync();
+                    var errorTask = process.StandardError.ReadToEndAsync();
+
                     await process.WaitForExitAsync();
+
+                    var error = await errorTask;
 
                     if (process.ExitCode == 0)
                     {
@@ -2086,7 +2140,6 @@ namespace WhatsAppSimHubPlugin.UI
                     }
                     else
                     {
-                        var error = await process.StandardError.ReadToEndAsync();
                         ShowToast($"npm install failed: {error}", "❌", 10);
                     }
                 }
@@ -2293,7 +2346,7 @@ namespace WhatsAppSimHubPlugin.UI
                     NodeJsStatusIcon.Text = "⏳";
                     NodeJsStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
                 }
-                NodeJsStatusText.Text = status;
+                NodeJsStatusText.Text = $"Node.js: {status}";
                 UpdateDependenciesOverallStatus();
             });
         }
@@ -2317,7 +2370,7 @@ namespace WhatsAppSimHubPlugin.UI
                     GitStatusIcon.Text = "⏳";
                     GitStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
                 }
-                GitStatusText.Text = status;
+                GitStatusText.Text = $"Git: {status}";
                 UpdateDependenciesOverallStatus();
             });
         }
@@ -2341,7 +2394,7 @@ namespace WhatsAppSimHubPlugin.UI
                     NpmPackagesStatusIcon.Text = "⏳";
                     NpmPackagesStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
                 }
-                NpmPackagesStatusText.Text = status;
+                NpmPackagesStatusText.Text = $"Npm packages: {status}";
                 UpdateDependenciesOverallStatus();
             });
         }
@@ -2367,6 +2420,10 @@ namespace WhatsAppSimHubPlugin.UI
                     UpdateDependenciesOverallStatus();
 
                     // Re-enable connection buttons after installation
+                    // Check connection state to enable appropriate buttons
+                    bool isConnected = StatusText.Text == "Connected";
+                    DisconnectButton.IsEnabled = isConnected;
+                    ReconnectButton.IsEnabled = true;
                 }
             });
         }
