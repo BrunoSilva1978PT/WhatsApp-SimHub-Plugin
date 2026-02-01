@@ -8,8 +8,8 @@
     "start-baileys": "node baileys-server.js"
   },
   "dependencies": {
-    "whatsapp-web.js": "github:DouglasReisofc/douglasreiswebjs",
-    "@whiskeysockets/baileys": "^6.7.16",
+    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#main",
+    "@whiskeysockets/baileys": "npm:@whiskeysockets/baileys@latest",
     "ws": "^8.18.0",
     "pino": "^9.6.0",
     "qrcode-terminal": "^0.12.0",

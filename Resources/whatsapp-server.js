@@ -247,6 +247,13 @@ const client = new Client({
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   },
+  // 🔧 FIX: Force LID migration to prevent infinite logout (GitHub #3856)
+  authTimeoutMs: 60000, // Increased timeout for auth
+  webVersionCache: {
+    type: "remote",
+    remotePath:
+      "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
+  },
 });
 
 log("[WA] Client created");
@@ -585,8 +592,19 @@ client.on("authenticated", () => {
   log("[AUTH] Authenticated!");
 });
 
-client.on("ready", () => {
+client.on("ready", async () => {
   log("[READY] Client ready!");
+
+  // 🔧 FIX: Force LID migration to prevent infinite logout (GitHub #3856)
+  try {
+    log("[LID-FIX] Injecting LID migration fix...");
+    await client.pupPage.evaluate(() => {
+      window.Store.Cmd.default.isLidMigrated = () => true;
+    });
+    log("[LID-FIX] ✅ LID migration fix applied successfully!");
+  } catch (err) {
+    log("[LID-FIX] ⚠️ Could not apply fix (may not be needed): " + err.message);
+  }
 
   // ⭐ MARCAR TIMESTAMP DE READY
   readyTimestamp = Date.now();

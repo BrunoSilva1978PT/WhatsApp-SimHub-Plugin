@@ -1,21 +1,42 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Newtonsoft.Json.Linq;
 using WhatsAppSimHubPlugin.Models;
 using Expr = System.Linq.Expressions.Expression;
 
 namespace WhatsAppSimHubPlugin.UI
 {
+    /// <summary>
+    /// Extension methods for Process to add async support in .NET Framework 4.8
+    /// </summary>
+    public static class ProcessExtensions
+    {
+        public static Task WaitForExitAsync(this Process process)
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            process.EnableRaisingEvents = true;
+            process.Exited += (s, e) => tcs.TrySetResult(true);
+            if (process.HasExited)
+                tcs.TrySetResult(true);
+            return tcs.Task;
+        }
+    }
+
     public partial class SettingsControl : UserControl
     {
         private readonly WhatsAppPlugin _plugin;
@@ -73,7 +94,8 @@ namespace WhatsAppSimHubPlugin.UI
             ContactsDataGrid.ItemsSource = _contacts;
 
             // ⭐ SINCRONIZAR: quando _contacts muda, atualizar _settings.Contacts
-            _contacts.CollectionChanged += (s, e) => {
+            _contacts.CollectionChanged += (s, e) =>
+            {
                 _settings.Contacts.Clear();
                 foreach (var contact in _contacts)
                 {
@@ -235,6 +257,12 @@ namespace WhatsAppSimHubPlugin.UI
                 // Checkbox RemoveAfterFirstDisplay
                 RemoveAfterFirstDisplayCheckbox.IsChecked = _settings.RemoveAfterFirstDisplay;
 
+                // ReminderInterval slider (ms → minutes)
+                ReminderIntervalSlider.Value = _settings.ReminderInterval / 60000;
+
+                // Mostrar/esconder painel baseado no checkbox
+                ReminderIntervalPanel.Visibility = _settings.RemoveAfterFirstDisplay ? Visibility.Collapsed : Visibility.Visible;
+
                 // Quick replies - apenas textos
                 Reply1TextBox.Text = _settings.Reply1Text;
                 Reply2TextBox.Text = _settings.Reply2Text;
@@ -252,6 +280,9 @@ namespace WhatsAppSimHubPlugin.UI
 
             // Verificar se o script Node.js está a correr
             CheckScriptStatus();
+
+            // Load backend library settings
+            LoadBackendLibrarySettings();
         }
 
         private void CheckScriptStatus()
@@ -504,7 +535,6 @@ namespace WhatsAppSimHubPlugin.UI
                 int value = (int)e.NewValue;
                 MaxMessagesPerContactValue.Text = value.ToString();
                 _settings.MaxGroupSize = value;
-                _settings.EnableGrouping = (value > 1); // Auto-enable if > 1
             }
         }
 
@@ -573,6 +603,23 @@ namespace WhatsAppSimHubPlugin.UI
             if (isChecked)
             {
                 _plugin.ClearVipUrgentQueue();
+            }
+
+            // Mostrar/esconder painel do ReminderInterval
+            if (ReminderIntervalPanel != null)
+            {
+                ReminderIntervalPanel.Visibility = isChecked ? Visibility.Collapsed : Visibility.Visible;
+            }
+        }
+
+        private void ReminderIntervalSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (ReminderIntervalValue != null && _settings != null)
+            {
+                int value = (int)e.NewValue;
+                ReminderIntervalValue.Text = $"{value} min";
+                _settings.ReminderInterval = value * 60000; // Convert to milliseconds
+                _plugin?.SaveSettings();
             }
         }
 
@@ -1226,6 +1273,955 @@ namespace WhatsAppSimHubPlugin.UI
                 ChatsStatusText.Foreground = new SolidColorBrush(Color.FromRgb(133, 133, 133)); // Gray
             }
         }
+
+        #region Backend Libraries Management
+
+        private static readonly HttpClient _httpClient = new HttpClient();
+        private List<string> _whatsappWebJsVersions = new List<string>();
+        private List<string> _baileysVersions = new List<string>();
+        private string _latestScriptVersion = null;
+
+        /// <summary>
+        /// Initialize backend library settings from saved config
+        /// </summary>
+        private void LoadBackendLibrarySettings()
+        {
+            // WhatsApp-Web.js source
+            if (_settings.WhatsAppWebJsSource == "manual")
+            {
+                WhatsAppWebJsManualRadio.IsChecked = true;
+                WhatsAppWebJsManualPanel.Visibility = Visibility.Visible;
+                WhatsAppWebJsRepoTextBox.Text = _settings.WhatsAppWebJsManualRepo;
+            }
+            else
+            {
+                WhatsAppWebJsOfficialRadio.IsChecked = true;
+                WhatsAppWebJsManualPanel.Visibility = Visibility.Collapsed;
+            }
+
+            // Baileys source
+            if (_settings.BaileysSource == "manual")
+            {
+                BaileysManualRadio.IsChecked = true;
+                BaileysManualPanel.Visibility = Visibility.Visible;
+                BaileysRepoTextBox.Text = _settings.BaileysManualRepo;
+            }
+            else
+            {
+                BaileysOfficialRadio.IsChecked = true;
+                BaileysManualPanel.Visibility = Visibility.Collapsed;
+            }
+
+            // Load current installed versions
+            LoadInstalledVersions();
+        }
+
+        /// <summary>
+        /// Load currently installed library versions from package.json (what's configured)
+        /// </summary>
+        private void LoadInstalledVersions()
+        {
+            try
+            {
+                var nodePath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "SimHub", "WhatsAppPlugin", "node");
+
+                var packageJsonPath = Path.Combine(nodePath, "package.json");
+
+                if (File.Exists(packageJsonPath))
+                {
+                    var packageJson = JObject.Parse(File.ReadAllText(packageJsonPath));
+                    var deps = packageJson["dependencies"] as JObject;
+
+                    if (deps != null)
+                    {
+                        // WhatsApp-Web.js - ler do package.json
+                        var wwjsSpec = deps["whatsapp-web.js"]?.ToString();
+                        WhatsAppWebJsVersionCombo.Items.Clear();
+
+                        if (!string.IsNullOrEmpty(wwjsSpec))
+                        {
+                            string displayVersion = wwjsSpec;
+                            string tagVersion = wwjsSpec;
+
+                            // Se for github:main, mostrar de forma amigável
+                            if (wwjsSpec.Contains("github:") && wwjsSpec.Contains("#main"))
+                            {
+                                displayVersion = "github:main (latest dev)";
+                                tagVersion = "github:pedroslopez/whatsapp-web.js#main";
+                            }
+                            // Se for versão normal, remover o ^ se existir
+                            else if (wwjsSpec.StartsWith("^"))
+                            {
+                                displayVersion = wwjsSpec.Substring(1);
+                                tagVersion = wwjsSpec.Substring(1);
+                            }
+
+                            _settings.WhatsAppWebJsVersion = tagVersion;
+
+                            // Adicionar opção github:main
+                            var mainItem = new ComboBoxItem
+                            {
+                                Content = "github:main (latest dev)",
+                                Tag = "github:pedroslopez/whatsapp-web.js#main"
+                            };
+                            WhatsAppWebJsVersionCombo.Items.Add(mainItem);
+                            if (tagVersion.Contains("#main")) mainItem.IsSelected = true;
+
+                            // Adicionar versão instalada se não for github:main
+                            if (!tagVersion.Contains("#main"))
+                            {
+                                var installedItem = new ComboBoxItem
+                                {
+                                    Content = $"{displayVersion} (installed)",
+                                    Tag = tagVersion,
+                                    IsSelected = true
+                                };
+                                WhatsAppWebJsVersionCombo.Items.Add(installedItem);
+                            }
+                        }
+
+                        // Baileys - ler do package.json
+                        var baileysSpec = deps["@whiskeysockets/baileys"]?.ToString();
+                        BaileysVersionCombo.Items.Clear();
+
+                        if (!string.IsNullOrEmpty(baileysSpec))
+                        {
+                            string displayVersion = baileysSpec;
+                            string tagVersion = baileysSpec;
+
+                            // Se for npm:@whiskeysockets/baileys@latest
+                            if (baileysSpec.Contains("@latest"))
+                            {
+                                displayVersion = "@latest (latest version)";
+                                tagVersion = "npm:@whiskeysockets/baileys@latest";
+                            }
+                            // Se for versão normal, remover npm: e ^ se existir
+                            else
+                            {
+                                displayVersion = baileysSpec.Replace("npm:@whiskeysockets/baileys@", "").Replace("^", "");
+                                tagVersion = displayVersion;
+                            }
+
+                            _settings.BaileysVersion = tagVersion;
+
+                            // Adicionar opção @latest
+                            var latestItem = new ComboBoxItem
+                            {
+                                Content = "@latest (latest version)",
+                                Tag = "npm:@whiskeysockets/baileys@latest"
+                            };
+                            BaileysVersionCombo.Items.Add(latestItem);
+                            if (tagVersion.Contains("@latest")) latestItem.IsSelected = true;
+
+                            // Adicionar versão instalada se não for @latest
+                            if (!tagVersion.Contains("@latest"))
+                            {
+                                var installedItem = new ComboBoxItem
+                                {
+                                    Content = $"{displayVersion} (installed)",
+                                    Tag = tagVersion,
+                                    IsSelected = true
+                                };
+                                BaileysVersionCombo.Items.Add(installedItem);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteDebugLog($"[BackendLibraries] Error loading versions: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Check for whatsapp-web.js updates from npm registry
+        /// </summary>
+        private async void WhatsAppWebJsCheckButton_Click(object sender, RoutedEventArgs e)
+        {
+            WhatsAppWebJsCheckButton.IsEnabled = false;
+            WhatsAppWebJsCheckButton.Content = "Checking...";
+
+            try
+            {
+                var versions = await FetchNpmVersionsAsync("whatsapp-web.js");
+
+                if (versions.Count > 0)
+                {
+                    _whatsappWebJsVersions = versions;
+                    var currentVersion = _settings.WhatsAppWebJsVersion;
+
+                    // Guardar item selecionado atual
+                    var currentlySelected = WhatsAppWebJsVersionCombo.SelectedItem as ComboBoxItem;
+                    var existingItems = WhatsAppWebJsVersionCombo.Items.Cast<ComboBoxItem>().ToList();
+
+                    // Adicionar versões stable do npm (últimas 10) que ainda não existem
+                    foreach (var version in versions.Take(10))
+                    {
+                        // Verificar se já existe no dropdown
+                        var exists = existingItems.Any(item => item.Tag?.ToString() == version);
+
+                        if (!exists)
+                        {
+                            var item = new ComboBoxItem
+                            {
+                                Content = version,
+                                Tag = version
+                            };
+                            WhatsAppWebJsVersionCombo.Items.Add(item);
+                        }
+                    }
+
+                    // Restaurar seleção
+                    if (currentlySelected != null)
+                    {
+                        WhatsAppWebJsVersionCombo.SelectedItem = currentlySelected;
+                    }
+
+                    // Verificar se há update disponível
+                    // Comparar apenas se a versão instalada for numérica (não github:main)
+                    bool hasUpdate = false;
+                    if (!currentVersion.Contains("github:") && !currentVersion.Contains("#main"))
+                    {
+                        var installedVersionClean = currentVersion.Replace("^", "").Replace("npm:", "");
+                        hasUpdate = versions.Count > 0 && versions[0] != installedVersionClean;
+                    }
+
+                    if (hasUpdate)
+                    {
+                        WhatsAppWebJsUpdateBadge.Visibility = Visibility.Visible;
+                        ShowToast($"New whatsapp-web.js version available: {versions[0]}", "🆕", 5);
+                    }
+                    else
+                    {
+                        WhatsAppWebJsUpdateBadge.Visibility = Visibility.Collapsed;
+                        ShowToast("whatsapp-web.js versions loaded!", "✅", 3);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Error checking updates: {ex.Message}", "❌", 5);
+            }
+            finally
+            {
+                WhatsAppWebJsCheckButton.IsEnabled = true;
+                WhatsAppWebJsCheckButton.Content = "Check for updates";
+            }
+        }
+
+        /// <summary>
+        /// Check for baileys updates from npm registry
+        /// </summary>
+        private async void BaileysCheckButton_Click(object sender, RoutedEventArgs e)
+        {
+            BaileysCheckButton.IsEnabled = false;
+            BaileysCheckButton.Content = "Checking...";
+
+            try
+            {
+                var versions = await FetchNpmVersionsAsync("@whiskeysockets/baileys");
+
+                if (versions.Count > 0)
+                {
+                    _baileysVersions = versions;
+                    var currentVersion = _settings.BaileysVersion;
+
+                    // Guardar item selecionado atual
+                    var currentlySelected = BaileysVersionCombo.SelectedItem as ComboBoxItem;
+                    var existingItems = BaileysVersionCombo.Items.Cast<ComboBoxItem>().ToList();
+
+                    // Adicionar versões stable do npm (últimas 10) que ainda não existem
+                    foreach (var version in versions.Take(10))
+                    {
+                        // Verificar se já existe no dropdown
+                        var exists = existingItems.Any(item => item.Tag?.ToString() == version);
+
+                        if (!exists)
+                        {
+                            var item = new ComboBoxItem
+                            {
+                                Content = version,
+                                Tag = version
+                            };
+                            BaileysVersionCombo.Items.Add(item);
+                        }
+                    }
+
+                    // Restaurar seleção
+                    if (currentlySelected != null)
+                    {
+                        BaileysVersionCombo.SelectedItem = currentlySelected;
+                    }
+
+                    // Verificar se há update disponível
+                    // Comparar apenas se a versão instalada for numérica (não @latest)
+                    bool hasUpdate = false;
+                    if (!currentVersion.Contains("@latest"))
+                    {
+                        var installedVersionClean = currentVersion.Replace("^", "").Replace("npm:@whiskeysockets/baileys@", "");
+                        hasUpdate = versions.Count > 0 && versions[0] != installedVersionClean;
+                    }
+
+                    if (hasUpdate)
+                    {
+                        BaileysUpdateBadge.Visibility = Visibility.Visible;
+                        ShowToast($"New baileys version available: {versions[0]}", "🆕", 5);
+                    }
+                    else
+                    {
+                        BaileysUpdateBadge.Visibility = Visibility.Collapsed;
+                        ShowToast("baileys versions loaded!", "✅", 3);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Error checking updates: {ex.Message}", "❌", 5);
+            }
+            finally
+            {
+                BaileysCheckButton.IsEnabled = true;
+                BaileysCheckButton.Content = "Check for updates";
+            }
+        }
+
+        /// <summary>
+        /// Fetch versions from npm registry
+        /// </summary>
+        private async Task<List<string>> FetchNpmVersionsAsync(string packageName)
+        {
+            var versions = new List<string>();
+
+            try
+            {
+                var url = $"https://registry.npmjs.org/{Uri.EscapeDataString(packageName)}";
+                var response = await _httpClient.GetStringAsync(url);
+                var json = JObject.Parse(response);
+
+                var versionsObj = json["versions"] as JObject;
+                if (versionsObj != null)
+                {
+                    // Get all versions and sort descending
+                    versions = versionsObj.Properties()
+                        .Select(p => p.Name)
+                        .Where(v => !v.Contains("-")) // Exclude pre-release versions
+                        .OrderByDescending(v => new Version(
+                            Regex.Replace(v, @"[^\d.]", "").TrimEnd('.')))
+                        .Take(10)
+                        .ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteDebugLog($"[FetchNpmVersions] Error for {packageName}: {ex.Message}");
+            }
+
+            return versions;
+        }
+
+        /// <summary>
+        /// Handle version selection change for whatsapp-web.js
+        /// </summary>
+        private void WhatsAppWebJsVersionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (WhatsAppWebJsVersionCombo.SelectedItem is ComboBoxItem item && item.Tag != null)
+            {
+                var selectedVersion = item.Tag.ToString();
+
+                // Show/hide Install button based on selection
+                if (selectedVersion != _settings.WhatsAppWebJsVersion)
+                {
+                    WhatsAppWebJsInstallButton.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    WhatsAppWebJsInstallButton.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handle version selection change for baileys
+        /// </summary>
+        private void BaileysVersionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (BaileysVersionCombo.SelectedItem is ComboBoxItem item && item.Tag != null)
+            {
+                var selectedVersion = item.Tag.ToString();
+
+                // Show/hide Install button based on selection
+                if (selectedVersion != _settings.BaileysVersion)
+                {
+                    BaileysInstallButton.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    BaileysInstallButton.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Install a specific library version
+        /// </summary>
+        private async Task InstallLibraryVersionAsync(string packageName, string version)
+        {
+            try
+            {
+                ShowToast($"Installing {packageName}@{version}...", "📦", 10);
+
+                // Stop current connection and kill processes
+                _plugin.DisconnectWhatsApp();
+                await Task.Delay(1000);
+
+                // Kill node and chrome processes
+                KillNodeAndChromeProcesses();
+                await Task.Delay(500);
+
+                // Get node folder path
+                var nodePath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "SimHub", "WhatsAppPlugin", "node");
+
+                // Run npm install
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "npm",
+                    Arguments = $"install {packageName}@{version}",
+                    WorkingDirectory = nodePath,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                using (var process = Process.Start(startInfo))
+                {
+                    await process.WaitForExitAsync();
+
+                    if (process.ExitCode == 0)
+                    {
+                        // Update settings
+                        if (packageName == "whatsapp-web.js")
+                        {
+                            _settings.WhatsAppWebJsVersion = version;
+                            WhatsAppWebJsUpdateBadge.Visibility = Visibility.Collapsed;
+                        }
+                        else if (packageName.Contains("baileys"))
+                        {
+                            _settings.BaileysVersion = version;
+                            BaileysUpdateBadge.Visibility = Visibility.Collapsed;
+                        }
+
+                        _plugin.SaveSettings();
+                        LoadInstalledVersions();
+
+                        ShowToast($"{packageName}@{version} installed successfully!", "✅", 5);
+                    }
+                    else
+                    {
+                        var error = await process.StandardError.ReadToEndAsync();
+                        ShowToast($"npm install failed: {error}", "❌", 10);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Error installing library: {ex.Message}", "❌", 10);
+            }
+        }
+
+        /// <summary>
+        /// Handle Install button click for whatsapp-web.js
+        /// </summary>
+        private void WhatsAppWebJsInstallButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (WhatsAppWebJsVersionCombo.SelectedItem is ComboBoxItem item && item.Tag != null)
+            {
+                var selectedVersion = item.Tag.ToString();
+
+                var result = MessageBox.Show(
+                    $"Install whatsapp-web.js {selectedVersion}?\n\n" +
+                    $"SimHub will close to complete the installation.\n" +
+                    $"When you restart SimHub, the new version will be installed automatically.\n\n" +
+                    $"Continue?",
+                    "Install Library",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    PrepareLibraryInstall("whatsapp-web.js", selectedVersion);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handle Install button click for baileys
+        /// </summary>
+        private void BaileysInstallButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (BaileysVersionCombo.SelectedItem is ComboBoxItem item && item.Tag != null)
+            {
+                var selectedVersion = item.Tag.ToString();
+
+                var result = MessageBox.Show(
+                    $"Install baileys {selectedVersion}?\n\n" +
+                    $"SimHub will close to complete the installation.\n" +
+                    $"When you restart SimHub, the new version will be installed automatically.\n\n" +
+                    $"Continue?",
+                    "Install Library",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    PrepareLibraryInstall("@whiskeysockets/baileys", selectedVersion);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Prepare library install: Update package.json, delete node_modules, close SimHub
+        /// </summary>
+        private void PrepareLibraryInstall(string packageName, string version)
+        {
+            try
+            {
+                var nodePath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "SimHub", "WhatsAppPlugin", "node");
+
+                var packageJsonPath = Path.Combine(nodePath, "package.json");
+
+                // Read package.json
+                var json = JObject.Parse(File.ReadAllText(packageJsonPath));
+                var deps = json["dependencies"] as JObject;
+
+                if (deps != null)
+                {
+                    // Update version in package.json
+                    var key = packageName == "whatsapp-web.js" ? "whatsapp-web.js" : "@whiskeysockets/baileys";
+                    deps[key] = version.StartsWith("^") ? version : $"^{version}";
+
+                    // Save updated package.json
+                    File.WriteAllText(packageJsonPath, json.ToString());
+
+                    // Delete node_modules for this package to force reinstall
+                    var nodeModulesPath = packageName == "whatsapp-web.js"
+                        ? Path.Combine(nodePath, "node_modules", "whatsapp-web.js")
+                        : Path.Combine(nodePath, "node_modules", "@whiskeysockets", "baileys");
+
+                    if (Directory.Exists(nodeModulesPath))
+                    {
+                        Directory.Delete(nodeModulesPath, true);
+                    }
+
+                    // Delete package-lock.json to force full reinstall
+                    var packageLockPath = Path.Combine(nodePath, "package-lock.json");
+                    if (File.Exists(packageLockPath))
+                    {
+                        File.Delete(packageLockPath);
+                    }
+
+                    ShowToast($"Closing SimHub to install {packageName} {version}...", "🔄", 3);
+
+                    // Close SimHub after a short delay
+                    Task.Delay(2000).ContinueWith(_ =>
+                    {
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            Application.Current.Shutdown();
+                        });
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Error preparing install: {ex.Message}", "❌", 10);
+            }
+        }
+
+        /// <summary>
+        /// Kill node.exe and chrome.exe processes
+        /// </summary>
+        private void KillNodeAndChromeProcesses()
+        {
+            try
+            {
+                // Kill node processes
+                foreach (var proc in Process.GetProcessesByName("node"))
+                {
+                    try { proc.Kill(); } catch { }
+                }
+
+                // Kill chrome processes started by puppeteer (careful with user's Chrome)
+                // Only kill headless chrome instances
+                foreach (var proc in Process.GetProcessesByName("chrome"))
+                {
+                    try
+                    {
+                        // Check if it's a headless instance by command line
+                        // This is a simplified check - in production you'd want to be more careful
+                        if (proc.MainWindowHandle == IntPtr.Zero) // No visible window = headless
+                        {
+                            proc.Kill();
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteDebugLog($"[KillProcesses] Error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handle source radio button change for whatsapp-web.js
+        /// </summary>
+        private void WhatsAppWebJsSourceRadio_Changed(object sender, RoutedEventArgs e)
+        {
+            // Skip if not initialized yet (called during InitializeComponent)
+            if (_plugin == null || _settings == null) return;
+
+            if (WhatsAppWebJsManualRadio.IsChecked == true)
+            {
+                WhatsAppWebJsManualPanel.Visibility = Visibility.Visible;
+                _settings.WhatsAppWebJsSource = "manual";
+            }
+            else
+            {
+                WhatsAppWebJsManualPanel.Visibility = Visibility.Collapsed;
+                _settings.WhatsAppWebJsSource = "official";
+
+                // If switching back to official and manual was applied, revert
+                if (!string.IsNullOrEmpty(_settings.WhatsAppWebJsManualRepo))
+                {
+                    _settings.WhatsAppWebJsManualRepo = "";
+                }
+            }
+            _plugin.SaveSettings();
+        }
+
+        /// <summary>
+        /// Handle source radio button change for baileys
+        /// </summary>
+        private void BaileysSourceRadio_Changed(object sender, RoutedEventArgs e)
+        {
+            // Skip if not initialized yet (called during InitializeComponent)
+            if (_plugin == null || _settings == null) return;
+
+            if (BaileysManualRadio.IsChecked == true)
+            {
+                BaileysManualPanel.Visibility = Visibility.Visible;
+                _settings.BaileysSource = "manual";
+            }
+            else
+            {
+                BaileysManualPanel.Visibility = Visibility.Collapsed;
+                _settings.BaileysSource = "official";
+
+                // If switching back to official and manual was applied, revert
+                if (!string.IsNullOrEmpty(_settings.BaileysManualRepo))
+                {
+                    _settings.BaileysManualRepo = "";
+                }
+            }
+            _plugin.SaveSettings();
+        }
+
+        /// <summary>
+        /// Apply manual repository for whatsapp-web.js
+        /// </summary>
+        private async void WhatsAppWebJsApplyRepo_Click(object sender, RoutedEventArgs e)
+        {
+            var repo = WhatsAppWebJsRepoTextBox.Text.Trim();
+
+            if (string.IsNullOrEmpty(repo))
+            {
+                ShowToast("Please enter a repository (e.g., user/repo#branch)", "⚠️", 5);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Install whatsapp-web.js from GitHub repository?\n\nRepository: {repo}\n\nThis will:\n• Stop WhatsApp connection\n• Run npm install\n• Restart connection\n\nContinue?",
+                "Install from Repository",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                _settings.WhatsAppWebJsManualRepo = repo;
+                _plugin.SaveSettings();
+
+                // Install from GitHub
+                await InstallFromGitHubAsync("whatsapp-web.js", repo);
+            }
+        }
+
+        /// <summary>
+        /// Apply manual repository for baileys
+        /// </summary>
+        private async void BaileysApplyRepo_Click(object sender, RoutedEventArgs e)
+        {
+            var repo = BaileysRepoTextBox.Text.Trim();
+
+            if (string.IsNullOrEmpty(repo))
+            {
+                ShowToast("Please enter a repository (e.g., user/repo#branch)", "⚠️", 5);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Install baileys from GitHub repository?\n\nRepository: {repo}\n\nThis will:\n• Stop WhatsApp connection\n• Run npm install\n• Restart connection\n\nContinue?",
+                "Install from Repository",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                _settings.BaileysManualRepo = repo;
+                _plugin.SaveSettings();
+
+                // Install from GitHub
+                await InstallFromGitHubAsync("@whiskeysockets/baileys", repo);
+            }
+        }
+
+        /// <summary>
+        /// Install library from GitHub repository
+        /// </summary>
+        private async Task InstallFromGitHubAsync(string packageName, string repo)
+        {
+            try
+            {
+                ShowToast($"Installing {packageName} from {repo}...", "📦", 10);
+
+                // Stop current connection and kill processes
+                _plugin.DisconnectWhatsApp();
+                await Task.Delay(1000);
+                KillNodeAndChromeProcesses();
+                await Task.Delay(500);
+
+                // Get node folder path
+                var nodePath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "SimHub", "WhatsAppPlugin", "node");
+
+                // Format: npm install github:user/repo#branch
+                var npmPackage = $"github:{repo}";
+
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "npm",
+                    Arguments = $"install {npmPackage}",
+                    WorkingDirectory = nodePath,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                using (var process = Process.Start(startInfo))
+                {
+                    await process.WaitForExitAsync();
+
+                    if (process.ExitCode == 0)
+                    {
+                        ShowToast($"{packageName} installed from {repo}!", "✅", 5);
+                        LoadInstalledVersions();
+                    }
+                    else
+                    {
+                        var error = await process.StandardError.ReadToEndAsync();
+                        ShowToast($"npm install failed: {error}", "❌", 10);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Error installing from repository: {ex.Message}", "❌", 10);
+            }
+        }
+
+        /// <summary>
+        /// Handle click on whatsapp-web.js update badge
+        /// </summary>
+        private void WhatsAppWebJsUpdateBadge_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (_whatsappWebJsVersions.Count > 0)
+            {
+                // Select the latest version in combo
+                if (WhatsAppWebJsVersionCombo.Items.Count > 0)
+                {
+                    WhatsAppWebJsVersionCombo.SelectedIndex = 0;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handle click on baileys update badge
+        /// </summary>
+        private void BaileysUpdateBadge_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (_baileysVersions.Count > 0)
+            {
+                // Select the latest version in combo
+                if (BaileysVersionCombo.Items.Count > 0)
+                {
+                    BaileysVersionCombo.SelectedIndex = 0;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Check for scripts updates from GitHub
+        /// </summary>
+        private async void ScriptsCheckButton_Click(object sender, RoutedEventArgs e)
+        {
+            ScriptsCheckButton.IsEnabled = false;
+            ScriptsCheckButton.Content = "Checking...";
+
+            try
+            {
+                // Get local script version
+                var localVersion = GetLocalScriptVersion();
+
+                // Get GitHub version
+                var githubVersion = await FetchGitHubScriptVersionAsync();
+
+                if (githubVersion != null && localVersion != githubVersion)
+                {
+                    _latestScriptVersion = githubVersion;
+                    ScriptsUpdateBadge.Visibility = Visibility.Visible;
+                    ShowToast($"New scripts version available: {githubVersion} (current: {localVersion})", "🆕", 5);
+                }
+                else
+                {
+                    ScriptsUpdateBadge.Visibility = Visibility.Collapsed;
+                    ShowToast($"Scripts are up to date (v{localVersion})", "✅", 3);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Error checking scripts: {ex.Message}", "❌", 5);
+            }
+            finally
+            {
+                ScriptsCheckButton.IsEnabled = true;
+                ScriptsCheckButton.Content = "Check for updates";
+            }
+        }
+
+        /// <summary>
+        /// Get local script version from whatsapp-server.js
+        /// </summary>
+        private string GetLocalScriptVersion()
+        {
+            try
+            {
+                var scriptPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "SimHub", "WhatsAppPlugin", "node", "whatsapp-server.js");
+
+                if (File.Exists(scriptPath))
+                {
+                    var content = File.ReadAllText(scriptPath);
+                    var match = Regex.Match(content, @"SCRIPT_VERSION\s*=\s*[""']([^""']+)[""']");
+                    if (match.Success)
+                        return match.Groups[1].Value;
+                }
+            }
+            catch { }
+
+            return "1.0.0";
+        }
+
+        /// <summary>
+        /// Fetch script version from GitHub repository
+        /// </summary>
+        private async Task<string> FetchGitHubScriptVersionAsync()
+        {
+            try
+            {
+                // Fetch raw file from GitHub
+                var url = "https://raw.githubusercontent.com/bfreis94/whatsapp-plugin/main/Resources/whatsapp-server.js";
+                var content = await _httpClient.GetStringAsync(url);
+
+                var match = Regex.Match(content, @"SCRIPT_VERSION\s*=\s*[""']([^""']+)[""']");
+                if (match.Success)
+                    return match.Groups[1].Value;
+            }
+            catch (Exception ex)
+            {
+                WriteDebugLog($"[FetchGitHubScriptVersion] Error: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Handle click on scripts update badge - download and apply updates
+        /// </summary>
+        private async void ScriptsUpdateBadge_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_latestScriptVersion))
+                return;
+
+            var result = MessageBox.Show(
+                $"Update scripts to version {_latestScriptVersion}?\n\nThis will:\n• Download latest scripts from GitHub\n• Replace local scripts\n• Restart connection\n\nContinue?",
+                "Update Scripts",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                await UpdateScriptsFromGitHubAsync();
+            }
+        }
+
+        /// <summary>
+        /// Download and update scripts from GitHub
+        /// </summary>
+        private async Task UpdateScriptsFromGitHubAsync()
+        {
+            try
+            {
+                ShowToast("Downloading latest scripts...", "📥", 10);
+
+                // Stop current connection
+                _plugin.DisconnectWhatsApp();
+                await Task.Delay(1000);
+                KillNodeAndChromeProcesses();
+
+                var nodePath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "SimHub", "WhatsAppPlugin", "node");
+
+                // Download whatsapp-server.js
+                var wwjsContent = await _httpClient.GetStringAsync(
+                    "https://raw.githubusercontent.com/bfreis94/whatsapp-plugin/main/Resources/whatsapp-server.js");
+                File.WriteAllText(Path.Combine(nodePath, "whatsapp-server.js"), wwjsContent);
+
+                // Download baileys-server.mjs
+                var baileysContent = await _httpClient.GetStringAsync(
+                    "https://raw.githubusercontent.com/bfreis94/whatsapp-plugin/main/Resources/baileys-server.mjs");
+                File.WriteAllText(Path.Combine(nodePath, "baileys-server.mjs"), baileysContent);
+
+                ScriptsUpdateBadge.Visibility = Visibility.Collapsed;
+                ShowToast($"Scripts updated to v{_latestScriptVersion}!", "✅", 5);
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Error updating scripts: {ex.Message}", "❌", 10);
+            }
+        }
+
+        #endregion
 
         /// <summary>
         /// Mostra notificação toast que desaparece após 10 segundos

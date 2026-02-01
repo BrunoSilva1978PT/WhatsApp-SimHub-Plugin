@@ -90,68 +90,62 @@ namespace WhatsAppSimHubPlugin.Core
         {
             var packagePath = Path.Combine(_pluginPath, "node", "package.json");
 
-            // ✅ REVERTIDO: Versão que FUNCIONAVA!
-            // Se mudar versão, apagar pasta node_modules para forçar reinstalação:
-            // %AppData%\SimHub\WhatsAppPlugin\node\node_modules\
+            // Only create if it doesn't exist (user may have customized it)
+            if (File.Exists(packagePath))
+            {
+                return;
+            }
 
-            var packageJson = @"{
-  ""name"": ""whatsapp-plugin"",
-  ""version"": ""1.0.0"",
-  ""dependencies"": {
-    ""whatsapp-web.js"": ""github:DouglasReisofc/douglasreiswebjs"",
-    ""ws"": ""^8.14.2"",
-    ""puppeteer"": ""^21.0.0""
-  }
-}";
+            // Copy from embedded resources
+            var assembly = Assembly.GetExecutingAssembly();
+            var resourceName = "WhatsAppSimHubPlugin.Resources.package.json";
 
-            File.WriteAllText(packagePath, packageJson);
+            using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+            {
+                if (stream != null)
+                {
+                    using (StreamReader reader = new StreamReader(stream))
+                    {
+                        File.WriteAllText(packagePath, reader.ReadToEnd());
+                    }
+                }
+            }
         }
 
         private void EnsureServerScripts()
         {
             var assembly = Assembly.GetExecutingAssembly();
 
-            // Copiar whatsapp-server.js
+            // Copy whatsapp-server.js only if it doesn't exist
             var whatsappScriptPath = Path.Combine(_pluginPath, "node", "whatsapp-server.js");
-            var whatsappResourceName = "WhatsAppSimHubPlugin.Resources.whatsapp-server.js";
-
-            using (Stream stream = assembly.GetManifestResourceStream(whatsappResourceName))
+            if (!File.Exists(whatsappScriptPath))
             {
-                if (stream != null)
+                var whatsappResourceName = "WhatsAppSimHubPlugin.Resources.whatsapp-server.js";
+                using (Stream stream = assembly.GetManifestResourceStream(whatsappResourceName))
                 {
-                    using (StreamReader reader = new StreamReader(stream))
+                    if (stream != null)
                     {
-                        File.WriteAllText(whatsappScriptPath, reader.ReadToEnd());
+                        using (StreamReader reader = new StreamReader(stream))
+                        {
+                            File.WriteAllText(whatsappScriptPath, reader.ReadToEnd());
+                        }
                     }
                 }
             }
 
-            // Copiar baileys-server.mjs
+            // Copy baileys-server.mjs only if it doesn't exist
             var baileysScriptPath = Path.Combine(_pluginPath, "node", "baileys-server.mjs");
-            var baileysResourceName = "WhatsAppSimHubPlugin.Resources.baileys-server.mjs";
-
-            using (Stream stream = assembly.GetManifestResourceStream(baileysResourceName))
+            if (!File.Exists(baileysScriptPath))
             {
-                if (stream != null)
+                var baileysResourceName = "WhatsAppSimHubPlugin.Resources.baileys-server.mjs";
+                using (Stream stream = assembly.GetManifestResourceStream(baileysResourceName))
                 {
-                    using (StreamReader reader = new StreamReader(stream))
+                    if (stream != null)
                     {
-                        File.WriteAllText(baileysScriptPath, reader.ReadToEnd());
-                    }
-                }
-            }
-
-            // Copiar package.json (com ambas as bibliotecas: whatsapp-web.js e Baileys)
-            var packageJsonPath = Path.Combine(_pluginPath, "node", "package.json");
-            var packageJsonResourceName = "WhatsAppSimHubPlugin.Resources.package.json";
-
-            using (Stream stream = assembly.GetManifestResourceStream(packageJsonResourceName))
-            {
-                if (stream != null)
-                {
-                    using (StreamReader reader = new StreamReader(stream))
-                    {
-                        File.WriteAllText(packageJsonPath, reader.ReadToEnd());
+                        using (StreamReader reader = new StreamReader(stream))
+                        {
+                            File.WriteAllText(baileysScriptPath, reader.ReadToEnd());
+                        }
                     }
                 }
             }
@@ -177,10 +171,28 @@ namespace WhatsAppSimHubPlugin.Core
         private async Task EnsureNpmPackagesInstalled()
         {
             var nodeModulesPath = Path.Combine(_pluginPath, "node", "node_modules");
+            var packageJsonPath = Path.Combine(_pluginPath, "node", "package.json");
+            var packageLockPath = Path.Combine(_pluginPath, "node", "package-lock.json");
 
             StatusChanged?.Invoke(this, "Debug: Checking npm packages");
 
-            if (Directory.Exists(nodeModulesPath))
+            // Verificar se package.json mudou desde último install
+            bool needsReinstall = false;
+
+            if (File.Exists(packageJsonPath) && File.Exists(packageLockPath))
+            {
+                var packageJsonTime = File.GetLastWriteTime(packageJsonPath);
+                var packageLockTime = File.GetLastWriteTime(packageLockPath);
+
+                // Se package.json é mais recente que package-lock.json, precisa reinstalar
+                if (packageJsonTime > packageLockTime)
+                {
+                    StatusChanged?.Invoke(this, "Debug: package.json changed - reinstalling");
+                    needsReinstall = true;
+                }
+            }
+
+            if (!needsReinstall && Directory.Exists(nodeModulesPath))
             {
                 var whatsappPath = Path.Combine(nodeModulesPath, "whatsapp-web.js");
                 if (Directory.Exists(whatsappPath))

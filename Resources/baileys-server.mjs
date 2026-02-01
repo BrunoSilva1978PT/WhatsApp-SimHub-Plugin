@@ -10,6 +10,7 @@ import {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
+  jidNormalizedUser,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
 import { WebSocket, WebSocketServer } from "ws";
@@ -50,6 +51,9 @@ function log(msg) {
 }
 
 let isHandlingError = false;
+
+// Cache de LID → número real (populado quando recebe contatos)
+const lidToNumberCache = new Map();
 
 process.on("uncaughtException", (err) => {
   if (err.code === "EPIPE") return;
@@ -215,11 +219,73 @@ async function connectToWhatsApp() {
         const name = me?.name || "User";
 
         log("[BAILEYS] Number: " + number + ", Name: " + name);
+
+        // Tentar popular cache de LID → número real
+        try {
+          log("[LID-CACHE] Attempting to build LID to phone number mapping...");
+
+          // Pegar chats para tentar mapear LIDs
+          const chats = await sock
+            .groupFetchAllParticipating()
+            .catch(() => ({}));
+
+          // Também tentar pegar de store se existir
+          if (sock.store?.contacts) {
+            log(
+              "[LID-CACHE] Found " +
+                Object.keys(sock.store.contacts).length +
+                " contacts in store",
+            );
+
+            for (const [jid, contact] of Object.entries(sock.store.contacts)) {
+              if (jid.includes("@lid") && contact.notify) {
+                // Tentar extrair número real
+                const possibleNumber = contact.notify || contact.name;
+                if (possibleNumber && /^\d+$/.test(possibleNumber)) {
+                  lidToNumberCache.set(jid, possibleNumber);
+                  log("[LID-CACHE] Mapped: " + jid + " → " + possibleNumber);
+                }
+              }
+            }
+          }
+
+          log(
+            "[LID-CACHE] Built cache with " +
+              lidToNumberCache.size +
+              " mappings",
+          );
+        } catch (e) {
+          log("[LID-CACHE] Warning: Could not build LID cache: " + e.message);
+        }
+
         send({ type: "ready", number: number, name: name });
       }
     });
 
     sock.ev.on("creds.update", saveCreds);
+
+    // Listener para capturar info de contatos e popular cache LID
+    sock.ev.on("messaging-history.set", ({ contacts }) => {
+      if (!contacts) return;
+      log("[LID-CACHE] Received contacts from history: " + contacts.length);
+
+      for (const contact of contacts) {
+        if (contact.id && contact.id.includes("@lid")) {
+          // Verificar se temos o número real em algum campo
+          const realNumber =
+            contact.notify || contact.name || contact.verifiedName;
+          if (realNumber && /^\d{10,15}$/.test(realNumber)) {
+            lidToNumberCache.set(contact.id, realNumber);
+            log(
+              "[LID-CACHE] Mapped from history: " +
+                contact.id +
+                " → " +
+                realNumber,
+            );
+          }
+        }
+      }
+    });
 
     sock.ev.on("messages.upsert", async (m) => {
       if (!isConnected) return;
@@ -242,17 +308,83 @@ async function connectToWhatsApp() {
       const senderName = msg.pushName || "Unknown";
 
       let number = null;
+      let isLid = false;
 
-      if (msg.key.senderPn) {
+      // Tentar obter número real
+      if (msg.key.participant) {
+        // Mensagem de grupo
+        const participant = msg.key.participant;
+        if (participant.includes("@lid")) {
+          isLid = true;
+          // Tentar normalizar o LID para número real
+          try {
+            const normalized = jidNormalizedUser(participant);
+            number = normalized
+              .replace("@s.whatsapp.net", "")
+              .replace("@lid", "");
+            log(
+              "[MSG] Got number from participant LID (normalized): " + number,
+            );
+          } catch (e) {
+            number = participant.split("@")[0];
+            log("[MSG] Got number from participant LID (fallback): " + number);
+          }
+        } else {
+          number = participant.replace("@s.whatsapp.net", "");
+          log("[MSG] Got number from participant: " + number);
+        }
+      } else if (msg.key.senderPn) {
         number = msg.key.senderPn.replace("@s.whatsapp.net", "");
         log("[MSG] Got number from senderPn: " + number);
       } else if (sender.includes("@s.whatsapp.net")) {
         number = sender.replace("@s.whatsapp.net", "");
         log("[MSG] Got number from sender (direct): " + number);
       } else if (sender.includes("@lid")) {
-        log("[MSG] WARNING: LinkedID detected, no real number available");
-        log("[MSG] Baileys cannot resolve LID to real number reliably");
-        number = sender.split("@")[0];
+        isLid = true;
+        log("[MSG] WARNING: LinkedID detected in sender: " + sender);
+
+        // PRIORIDADE 1: Verificar cache de LID → número real
+        if (lidToNumberCache.has(sender)) {
+          number = lidToNumberCache.get(sender);
+          log("[MSG] ✅ Got real number from LID cache: " + number);
+        }
+        // PRIORIDADE 2: Tentar buscar info do contato via onWhatsApp
+        else {
+          try {
+            log("[MSG] Attempting to fetch contact info for LID...");
+            const contactInfo = await sock.onWhatsApp(sender.split("@")[0]);
+
+            if (contactInfo && contactInfo.length > 0 && contactInfo[0].jid) {
+              const realJid = contactInfo[0].jid;
+              if (realJid.includes("@s.whatsapp.net")) {
+                number = realJid.replace("@s.whatsapp.net", "");
+                log("[MSG] ✅ Got real number from onWhatsApp: " + number);
+                // Guardar na cache para próximas vezes
+                lidToNumberCache.set(sender, number);
+              } else {
+                throw new Error("No real JID found");
+              }
+            } else {
+              throw new Error("No contact info returned");
+            }
+          } catch (e) {
+            log("[MSG] Could not resolve LID via onWhatsApp: " + e.message);
+
+            // FALLBACK: Tentar normalizar com jidNormalizedUser
+            try {
+              const normalized = jidNormalizedUser(sender);
+              number = normalized
+                .replace("@s.whatsapp.net", "")
+                .replace("@lid", "");
+              log("[MSG] Got number from jidNormalizedUser: " + number);
+            } catch (e2) {
+              // ÚLTIMO RECURSO: usar o LID como está
+              number = sender.split("@")[0];
+              log("[MSG] ⚠️ Using LID as number (fallback): " + number);
+              log("[MSG] Real number not available - C# will try LID matching");
+            }
+          }
+        }
       }
 
       if (!number) {
@@ -307,13 +439,20 @@ async function connectToWhatsApp() {
         timestamp: msg.messageTimestamp * 1000,
         chatId: sender,
         hasMedia: hasMedia,
+        isLid: isLid,
       };
 
       if (hasMedia) {
         data.mediaType = messageType;
       }
 
-      log("[MSG] Sending to C#: from=" + senderName + ", number=" + number);
+      log(
+        "[MSG] Sending to C#: from=" +
+          senderName +
+          ", number=" +
+          number +
+          (isLid ? " (LID)" : ""),
+      );
       send({ type: "message", message: data });
     });
   } catch (error) {

@@ -505,8 +505,8 @@ namespace WhatsAppSimHubPlugin
                 WriteLog($"[QUICK REPLY {replyNumber}] ✅ Reply sent successfully!");
 
                 // Remover mensagens se configurado (já automático, sempre remove)
-                _messageQueue.RemoveMessagesFromContact(_currentContactNumber);
-                WriteLog($"[QUICK REPLY {replyNumber}] 🗑️ Removed messages from {contactName}");
+                _messageQueue.RemoveMessagesFromContact(_currentContactRealNumber);
+                WriteLog($"[QUICK REPLY {replyNumber}] 🗑️ Removed messages from {contactName} (number: {_currentContactRealNumber})");
 
                 // Mostrar confirmação se configurado
                 if (_settings.ShowConfirmation)
@@ -523,9 +523,10 @@ namespace WhatsAppSimHubPlugin
 
         private void DismissCurrentMessage()
         {
-            if (!string.IsNullOrEmpty(_currentContactNumber))
+            if (!string.IsNullOrEmpty(_currentContactRealNumber))
             {
-                _messageQueue.RemoveMessagesFromContact(_currentContactNumber);
+                _messageQueue.RemoveMessagesFromContact(_currentContactRealNumber);
+                WriteLog($"[DISMISS] Removed messages from contact {_currentContactRealNumber}");
             }
         }
 
@@ -705,8 +706,9 @@ namespace WhatsAppSimHubPlugin
                 var from = messageData["from"]?.ToString();
                 var number = messageData["number"]?.ToString();
                 var chatId = messageData["chatId"]?.ToString();
+                var isLid = messageData["isLid"]?.ToObject<bool>() ?? false;
 
-                WriteLog($"From: {from}, Number: {number}, Body: {body}");
+                WriteLog($"From: {from}, Number: {number}, ChatId: {chatId}, IsLID: {isLid}, Body: {body}");
 
                 if (string.IsNullOrEmpty(body) || string.IsNullOrEmpty(number))
                 {
@@ -716,27 +718,62 @@ namespace WhatsAppSimHubPlugin
 
                 // Normalizar número (remover +, espaços, hífens)
                 var normalizedNumber = number.Replace("+", "").Replace(" ", "").Replace("-", "");
-                WriteLog($"📞 Received number: '{number}' → Normalized: '{normalizedNumber}'");
+
+                // Se for LID, também extrair o LID do chatId para matching
+                string lidNumber = null;
+                if (isLid && !string.IsNullOrEmpty(chatId))
+                {
+                    // chatId vem como "94266210652201@lid"
+                    lidNumber = chatId.Split('@')[0];
+                    WriteLog($"📞 LID detected - Number: '{number}', ChatId: '{chatId}', LID: '{lidNumber}'");
+                }
+                else
+                {
+                    WriteLog($"📞 Received number: '{number}' → Normalized: '{normalizedNumber}'");
+                }
 
                 // ⭐ VERIFICAR SE É DE CONTACTO PERMITIDO!
                 WriteLog($"🔍 Checking against {_settings.Contacts.Count} contacts in allowed list:");
 
+                Contact allowedContact = null;
+
                 foreach (var c in _settings.Contacts)
                 {
                     var contactNumber = c.Number.Replace("+", "").Replace(" ", "").Replace("-", "");
-                    WriteLog($"   Comparing '{normalizedNumber}' == '{contactNumber}' (Contact: {c.Name})");
-                }
 
-                var allowedContact = _settings.Contacts.FirstOrDefault(c =>
-                {
-                    var contactNumber = c.Number.Replace("+", "").Replace(" ", "").Replace("-", "");
-                    return contactNumber == normalizedNumber;
-                });
+                    // Tentar match normal
+                    bool matchesNumber = contactNumber == normalizedNumber;
+
+                    // Se for LID, também tentar match com o LID
+                    bool matchesLid = isLid && lidNumber != null && contactNumber == lidNumber;
+
+                    // Se for LID, também tentar match com chatId completo
+                    bool matchesChatId = isLid && !string.IsNullOrEmpty(chatId) && c.Number == chatId;
+
+                    WriteLog($"   Comparing with {c.Name}: Number:{matchesNumber} LID:{matchesLid} ChatId:{matchesChatId}");
+
+                    if (matchesNumber || matchesLid || matchesChatId)
+                    {
+                        allowedContact = c;
+                        WriteLog($"   ✅ MATCH found!");
+                        break;
+                    }
+                }
 
                 if (allowedContact == null)
                 {
-                    WriteLog($"❌ REJECTED: Contact '{from}' (number: {number}) is NOT in allowed list!");
-                    WriteLog($"   Add this number to your contacts: {number}");
+                    WriteLog($"❌ REJECTED: Contact '{from}' is NOT in allowed list!");
+                    if (isLid && !string.IsNullOrEmpty(lidNumber))
+                    {
+                        WriteLog($"   This is a LID contact. Add one of these to your contacts:");
+                        WriteLog($"   - LID number: {lidNumber}");
+                        WriteLog($"   - Full ChatId: {chatId}");
+                        WriteLog($"   - Detected number: {number}");
+                    }
+                    else
+                    {
+                        WriteLog($"   Add this number to your contacts: {number}");
+                    }
                     return;  // ⭐ REJEITAR!
                 }
 
@@ -1438,7 +1475,7 @@ namespace WhatsAppSimHubPlugin
                         }
 
                         string targetDashboard = DetermineDashboardToSet(currentDashboard);
-                        
+
                         // Se precisa mudar dashboard
                         if (targetDashboard != null && targetDashboard != currentDashboard)
                         {
@@ -1506,7 +1543,7 @@ namespace WhatsAppSimHubPlugin
 
                 // Caso 4: Está outro dashboard → verificar se existe e fazer merge
                 WriteLog($"🔀 Found different dashboard: {currentDashboard}");
-                
+
                 // ⚠️ VALIDAR SE O DASHBOARD EXISTE REALMENTE
                 if (!_dashboardMerger.DashboardExists(currentDashboard))
                 {
@@ -1514,7 +1551,7 @@ namespace WhatsAppSimHubPlugin
                     WriteLog($"→ Installing WhatsAppPlugin only");
                     return OUR_DASHBOARD;
                 }
-                
+
                 WriteLog($"✅ Dashboard exists → Merging with WhatsAppPlugin");
                 string mergedDashboard = _dashboardMerger.MergeDashboards(currentDashboard, OUR_DASHBOARD);
 
@@ -2292,9 +2329,9 @@ namespace WhatsAppSimHubPlugin
                     // File.WriteAllText(setupFlagPath, DateTime.Now.ToString()); // DISABLED - using node_modules check instead
                     // WriteLog($"✅ Setup flag saved: {setupFlagPath}");
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    // WriteLog($"⚠️ Could not save setup flag: {ex.Message}");
+                    // Ignore - setup flag is optional
                 }
 
                 // Mostrar botão Continue!
@@ -2541,9 +2578,9 @@ namespace WhatsAppSimHubPlugin
                 // File.WriteAllText(setupFlagPath, DateTime.Now.ToString()); // DISABLED - using node_modules check instead
                 // WriteLog($"✅ Created setup flag file: {setupFlagPath}");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                // WriteLog($"⚠️ Could not create setup flag file: {ex.Message}");
+                // Ignore - setup flag is optional
             }
 
             // Esconder botão e mostrar mensagem de restart

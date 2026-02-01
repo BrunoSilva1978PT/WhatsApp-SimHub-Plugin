@@ -29,10 +29,10 @@ echo Build successful! Deploying...
 echo ========================================
 echo.
 
-tasklist /FI "IMAGENAME eq SimHub.exe" 2>NUL | find /I "SimHub.exe" >NUL
+tasklist /FI "IMAGENAME eq SimHubWPF.exe" 2>NUL | find /I "SimHubWPF.exe" >NUL
 if %ERRORLEVEL% equ 0 (
     echo SimHub is running. Closing it...
-    taskkill /IM SimHub.exe /F
+    taskkill /IM SimHubWPF.exe /F
     timeout /t 2 /nobreak >NUL
     echo SimHub closed.
 ) else (
@@ -46,7 +46,7 @@ echo   Source: %CD%\bin\Release\WhatsAppSimHubPlugin.dll
 echo   Target: %SIMHUB_PATH%\
 echo.
 
-copy /Y "bin\Release\WhatsAppSimHubPlugin.dll" "%SIMHUB_PATH%\" 
+copy /Y "bin\Release\WhatsAppSimHubPlugin.dll" "%SIMHUB_PATH%\"
 
 set COPY_RESULT=%ERRORLEVEL%
 

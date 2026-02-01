@@ -119,7 +119,147 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Info Section - Verde + Branco -->
+                        <!-- Backend Management Section -->
+                        <Border BorderThickness="1"
+                                Padding="15" CornerRadius="5" Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock Text="Backend Libraries" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                                <!-- whatsapp-web.js -->
+                                <Border BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,10">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Header row -->
+                                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="whatsapp-web.js" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="WhatsAppWebJsUpdateBadge" Grid.Column="1" Text="NEW UPDATE"
+                                                       Foreground="#25D366" FontWeight="Bold" FontSize="11"
+                                                       VerticalAlignment="Center" Visibility="Collapsed"
+                                                       Cursor="Hand" MouseLeftButtonUp="WhatsAppWebJsUpdateBadge_Click"/>
+                                        </Grid>
+
+                                        <!-- Version and check row -->
+                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
+                                            <TextBlock Text="Version:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <ComboBox x:Name="WhatsAppWebJsVersionCombo" Width="150" Height="28"
+                                                      SelectionChanged="WhatsAppWebJsVersionCombo_SelectionChanged"/>
+                                            <styles:SHButtonPrimary x:Name="WhatsAppWebJsInstallButton" Content="Install"
+                                                    Margin="10,0,0,0" Padding="10,5" Visibility="Collapsed"
+                                                    Background="#0E7A0D" Foreground="White"
+                                                    Click="WhatsAppWebJsInstallButton_Click"/>
+                                            <styles:SHButtonPrimary x:Name="WhatsAppWebJsCheckButton" Content="Check for updates"
+                                                    Margin="10,0,0,0" Padding="10,5"
+                                                    Click="WhatsAppWebJsCheckButton_Click"/>
+                                        </StackPanel>
+
+                                        <!-- Source row -->
+                                        <StackPanel Grid.Row="2">
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <TextBlock Text="Source:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                <RadioButton x:Name="WhatsAppWebJsOfficialRadio" Content="Official"
+                                                             GroupName="WhatsAppWebJsSource" IsChecked="True"
+                                                             Checked="WhatsAppWebJsSourceRadio_Changed" Margin="0,0,15,0"/>
+                                                <RadioButton x:Name="WhatsAppWebJsManualRadio" Content="Manual"
+                                                             GroupName="WhatsAppWebJsSource"
+                                                             Checked="WhatsAppWebJsSourceRadio_Changed"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" x:Name="WhatsAppWebJsManualPanel" Visibility="Collapsed">
+                                                <TextBlock Text="Repository:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBox x:Name="WhatsAppWebJsRepoTextBox" Width="280" Height="28"/>
+                                                <styles:SHButtonPrimary Content="Apply" Margin="10,0,0,0" Padding="10,5"
+                                                        Click="WhatsAppWebJsApplyRepo_Click"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- baileys -->
+                                <Border BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,10">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Header row -->
+                                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="baileys" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="BaileysUpdateBadge" Grid.Column="1" Text="NEW UPDATE"
+                                                       Foreground="#25D366" FontWeight="Bold" FontSize="11"
+                                                       VerticalAlignment="Center" Visibility="Collapsed"
+                                                       Cursor="Hand" MouseLeftButtonUp="BaileysUpdateBadge_Click"/>
+                                        </Grid>
+
+                                        <!-- Version and check row -->
+                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
+                                            <TextBlock Text="Version:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <ComboBox x:Name="BaileysVersionCombo" Width="150" Height="28"
+                                                      SelectionChanged="BaileysVersionCombo_SelectionChanged"/>
+                                            <styles:SHButtonPrimary x:Name="BaileysInstallButton" Content="Install"
+                                                    Margin="10,0,0,0" Padding="10,5" Visibility="Collapsed"
+                                                    Background="#0E7A0D" Foreground="White"
+                                                    Click="BaileysInstallButton_Click"/>
+                                            <styles:SHButtonPrimary x:Name="BaileysCheckButton" Content="Check for updates"
+                                                    Margin="10,0,0,0" Padding="10,5"
+                                                    Click="BaileysCheckButton_Click"/>
+                                        </StackPanel>
+
+                                        <!-- Source row -->
+                                        <StackPanel Grid.Row="2">
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <TextBlock Text="Source:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                <RadioButton x:Name="BaileysOfficialRadio" Content="Official"
+                                                             GroupName="BaileysSource" IsChecked="True"
+                                                             Checked="BaileysSourceRadio_Changed" Margin="0,0,15,0"/>
+                                                <RadioButton x:Name="BaileysManualRadio" Content="Manual"
+                                                             GroupName="BaileysSource"
+                                                             Checked="BaileysSourceRadio_Changed"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" x:Name="BaileysManualPanel" Visibility="Collapsed">
+                                                <TextBlock Text="Repository:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBox x:Name="BaileysRepoTextBox" Width="280" Height="28"/>
+                                                <styles:SHButtonPrimary Content="Apply" Margin="10,0,0,0" Padding="10,5"
+                                                        Click="BaileysApplyRepo_Click"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Scripts -->
+                                <Border BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="4" Padding="10">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Scripts" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="ScriptsUpdateBadge" Grid.Column="1" Text="NEW UPDATE"
+                                                   Foreground="#25D366" FontWeight="Bold" FontSize="11"
+                                                   VerticalAlignment="Center" Margin="0,0,15,0" Visibility="Collapsed"
+                                                   Cursor="Hand" MouseLeftButtonUp="ScriptsUpdateBadge_Click"/>
+                                        <styles:SHButtonPrimary x:Name="ScriptsCheckButton" Grid.Column="2" Content="Check for updates"
+                                                Padding="10,5" Click="ScriptsCheckButton_Click"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Info Section -->
                         <Border Background="#1E3A5F" BorderThickness="0" Padding="12" CornerRadius="6" Margin="0,15,0,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
@@ -824,6 +964,28 @@
                                          Checked="RemoveAfterFirstDisplayCheckbox_Changed"
                                          Unchecked="RemoveAfterFirstDisplayCheckbox_Changed"/>
 
+                                <!-- Repeat interval (only visible when RemoveAfterFirstDisplay is OFF) -->
+                                <StackPanel x:Name="ReminderIntervalPanel" Margin="0,0,0,15">
+                                    <TextBlock Text="Repeat interval for VIP/Urgent messages:"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               Margin="0,0,0,8"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="80"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Slider x:Name="ReminderIntervalSlider" Grid.Column="0"
+                                                Minimum="1" Maximum="10" Value="3"
+                                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                                VerticalAlignment="Center"
+                                                ValueChanged="ReminderIntervalSlider_ValueChanged"/>
+                                        <TextBlock x:Name="ReminderIntervalValue" Grid.Column="1"
+                                                   Text="3 min" FontWeight="Bold"
+                                                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    </Grid>
+                                </StackPanel>
+
                                 <!-- Info -->
                                 <Border Background="#1E3A5F"
                                         BorderThickness="0"
@@ -838,6 +1000,8 @@
                                             VIP/Urgent messages can repeat until read.
                                             <LineBreak/>
                                             Enable "Remove after first display" to prevent repeats.
+                                            <LineBreak/>
+                                            When repeating, the interval defines how long to show normal queue between VIP/Urgent repeats.
                                         </TextBlock>
                                     </StackPanel>
                                 </Border>

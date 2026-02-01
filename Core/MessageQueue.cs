@@ -243,14 +243,23 @@ namespace WhatsAppSimHubPlugin.Core
             if (_settings.RemoveAfterFirstDisplay)
                 return false;
 
-            // ✅ RemoveAfterFirstDisplay = false → SEMPRE REPETIR
-            // Resetar WasDisplayed para mostrar novamente
-            foreach (var msg in _vipUrgentQueue)
+            // ✅ RemoveAfterFirstDisplay = false → Verificar intervalo de repetição
+            var timeSinceLastDisplay = DateTime.Now - _lastVipUrgentDisplay;
+
+            if (timeSinceLastDisplay.TotalMilliseconds >= _settings.ReminderInterval)
             {
-                msg.WasDisplayed = false;
+                // Tempo suficiente passou, resetar mensagens para repetir
+                foreach (var msg in _vipUrgentQueue)
+                {
+                    msg.WasDisplayed = false;
+                }
+                _logger($"[QUEUE] Resetting VIP/URGENT messages for repeat (interval: {timeSinceLastDisplay.TotalMinutes:F1} min / {_settings.ReminderInterval / 60000.0:F1} min)");
+                return true;
             }
-            _logger($"[QUEUE] Resetting VIP/URGENT messages for repeat (RemoveAfterFirstDisplay=false)");
-            return true;
+
+            // Ainda dentro do intervalo, mostrar queue normal
+            _logger($"[QUEUE] VIP/URGENT repeat interval not reached ({timeSinceLastDisplay.TotalMinutes:F1} min / {_settings.ReminderInterval / 60000.0:F1} min)");
+            return false;
         }
 
         #endregion
@@ -509,11 +518,16 @@ namespace WhatsAppSimHubPlugin.Core
             {
                 var allDisplayed = _vipUrgentQueue.All(m => m.WasDisplayed);
 
-                // Se todas foram mostradas E RemoveAfterFirstDisplay = false → reprocessar
+                // Se todas foram mostradas E RemoveAfterFirstDisplay = false → verificar intervalo
                 if (allDisplayed && !_settings.RemoveAfterFirstDisplay)
                 {
-                    _logger($"[REMINDER] All VIP/URGENT shown, reprocessing queue (RemoveAfterFirstDisplay=false)");
-                    ProcessQueue();
+                    var timeSinceLastDisplay = DateTime.Now - _lastVipUrgentDisplay;
+
+                    if (timeSinceLastDisplay.TotalMilliseconds >= _settings.ReminderInterval)
+                    {
+                        _logger($"[REMINDER] Reminder interval reached ({timeSinceLastDisplay.TotalMinutes:F1} min), reprocessing VIP/URGENT queue");
+                        ProcessQueue();
+                    }
                 }
             }
         }
@@ -566,6 +580,15 @@ namespace WhatsAppSimHubPlugin.Core
         {
             var removed = _vipUrgentQueue.RemoveAll(m => m.Number == contactNumber);
             removed += _normalQueue.RemoveAll(m => m.Number == contactNumber);
+
+            // Se o contacto que está sendo mostrado é o que foi removido, limpar display
+            if (_currentDisplayContact == contactNumber)
+            {
+                _displayTimer.Stop();
+                _currentDisplayGroup = null;
+                _currentDisplayContact = null;
+                _logger($"[QUEUE] Stopped displaying messages from {contactNumber}");
+            }
 
             if (removed > 0)
             {
