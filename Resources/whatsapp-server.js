@@ -142,7 +142,13 @@ wss.on("connection", (socket) => {
       const data = JSON.parse(msg);
       log("[WS] Received: " + data.type);
 
-      if (data.type === "sendReply") {
+      if (data.type === "shutdown") {
+        log("[WA] Graceful shutdown initiated...");
+        client.destroy().then(() => {
+          log("[WA] Client destroyed. Exiting.");
+          process.exit(0);
+        });
+      } else if (data.type === "sendReply") {
         try {
           log(`[REPLY] 📤 Sending to: ${data.chatId}`);
           log(`[REPLY] 📝 Text: ${data.text}`);

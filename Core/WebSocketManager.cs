@@ -596,29 +596,66 @@ namespace WhatsAppSimHubPlugin.Core
 
         public void Stop()
         {
+            StatusChanged?.Invoke(this, "Debug: Stop() called.");
             _isConnected = false;
-            _cts?.Cancel();
-            _webSocket?.Dispose();
 
-            // ⭐ Try-catch para evitar "No process is associated"
+            try
+            {
+                // 1. Try to send graceful shutdown command
+                if (_webSocket != null && _webSocket.State == WebSocketState.Open)
+                {
+                    StatusChanged?.Invoke(this, "Debug: Sending 'shutdown' command to Node.js script.");
+                    SendCommandAsync("shutdown").Wait(1000); // Send and wait max 1s
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusChanged?.Invoke(this, $"Debug: Error sending shutdown command: {ex.Message}");
+            }
+
+            // 2. Cancel any ongoing WebSocket operations
+            try
+            {
+                _cts?.Cancel();
+                _webSocket?.Dispose();
+            }
+            catch { }
+
+
+            // 3. Wait for the process to exit gracefully, with a fallback to Kill
             try
             {
                 if (_nodeProcess != null && !_nodeProcess.HasExited)
                 {
-                    _nodeProcess.Kill();
-                    _nodeProcess.Dispose();
-                    _nodeProcess = null;
+                    StatusChanged?.Invoke(this, "Debug: Waiting for Node.js process to exit...");
+                    bool exited = _nodeProcess.WaitForExit(5000); // Wait 5 seconds
+
+                    if (exited)
+                    {
+                        StatusChanged?.Invoke(this, "Debug: Node.js process exited gracefully.");
+                    }
+                    else
+                    {
+                        StatusChanged?.Invoke(this, "Debug: Node.js process did not exit in time. Killing it.");
+                        _nodeProcess.Kill();
+                    }
                 }
             }
-            catch (InvalidOperationException)
+            catch (Exception ex)
             {
-                // Processo já não existe - OK!
-                _nodeProcess = null;
+                StatusChanged?.Invoke(this, $"Debug: Exception during process stop: {ex.Message}");
+                // Fallback kill if something went wrong
+                try
+                {
+                    if (_nodeProcess != null && !_nodeProcess.HasExited) _nodeProcess.Kill();
+                }
+                catch { }
             }
-            catch (Exception)
+            finally
             {
-                // Qualquer outro erro - limpar referência
+                _nodeProcess?.Dispose();
                 _nodeProcess = null;
+                StatusChanged?.Invoke(this, "Debug: Stop() finished.");
             }
         }
 

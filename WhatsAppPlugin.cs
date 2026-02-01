@@ -49,7 +49,6 @@ namespace WhatsAppSimHubPlugin
         // 🆕 SETUP & DEPENDENCIES
         private DependencyManager _dependencyManager;
         // SetupControl removed - dependencies now managed in SettingsControl Connection tab
-        private bool _setupComplete = false;
 
         // Propriedade pública para acesso às configurações
         public PluginSettings Settings => _settings;
@@ -286,7 +285,6 @@ namespace WhatsAppSimHubPlugin
             string setupFlagPath = Path.Combine(_pluginPath, ".setup-complete");
             if (Directory.Exists(Path.Combine(_pluginPath, "node", "node_modules", "@whiskeysockets", "baileys")))
             {
-                _setupComplete = true;
                 WriteLog("✅ Setup already completed previously (found .setup-complete flag)");
             }
             else
@@ -2340,7 +2338,6 @@ namespace WhatsAppSimHubPlugin
 
                 // ============ TUDO PRONTO! ============
                 WriteLog("✅ All dependencies installed - starting Node.js...");
-                _setupComplete = true;
 
                 // REACTIVAR BOTÕES CONNECTION
                 if (_settingsControl != null)

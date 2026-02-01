@@ -1673,13 +1673,9 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 ShowToast($"Installing {packageName}@{version}...", "📦", 10);
 
-                // Stop current connection and kill processes
+                // Stop current connection gracefully
                 _plugin.DisconnectWhatsApp();
-                await Task.Delay(1000);
-
-                // Kill node and chrome processes
-                KillNodeAndChromeProcesses();
-                await Task.Delay(500);
+                await Task.Delay(2000); // Wait for graceful shutdown
 
                 // Get node folder path
                 var nodePath = Path.Combine(
@@ -1816,10 +1812,6 @@ namespace WhatsAppSimHubPlugin.UI
                 _plugin.DisconnectWhatsApp();
                 await Task.Delay(1000);
 
-                // Step 2: Kill Node.js and Chrome processes
-                KillNodeAndChromeProcesses();
-                await Task.Delay(500);
-
                 // Step 3: Update package.json
                 var json = JObject.Parse(File.ReadAllText(packageJsonPath));
                 var deps = json["dependencies"] as JObject;
@@ -1933,7 +1925,7 @@ namespace WhatsAppSimHubPlugin.UI
 
                 // Step 8: Reconnect
                 await Task.Delay(1000);
-                _plugin.ReconnectWhatsApp();
+                await _plugin.ReconnectWhatsApp();
 
             }
             catch (Exception ex)
@@ -1941,39 +1933,6 @@ namespace WhatsAppSimHubPlugin.UI
                 ShowToast($"Error installing: {ex.Message}", "❌", 10);
                 SetDependenciesInstalling(false);
                 _plugin.Settings.DependenciesInstalling = false;
-            }
-        }
-
-        /// <summary>
-        /// Kill node.exe and chrome.exe processes
-        /// </summary>
-        private void KillNodeAndChromeProcesses()
-        {
-            try
-            {
-                // Kill node processes only - let them clean up Chrome properly
-                foreach (var proc in Process.GetProcessesByName("node"))
-                {
-                    try
-                    {
-                        proc.Kill();
-                        proc.WaitForExit(3000); // Give it time to cleanup
-                    }
-                    catch { }
-                }
-
-                // Wait a bit for Chrome/CefSharp to close naturally when node exits
-                System.Threading.Thread.Sleep(2000);
-
-                // Only kill remaining orphaned CefSharp processes to avoid the breakpoint dialog
-                foreach (var proc in Process.GetProcessesByName("CefSharp.BrowserSubprocess"))
-                {
-                    try { proc.Kill(); } catch { }
-                }
-            }
-            catch (Exception ex)
-            {
-                WriteDebugLog($"[KillProcesses] Error: {ex.Message}");
             }
         }
 
@@ -2098,11 +2057,9 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 ShowToast($"Installing {packageName} from {repo}...", "📦", 10);
 
-                // Stop current connection and kill processes
+                // Stop current connection gracefully
                 _plugin.DisconnectWhatsApp();
-                await Task.Delay(1000);
-                KillNodeAndChromeProcesses();
-                await Task.Delay(500);
+                await Task.Delay(2000); // Wait for graceful shutdown
 
                 // Get node folder path
                 var nodePath = Path.Combine(
@@ -2295,10 +2252,9 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 ShowToast("Downloading latest scripts...", "📥", 10);
 
-                // Stop current connection
+                // Stop current connection gracefully
                 _plugin.DisconnectWhatsApp();
-                await Task.Delay(1000);
-                KillNodeAndChromeProcesses();
+                await Task.Delay(2000); // Wait for graceful shutdown
 
                 var nodePath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

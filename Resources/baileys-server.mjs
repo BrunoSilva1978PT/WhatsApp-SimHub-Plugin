@@ -127,6 +127,12 @@ wss.on("connection", (socket) => {
           log("[BAILEYS] Already connected");
           send({ type: "already_connected" });
         }
+      } else if (data.type === "shutdown") {
+        log("[BAILEYS] Graceful shutdown initiated...");
+        if (sock) {
+          sock.end();
+        }
+        process.exit(0);
       }
       if (data.type === "sendReply") {
         try {
