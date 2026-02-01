@@ -2318,7 +2318,6 @@ namespace WhatsAppSimHubPlugin.UI
                     UpdateDependenciesOverallStatus();
 
                     // Re-enable connection buttons after installation
-                    UpdateConnectionButtons();
                 }
             });
         }

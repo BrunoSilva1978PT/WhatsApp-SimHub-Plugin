@@ -2196,8 +2196,8 @@ namespace WhatsAppSimHubPlugin
 
                     if (_settingsControl != null)
                     {
-                        _settingsControl.UpdateWhatsAppWebJsStatus("Installing...", false);
-                        _settingsControl.UpdateBaileysStatus("Installing...", false);
+                        // _settingsControl.UpdateWhatsAppWebJsStatus("Installing...", false);
+                        // _settingsControl.UpdateBaileysStatus("Installing...", false);
                         // _settingsControl.UpdateProgress(70, "Installing npm packages...");
                     }
 
@@ -2215,23 +2215,23 @@ namespace WhatsAppSimHubPlugin
                         {
                             if (whatsappWebJsInstalled)
                             {
-                                _settingsControl.UpdateWhatsAppWebJsStatus("Installed", true);
+                                // _settingsControl.UpdateWhatsAppWebJsStatus("Installed", true);
                                 WriteLog("✅ whatsapp-web.js library verified");
                             }
                             else
                             {
-                                _settingsControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
+                                // _settingsControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
                                 WriteLog("⚠️ whatsapp-web.js library not found after installation");
                             }
 
                             if (baileysInstalled)
                             {
-                                _settingsControl.UpdateBaileysStatus("Installed", true);
+                                // _settingsControl.UpdateBaileysStatus("Installed", true);
                                 WriteLog("✅ Baileys library verified");
                             }
                             else
                             {
-                                _settingsControl.UpdateBaileysStatus("Not found", false, true);
+                                // _settingsControl.UpdateBaileysStatus("Not found", false, true);
                                 WriteLog("⚠️ Baileys library not found after installation");
                             }
 
@@ -2250,8 +2250,8 @@ namespace WhatsAppSimHubPlugin
                         WriteLog("❌ ERROR: Failed to install npm packages!");
                         if (_settingsControl != null)
                         {
-                            _settingsControl.UpdateWhatsAppWebJsStatus("Installation failed", false, true);
-                            _settingsControl.UpdateBaileysStatus("Installation failed", false, true);
+                            // _settingsControl.UpdateWhatsAppWebJsStatus("Installation failed", false, true);
+                            // _settingsControl.UpdateBaileysStatus("Installation failed", false, true);
                             // _settingsControl.UpdateProgress(0, "ERROR: npm install failed");
                             // _settingsControl.ShowRetryButton();
                         }
@@ -2270,23 +2270,23 @@ namespace WhatsAppSimHubPlugin
                     {
                         if (whatsappWebJsInstalled)
                         {
-                            _settingsControl.UpdateWhatsAppWebJsStatus("Already installed", true);
+                            // _settingsControl.UpdateWhatsAppWebJsStatus("Already installed", true);
                             WriteLog("✅ whatsapp-web.js library found");
                         }
                         else
                         {
-                            _settingsControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
+                            // _settingsControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
                             WriteLog("⚠️ whatsapp-web.js library not found");
                         }
 
                         if (baileysInstalled)
                         {
-                            _settingsControl.UpdateBaileysStatus("Already installed", true);
+                            // _settingsControl.UpdateBaileysStatus("Already installed", true);
                             WriteLog("✅ Baileys library found");
                         }
                         else
                         {
-                            _settingsControl.UpdateBaileysStatus("Not found", false, true);
+                            // _settingsControl.UpdateBaileysStatus("Not found", false, true);
                             WriteLog("⚠️ Baileys library not found");
                         }
 
@@ -2511,240 +2511,10 @@ namespace WhatsAppSimHubPlugin
         /// <summary>
         /// Event handler quando user clica no botão Retry do Setup
         /// </summary>
-        private void OnSetupRetryRequested(object sender, EventArgs e)
-        {
-            WriteLog("🔄 User requested setup retry - restarting dependency installation...");
-
-            // Reset states
-
-            // Esconder o botão
-            // _settingsControl?.HideRetryButton();
-
-            // Resetar UI
-            if (_settingsControl != null)
-            {
-                _settingsControl.UpdateNodeStatus("Retrying...", false);
-                _settingsControl.UpdateGitStatus("Waiting...", false);
-                _settingsControl.UpdateNpmStatus("Waiting...", false);
-                // _settingsControl.UpdateProgress(0, "Retrying setup...");
-            }
-
-            // TENTAR NOVAMENTE TUDO!
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await Task.Delay(500).ConfigureAwait(false); // Pequeno delay antes de começar
-                    await InitializeDependenciesAsync().ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    WriteLog($"❌ ERROR during retry: {ex.Message}");
-                    WriteLog($"   Stack: {ex.StackTrace}");
-                }
-            });
-        }
 
         /// <summary>
         /// Event handler quando user clica no botão Restart SimHub
         /// </summary>
-        private void OnSetupContinueRequested(object sender, EventArgs e)
-        {
-            WriteLog("🔄 User clicked Restart SimHub - finalizing setup...");
-
-            // Marcar setup como completo!
-            _setupComplete = true;
-
-            // 🔥 CRIAR ARQUIVO FLAG PARA PERSISTIR ENTRE SESSÕES!
-            try
-            {
-                string setupFlagPath = Path.Combine(_pluginPath, ".setup-complete");
-                // File.WriteAllText(setupFlagPath, DateTime.Now.ToString()); // DISABLED - using node_modules check instead
-                // WriteLog($"✅ Created setup flag file: {setupFlagPath}");
-            }
-            catch (Exception)
-            {
-                // Ignore - setup flag is optional
-            }
-
-            // Esconder botão e mostrar mensagem de restart
-            if (_settingsControl != null)
-            {
-                _settingsControl.Dispatcher.Invoke(() =>
-                {
-                    // Esconder botão
-                    // _settingsControl.HideContinueButton();
-
-                    // Mostrar mensagem de restart
-                    // _settingsControl.UpdateProgress(100,
-                        "🔄 Setup complete!\n\n" +
-                        "SimHub will restart in 3 seconds...\n" +
-                        "When it reopens, the main WhatsApp interface will appear.");
-                });
-            }
-
-            WriteLog("✅ Setup complete. Preparing to restart SimHub...");
-
-            // 🔄 RESTART SIMHUB AUTOMATICAMENTE!
-            System.Threading.Tasks.Task.Run(async () =>
-            {
-                try
-                {
-                    // Aguardar 3 segundos para user ver mensagem
-                    await System.Threading.Tasks.Task.Delay(3000);
-
-                    WriteLog("🔄 Cleaning up processes before restart...");
-
-                    // 🔥 MATAR PROCESSOS CHROME (puppeteer do whatsapp-web.js)
-                    try
-                    {
-                        var chromeProcesses = System.Diagnostics.Process.GetProcessesByName("chrome");
-                        int killedCount = 0;
-
-                        foreach (var proc in chromeProcesses)
-                        {
-                            try
-                            {
-                                var cmdLine = GetProcessCommandLine(proc);
-                                if (cmdLine != null &&
-                                    (cmdLine.IndexOf("WhatsAppPlugin", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                     cmdLine.IndexOf("puppeteer", StringComparison.OrdinalIgnoreCase) >= 0))
-                                {
-                                    WriteLog($"  Killing Chrome process {proc.Id}");
-                                    proc.Kill();
-                                    proc.WaitForExit(1000);
-                                    killedCount++;
-                                }
-                            }
-                            catch { /* Ignore */ }
-                        }
-
-                        if (killedCount > 0)
-                            WriteLog($"✅ Killed {killedCount} Chrome process(es)");
-                    }
-                    catch (Exception ex)
-                    {
-                        WriteLog($"⚠️ Could not kill Chrome processes: {ex.Message}");
-                    }
-
-                    // 🔥 MATAR PROCESSOS NODE.JS
-                    try
-                    {
-                        if (_nodeManager != null)
-                        {
-                            WriteLog("  Stopping Node.js manager...");
-                            _nodeManager.Stop();
-                        }
-
-                        var nodeProcesses = System.Diagnostics.Process.GetProcessesByName("node");
-                        int killedCount = 0;
-
-                        foreach (var proc in nodeProcesses)
-                        {
-                            try
-                            {
-                                var cmdLine = GetProcessCommandLine(proc);
-                                if (cmdLine != null && cmdLine.IndexOf("whatsapp-client.js", StringComparison.OrdinalIgnoreCase) >= 0)
-                                {
-                                    WriteLog($"  Killing Node.js process {proc.Id}");
-                                    proc.Kill();
-                                    proc.WaitForExit(1000);
-                                    killedCount++;
-                                }
-                            }
-                            catch { /* Ignore */ }
-                        }
-
-                        if (killedCount > 0)
-                            WriteLog($"✅ Killed {killedCount} Node.js process(es)");
-                    }
-                    catch (Exception ex)
-                    {
-                        WriteLog($"⚠️ Could not kill Node.js processes: {ex.Message}");
-                    }
-
-                    WriteLog("✅ Processes cleaned up. Restarting SimHub...");
-
-                    // 🔄 USAR MÉTODO RESTART DO SIMHUB (como Lovely plugin)
-                    try
-                    {
-                        // Tentar RestartApplication primeiro
-                        var restartMethod = PluginManager.GetType().GetMethod("RestartApplication");
-                        if (restartMethod != null)
-                        {
-                            WriteLog("🔄 Using PluginManager.RestartApplication() - SIMHUB WILL RESTART!");
-                            restartMethod.Invoke(PluginManager, null);
-                            return; // Se funcionou, acabou!
-                        }
-
-                        // Tentar Restart se RestartApplication não existir
-                        restartMethod = PluginManager.GetType().GetMethod("Restart");
-                        if (restartMethod != null)
-                        {
-                            WriteLog("🔄 Using PluginManager.Restart() - SIMHUB WILL RESTART!");
-                            restartMethod.Invoke(PluginManager, null);
-                            return;
-                        }
-
-                        WriteLog("⚠️ No restart method found in PluginManager, using fallback...");
-                    }
-                    catch (Exception ex)
-                    {
-                        WriteLog($"⚠️ Could not use PluginManager restart: {ex.Message}");
-                    }
-
-                    // FALLBACK: Criar script que aguarda 5s e reabre SimHub
-                    WriteLog("🔄 Using fallback: delayed restart script");
-                    var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
-                    string simHubPath = currentProcess.MainModule.FileName;
-
-                    // Criar batch script temporário
-                    string batchPath = Path.Combine(Path.GetTempPath(), "simhub_restart.bat");
-                    string batchContent = $@"@echo off
-timeout /t 5 /nobreak >nul
-start """" ""{simHubPath}""
-del ""%~f0""
-";
-
-                    File.WriteAllText(batchPath, batchContent);
-                    WriteLog($"🔄 Created restart script: {batchPath}");
-
-                    // Executar script silenciosamente
-                    var startInfo = new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = batchPath,
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
-                    };
-
-                    System.Diagnostics.Process.Start(startInfo);
-                    WriteLog("🔄 Restart script launched. Closing SimHub in 1 second...");
-
-                    await System.Threading.Tasks.Task.Delay(1000);
-
-                    WriteLog("🔄 Closing current SimHub instance...");
-                    System.Environment.Exit(0);
-                }
-                catch (Exception ex)
-                {
-                    WriteLog($"❌ ERROR restarting SimHub: {ex.Message}");
-                    WriteLog($"   Stack: {ex.StackTrace}");
-
-                    // Fallback: mostrar mensagem para user fazer manualmente
-                    if (_settingsControl != null)
-                    {
-                        _settingsControl.Dispatcher.Invoke(() =>
-                        {
-                            // _settingsControl.UpdateProgress(100,
-                                "⚠️ Could not restart automatically.\n\n" +
-                                "Please close and reopen SimHub manually.\n" +
-                                "The main WhatsApp interface will then appear.");
-                        });
-                    }
-                }
-            });
-        }
 
 
         #endregion
