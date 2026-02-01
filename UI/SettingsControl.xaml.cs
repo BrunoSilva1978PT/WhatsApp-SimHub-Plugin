@@ -1745,16 +1745,19 @@ namespace WhatsAppSimHubPlugin.UI
 
                 var result = MessageBox.Show(
                     $"Install whatsapp-web.js {selectedVersion}?\n\n" +
-                    $"SimHub will close to complete the installation.\n" +
-                    $"When you restart SimHub, the new version will be installed automatically.\n\n" +
-                    $"Continue?",
+                    $"The plugin will:\n" +
+                    $"1. Disconnect from WhatsApp\n" +
+                    $"2. Stop all Node.js and Chrome processes\n" +
+                    $"3. Delete node_modules and reinstall\n" +
+                    $"4. Reconnect automatically when done\n\n" +
+                    $"This may take 1-2 minutes. Continue?",
                     "Install Library",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    PrepareLibraryInstall("whatsapp-web.js", selectedVersion);
+                    InstallLibraryInBackground("whatsapp-web.js", selectedVersion);
                 }
             }
         }
@@ -1770,24 +1773,27 @@ namespace WhatsAppSimHubPlugin.UI
 
                 var result = MessageBox.Show(
                     $"Install baileys {selectedVersion}?\n\n" +
-                    $"SimHub will close to complete the installation.\n" +
-                    $"When you restart SimHub, the new version will be installed automatically.\n\n" +
-                    $"Continue?",
+                    $"The plugin will:\n" +
+                    $"1. Disconnect from WhatsApp\n" +
+                    $"2. Stop all Node.js and Chrome processes\n" +
+                    $"3. Delete node_modules and reinstall\n" +
+                    $"4. Reconnect automatically when done\n\n" +
+                    $"This may take 1-2 minutes. Continue?",
                     "Install Library",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    PrepareLibraryInstall("@whiskeysockets/baileys", selectedVersion);
+                    InstallLibraryInBackground("@whiskeysockets/baileys", selectedVersion);
                 }
             }
         }
 
         /// <summary>
-        /// Prepare library install: Update package.json, delete node_modules, close SimHub
+        /// Install library in background WITHOUT restarting SimHub
         /// </summary>
-        private void PrepareLibraryInstall(string packageName, string version)
+        private async void InstallLibraryInBackground(string packageName, string version)
         {
             try
             {
@@ -1797,51 +1803,94 @@ namespace WhatsAppSimHubPlugin.UI
 
                 var packageJsonPath = Path.Combine(nodePath, "package.json");
 
-                // Read package.json
+                // Show installing status
+                _plugin.Settings.DependenciesInstalling = true;
+                SetDependenciesInstalling(true, $"Installing {packageName} {version}...");
+                ShowToast($"Installing {packageName} {version}...", "🔄", 60);
+
+                // Step 1: Disconnect WhatsApp
+                _plugin.DisconnectWhatsApp();
+                await Task.Delay(1000);
+
+                // Step 2: Kill Node.js and Chrome processes
+                KillNodeAndChromeProcesses();
+                await Task.Delay(500);
+
+                // Step 3: Update package.json
                 var json = JObject.Parse(File.ReadAllText(packageJsonPath));
                 var deps = json["dependencies"] as JObject;
 
                 if (deps != null)
                 {
-                    // Update version in package.json
                     var key = packageName == "whatsapp-web.js" ? "whatsapp-web.js" : "@whiskeysockets/baileys";
-                    deps[key] = version.StartsWith("^") ? version : $"^{version}";
-
-                    // Save updated package.json
+                    deps[key] = version;
                     File.WriteAllText(packageJsonPath, json.ToString());
-
-                    // Delete node_modules for this package to force reinstall
-                    var nodeModulesPath = packageName == "whatsapp-web.js"
-                        ? Path.Combine(nodePath, "node_modules", "whatsapp-web.js")
-                        : Path.Combine(nodePath, "node_modules", "@whiskeysockets", "baileys");
-
-                    if (Directory.Exists(nodeModulesPath))
-                    {
-                        Directory.Delete(nodeModulesPath, true);
-                    }
-
-                    // Delete package-lock.json to force full reinstall
-                    var packageLockPath = Path.Combine(nodePath, "package-lock.json");
-                    if (File.Exists(packageLockPath))
-                    {
-                        File.Delete(packageLockPath);
-                    }
-
-                    ShowToast($"Closing SimHub to install {packageName} {version}...", "🔄", 3);
-
-                    // Close SimHub after a short delay
-                    Task.Delay(2000).ContinueWith(_ =>
-                    {
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            Application.Current.Shutdown();
-                        });
-                    });
                 }
+
+                // Step 4: Delete ENTIRE node_modules folder
+                var nodeModulesPath = Path.Combine(nodePath, "node_modules");
+                if (Directory.Exists(nodeModulesPath))
+                {
+                    SetDependenciesInstalling(true, "Deleting node_modules...");
+                    Directory.Delete(nodeModulesPath, true);
+                    await Task.Delay(500);
+                }
+
+                // Step 5: Delete package-lock.json
+                var packageLockPath = Path.Combine(nodePath, "package-lock.json");
+                if (File.Exists(packageLockPath))
+                {
+                    File.Delete(packageLockPath);
+                }
+
+                // Step 6: Run npm install
+                SetDependenciesInstalling(true, "Running npm install...");
+                UpdateNpmStatus("Installing...", false);
+
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "npm",
+                    Arguments = "install",
+                    WorkingDirectory = nodePath,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                var process = Process.Start(startInfo);
+                if (process != null)
+                {
+                    await Task.Run(() => process.WaitForExit());
+
+                    if (process.ExitCode == 0)
+                    {
+                        UpdateNpmStatus("Installed", true);
+                        ShowToast($"{packageName} {version} installed successfully!", "✅", 5);
+                    }
+                    else
+                    {
+                        UpdateNpmStatus("Installation failed", false, true);
+                        ShowToast($"npm install failed (exit code {process.ExitCode})", "❌", 10);
+                    }
+
+                    process.Dispose();
+                }
+
+                // Step 7: Finish
+                SetDependenciesInstalling(false);
+                _plugin.Settings.DependenciesInstalling = false;
+
+                // Step 8: Reconnect
+                await Task.Delay(1000);
+                _plugin.ReconnectWhatsApp();
+
             }
             catch (Exception ex)
             {
-                ShowToast($"Error preparing install: {ex.Message}", "❌", 10);
+                ShowToast($"Error installing: {ex.Message}", "❌", 10);
+                SetDependenciesInstalling(false);
+                _plugin.Settings.DependenciesInstalling = false;
             }
         }
 

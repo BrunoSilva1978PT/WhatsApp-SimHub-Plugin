@@ -29,6 +29,9 @@ namespace WhatsAppSimHubPlugin.Models
         public bool RemoveAfterFirstDisplay { get; set; } = false; // Se true, VIP/URGENT remove após 1ª exibição
         public int ReminderInterval { get; set; } = 180000; // Intervalo entre repetições VIP/Urgent (ms) - Default 3 min
 
+        // Dependencies
+        public bool DependenciesInstalling { get; set; } = false; // True when installing dependencies in background
+
         // Quick Replies
         public string Reply1Text { get; set; } = "Estou numa corrida, ligo depois 🏎️";
         public string Reply2Text { get; set; } = "Se for urgente liga sff 📞";
