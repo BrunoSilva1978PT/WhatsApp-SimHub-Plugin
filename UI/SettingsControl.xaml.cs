@@ -2223,6 +2223,142 @@ namespace WhatsAppSimHubPlugin.UI
 
         #endregion
 
+        #region Dependencies Status Update Methods
+
+        public void UpdateNodeStatus(string status, bool isComplete, bool isError = false)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (isError)
+                {
+                    NodeJsStatusIcon.Text = "❌";
+                    NodeJsStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
+                }
+                else if (isComplete)
+                {
+                    NodeJsStatusIcon.Text = "✓";
+                    NodeJsStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
+                }
+                else
+                {
+                    NodeJsStatusIcon.Text = "⏳";
+                    NodeJsStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
+                }
+                NodeJsStatusText.Text = status;
+                UpdateDependenciesOverallStatus();
+            });
+        }
+
+        public void UpdateGitStatus(string status, bool isComplete, bool isError = false)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (isError)
+                {
+                    GitStatusIcon.Text = "❌";
+                    GitStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
+                }
+                else if (isComplete)
+                {
+                    GitStatusIcon.Text = "✓";
+                    GitStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
+                }
+                else
+                {
+                    GitStatusIcon.Text = "⏳";
+                    GitStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
+                }
+                GitStatusText.Text = status;
+                UpdateDependenciesOverallStatus();
+            });
+        }
+
+        public void UpdateNpmStatus(string status, bool isComplete, bool isError = false)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (isError)
+                {
+                    NpmPackagesStatusIcon.Text = "❌";
+                    NpmPackagesStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
+                }
+                else if (isComplete)
+                {
+                    NpmPackagesStatusIcon.Text = "✓";
+                    NpmPackagesStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
+                }
+                else
+                {
+                    NpmPackagesStatusIcon.Text = "⏳";
+                    NpmPackagesStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
+                }
+                NpmPackagesStatusText.Text = status;
+                UpdateDependenciesOverallStatus();
+            });
+        }
+
+        public void SetDependenciesInstalling(bool isInstalling, string progressMessage = "")
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (isInstalling)
+                {
+                    DependenciesStatusText.Text = "🔄 Installing dependencies...";
+                    DependenciesStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
+                    DependenciesProgressText.Text = progressMessage;
+                    DependenciesProgressText.Visibility = Visibility.Visible;
+
+                    // Disable connection buttons during installation
+                    DisconnectButton.IsEnabled = false;
+                    ReconnectButton.IsEnabled = false;
+                }
+                else
+                {
+                    DependenciesProgressText.Visibility = Visibility.Collapsed;
+                    UpdateDependenciesOverallStatus();
+
+                    // Re-enable connection buttons after installation
+                    UpdateConnectionButtons();
+                }
+            });
+        }
+
+        private void UpdateDependenciesOverallStatus()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                bool nodeOk = NodeJsStatusIcon.Text == "✓";
+                bool gitOk = GitStatusIcon.Text == "✓";
+                bool npmOk = NpmPackagesStatusIcon.Text == "✓";
+
+                bool anyError = NodeJsStatusIcon.Text == "❌" ||
+                                GitStatusIcon.Text == "❌" ||
+                                NpmPackagesStatusIcon.Text == "❌";
+
+                bool anyPending = NodeJsStatusIcon.Text == "⏳" ||
+                                  GitStatusIcon.Text == "⏳" ||
+                                  NpmPackagesStatusIcon.Text == "⏳";
+
+                if (anyError)
+                {
+                    DependenciesStatusText.Text = "❌ Installation failed";
+                    DependenciesStatusText.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
+                }
+                else if (anyPending)
+                {
+                    DependenciesStatusText.Text = "⏳ Installing...";
+                    DependenciesStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
+                }
+                else if (nodeOk && gitOk && npmOk)
+                {
+                    DependenciesStatusText.Text = "✅ All dependencies installed";
+                    DependenciesStatusText.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
+                }
+            });
+        }
+
+        #endregion
+
         /// <summary>
         /// Mostra notificação toast que desaparece após 10 segundos
         /// </summary>

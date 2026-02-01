@@ -47,24 +47,6 @@
             <styles:SHTabItem Header="🔌 Connection">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="20">
-                        <!-- Backend Selection -->
-                        <Border BorderThickness="1"
-                                Padding="15" CornerRadius="5" Margin="0,0,0,15">
-                            <StackPanel>
-                                <TextBlock Text="Backend Mode" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
-                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,10" Opacity="0.7">
-                                    Choose which WhatsApp backend to use. Changes will take effect after restarting the connection.
-                                </TextBlock>
-
-                                <ComboBox x:Name="BackendModeCombo"
-                                          Width="300" HorizontalAlignment="Left"
-                                          SelectionChanged="BackendModeCombo_SelectionChanged">
-                                    <ComboBoxItem Content="WhatsApp-Web.js (Recommended)" Tag="whatsapp-web.js"/>
-                                    <ComboBoxItem Content="Baileys (Lightweight)" Tag="baileys"/>
-                                </ComboBox>
-                            </StackPanel>
-                        </Border>
-
                         <!-- Status Section -->
                         <Border BorderThickness="1"
                                 Padding="15" CornerRadius="5" Margin="0,0,0,15">
@@ -119,11 +101,29 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Backend Management Section -->
+                        <!-- Backend Selection -->
                         <Border BorderThickness="1"
                                 Padding="15" CornerRadius="5" Margin="0,0,0,15">
                             <StackPanel>
-                                <TextBlock Text="Backend Libraries" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+                                <TextBlock Text="Backend Mode" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
+                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,10" Opacity="0.7">
+                                    Choose which WhatsApp backend to use. Changes will take effect after restarting the connection.
+                                </TextBlock>
+
+                                <ComboBox x:Name="BackendModeCombo"
+                                          Width="300" HorizontalAlignment="Left"
+                                          SelectionChanged="BackendModeCombo_SelectionChanged">
+                                    <ComboBoxItem Content="WhatsApp-Web.js (Recommended)" Tag="whatsapp-web.js"/>
+                                    <ComboBoxItem Content="Baileys (Lightweight)" Tag="baileys"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Backend Versions -->
+                        <Border BorderThickness="1"
+                                Padding="15" CornerRadius="5" Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock Text="Backend Versions" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
 
                                 <!-- whatsapp-web.js -->
                                 <Border BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,10">
@@ -256,6 +256,47 @@
                                                 Padding="10,5" Click="ScriptsCheckButton_Click"/>
                                     </Grid>
                                 </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Dependencies Setup -->
+                        <Border BorderThickness="1"
+                                Padding="15" CornerRadius="5" Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock Text="Dependencies Setup" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                                <!-- Status indicator -->
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                                    <TextBlock Text="Status:" FontWeight="SemiBold" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="DependenciesStatusText" Text="✅ All dependencies installed"
+                                               Foreground="#0E7A0D" VerticalAlignment="Center"/>
+                                </StackPanel>
+
+                                <!-- Dependencies checklist -->
+                                <StackPanel x:Name="DependenciesChecklistPanel" Margin="0,0,0,10">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                        <TextBlock x:Name="NodeJsStatusIcon" Text="✓" FontWeight="Bold"
+                                                   Foreground="#0E7A0D" Margin="0,0,8,0"/>
+                                        <TextBlock x:Name="NodeJsStatusText" Text="Node.js installed"/>
+                                    </StackPanel>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                        <TextBlock x:Name="GitStatusIcon" Text="✓" FontWeight="Bold"
+                                                   Foreground="#0E7A0D" Margin="0,0,8,0"/>
+                                        <TextBlock x:Name="GitStatusText" Text="Git installed"/>
+                                    </StackPanel>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                        <TextBlock x:Name="NpmPackagesStatusIcon" Text="✓" FontWeight="Bold"
+                                                   Foreground="#0E7A0D" Margin="0,0,8,0"/>
+                                        <TextBlock x:Name="NpmPackagesStatusText" Text="npm packages installed"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <!-- Progress info when installing -->
+                                <TextBlock x:Name="DependenciesProgressText" Text=""
+                                           Foreground="#858585" FontSize="12"
+                                           TextWrapping="Wrap" Visibility="Collapsed" Margin="0,5,0,0"/>
                             </StackPanel>
                         </Border>
 

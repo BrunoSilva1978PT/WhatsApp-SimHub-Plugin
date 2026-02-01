@@ -48,7 +48,7 @@ namespace WhatsAppSimHubPlugin
 
         // 🆕 SETUP & DEPENDENCIES
         private DependencyManager _dependencyManager;
-        private UI.SetupControl _setupControl;
+        // SetupControl removed - dependencies now managed in SettingsControl Connection tab
         private bool _setupComplete = false;
 
         // Propriedade pública para acesso às configurações
@@ -1145,23 +1145,7 @@ namespace WhatsAppSimHubPlugin
 
         public System.Windows.Controls.Control GetWPFSettingsControl(PluginManager pluginManager)
         {
-            // Se setup ainda não está completo, mostrar SetupControl
-            if (!_setupComplete)
-            {
-                if (_setupControl == null)
-                {
-                    _setupControl = new UI.SetupControl();
-
-                    // Subscribe ao evento de Retry
-                    _setupControl.RetryRequested += OnSetupRetryRequested;
-
-                    // Subscribe ao evento de Continue
-                    _setupControl.ContinueRequested += OnSetupContinueRequested;
-                }
-                return _setupControl;
-            }
-
-            // Setup completo, mostrar SettingsControl normal
+            // Always show SettingsControl - dependencies shown in Connection tab
             if (_settingsControl == null)
             {
                 _settingsControl = new UI.SettingsControl(this);
@@ -1959,21 +1943,21 @@ namespace WhatsAppSimHubPlugin
                 // GARANTIR que SetupControl está pronto antes de começar
                 WriteLog("Waiting for Setup UI to initialize...");
                 int retries = 0;
-                while (_setupControl == null && retries < 30)
+                while (_settingsControl == null && retries < 30)
                 {
                     await Task.Delay(100).ConfigureAwait(false);
                     retries++;
                 }
 
-                if (_setupControl != null)
+                if (_settingsControl != null)
                 {
                     WriteLog("✅ Setup UI ready! Initializing status...");
 
                     // INICIALIZAR TODOS OS STATUS EXPLICITAMENTE
-                    _setupControl.UpdateNodeStatus("Checking...", false);
-                    _setupControl.UpdateGitStatus("Waiting...", false);
-                    _setupControl.UpdateNpmStatus("Waiting...", false);
-                    _setupControl.UpdateProgress(0, "Checking dependencies...");
+                    _settingsControl.UpdateNodeStatus("Checking...", false);
+                    _settingsControl.UpdateGitStatus("Waiting...", false);
+                    _settingsControl.UpdateNpmStatus("Waiting...", false);
+                    // _settingsControl.UpdateProgress(0, "Checking dependencies...");
 
                     // Pequeno delay para UI renderizar
                     await Task.Delay(200).ConfigureAwait(false);
@@ -1994,10 +1978,10 @@ namespace WhatsAppSimHubPlugin
                 {
                     WriteLog("⚠️ Node.js not found - installing automatically...");
 
-                    if (_setupControl != null)
+                    if (_settingsControl != null)
                     {
-                        _setupControl.UpdateNodeStatus("Installing Node.js portable...", false);
-                        _setupControl.UpdateProgress(10, "Installing Node.js...");
+                        _settingsControl.UpdateNodeStatus("Installing Node.js portable...", false);
+                        // _settingsControl.UpdateProgress(10, "Installing Node.js...");
                     }
 
                     bool success = await _dependencyManager.InstallNodeSilently().ConfigureAwait(false);
@@ -2024,40 +2008,40 @@ namespace WhatsAppSimHubPlugin
                             if (canExecute && !string.IsNullOrEmpty(nodeVersion))
                             {
                                 WriteLog($"✅ Node.js is executable and ready! Version: {nodeVersion}");
-                                if (_setupControl != null)
+                                if (_settingsControl != null)
                                 {
-                                    _setupControl.UpdateNodeStatus($"Installed ({nodeVersion})", true);
-                                    _setupControl.UpdateProgress(33, "Node.js ready!");
+                                    _settingsControl.UpdateNodeStatus($"Installed ({nodeVersion})", true);
+                                    // _settingsControl.UpdateProgress(33, "Node.js ready!");
                                 }
                             }
                             else
                             {
                                 WriteLog("⚠️ WARNING: Node.js installed but cannot execute - may need PATH refresh");
-                                if (_setupControl != null)
+                                if (_settingsControl != null)
                                 {
-                                    _setupControl.UpdateNodeStatus("Installed (PATH pending)", true);
-                                    _setupControl.UpdateProgress(33, "Node.js installed!");
+                                    _settingsControl.UpdateNodeStatus("Installed (PATH pending)", true);
+                                    // _settingsControl.UpdateProgress(33, "Node.js installed!");
                                 }
                             }
                         }
                         else
                         {
                             WriteLog("⚠️ WARNING: Node.js installed but verification failed");
-                            if (_setupControl != null)
+                            if (_settingsControl != null)
                             {
-                                _setupControl.UpdateNodeStatus("Installed (verification pending)", true);
-                                _setupControl.UpdateProgress(33, "Node.js installed!");
+                                _settingsControl.UpdateNodeStatus("Installed (verification pending)", true);
+                                // _settingsControl.UpdateProgress(33, "Node.js installed!");
                             }
                         }
                     }
                     else
                     {
                         WriteLog("❌ ERROR: Failed to install Node.js!");
-                        if (_setupControl != null)
+                        if (_settingsControl != null)
                         {
-                            _setupControl.UpdateNodeStatus("Installation failed", false, true);
-                            _setupControl.UpdateProgress(0, "ERROR: Node.js installation failed");
-                            _setupControl.ShowRetryButton(); // MOSTRAR BOTÃO RETRY!
+                            _settingsControl.UpdateNodeStatus("Installation failed", false, true);
+                            // _settingsControl.UpdateProgress(0, "ERROR: Node.js installation failed");
+                            // _settingsControl.ShowRetryButton(); // MOSTRAR BOTÃO RETRY!
                         }
                         return;
                     }
@@ -2072,19 +2056,19 @@ namespace WhatsAppSimHubPlugin
                     WriteLog("Testing existing Node.js execution...");
                     var (canExecute, nodeVersion) = await TestNodeExecutionAsync().ConfigureAwait(false);
 
-                    if (_setupControl != null)
+                    if (_settingsControl != null)
                     {
                         if (canExecute && !string.IsNullOrEmpty(nodeVersion))
                         {
                             WriteLog($"Updating UI: Node.js status = Installed ({nodeVersion})");
-                            _setupControl.UpdateNodeStatus($"Installed ({nodeVersion})", true);
-                            _setupControl.UpdateProgress(33, "Node.js ready!");
+                            _settingsControl.UpdateNodeStatus($"Installed ({nodeVersion})", true);
+                            // _settingsControl.UpdateProgress(33, "Node.js ready!");
                         }
                         else
                         {
                             WriteLog("⚠️ WARNING: Node.js found but cannot execute!");
-                            _setupControl.UpdateNodeStatus("Found (cannot execute)", true);
-                            _setupControl.UpdateProgress(33, "Node.js found!");
+                            _settingsControl.UpdateNodeStatus("Found (cannot execute)", true);
+                            // _settingsControl.UpdateProgress(33, "Node.js found!");
                         }
                         WriteLog("UI updated successfully!");
 
@@ -2093,7 +2077,7 @@ namespace WhatsAppSimHubPlugin
                     }
                     else
                     {
-                        WriteLog("❌ ERROR: _setupControl is NULL! Cannot update UI!");
+                        WriteLog("❌ ERROR: _settingsControl is NULL! Cannot update UI!");
                     }
                 }
 
@@ -2108,10 +2092,10 @@ namespace WhatsAppSimHubPlugin
                 {
                     WriteLog("⚠️ Git not found - installing automatically...");
 
-                    if (_setupControl != null)
+                    if (_settingsControl != null)
                     {
-                        _setupControl.UpdateGitStatus("Installing Git...", false);
-                        _setupControl.UpdateProgress(40, "Installing Git...");
+                        _settingsControl.UpdateGitStatus("Installing Git...", false);
+                        // _settingsControl.UpdateProgress(40, "Installing Git...");
                     }
 
                     bool success = await _dependencyManager.InstallGitSilently().ConfigureAwait(false);
@@ -2138,40 +2122,40 @@ namespace WhatsAppSimHubPlugin
                             if (canExecute && !string.IsNullOrEmpty(gitVersion))
                             {
                                 WriteLog($"✅ Git is executable and ready! Version: {gitVersion}");
-                                if (_setupControl != null)
+                                if (_settingsControl != null)
                                 {
-                                    _setupControl.UpdateGitStatus($"Installed ({gitVersion})", true);
-                                    _setupControl.UpdateProgress(66, "Git ready!");
+                                    _settingsControl.UpdateGitStatus($"Installed ({gitVersion})", true);
+                                    // _settingsControl.UpdateProgress(66, "Git ready!");
                                 }
                             }
                             else
                             {
                                 WriteLog("⚠️ WARNING: Git installed but cannot execute - may need PATH refresh");
-                                if (_setupControl != null)
+                                if (_settingsControl != null)
                                 {
-                                    _setupControl.UpdateGitStatus("Installed (PATH pending)", true);
-                                    _setupControl.UpdateProgress(66, "Git installed!");
+                                    _settingsControl.UpdateGitStatus("Installed (PATH pending)", true);
+                                    // _settingsControl.UpdateProgress(66, "Git installed!");
                                 }
                             }
                         }
                         else
                         {
                             WriteLog("⚠️ WARNING: Git installed but verification failed");
-                            if (_setupControl != null)
+                            if (_settingsControl != null)
                             {
-                                _setupControl.UpdateGitStatus("Installed (verification pending)", true);
-                                _setupControl.UpdateProgress(66, "Git installed!");
+                                _settingsControl.UpdateGitStatus("Installed (verification pending)", true);
+                                // _settingsControl.UpdateProgress(66, "Git installed!");
                             }
                         }
                     }
                     else
                     {
                         WriteLog("❌ ERROR: Failed to install Git!");
-                        if (_setupControl != null)
+                        if (_settingsControl != null)
                         {
-                            _setupControl.UpdateGitStatus("Installation failed", false, true);
-                            _setupControl.UpdateProgress(0, "ERROR: Git installation failed");
-                            _setupControl.ShowRetryButton(); // MOSTRAR BOTÃO RETRY!
+                            _settingsControl.UpdateGitStatus("Installation failed", false, true);
+                            // _settingsControl.UpdateProgress(0, "ERROR: Git installation failed");
+                            // _settingsControl.ShowRetryButton(); // MOSTRAR BOTÃO RETRY!
                         }
                         return;
                     }
@@ -2184,19 +2168,19 @@ namespace WhatsAppSimHubPlugin
                     WriteLog("Testing existing Git execution...");
                     var (canExecute, gitVersion) = await TestGitExecutionAsync().ConfigureAwait(false);
 
-                    if (_setupControl != null)
+                    if (_settingsControl != null)
                     {
                         if (canExecute && !string.IsNullOrEmpty(gitVersion))
                         {
                             WriteLog($"Updating UI: Git status = Installed ({gitVersion})");
-                            _setupControl.UpdateGitStatus($"Installed ({gitVersion})", true);
-                            _setupControl.UpdateProgress(66, "Git ready!");
+                            _settingsControl.UpdateGitStatus($"Installed ({gitVersion})", true);
+                            // _settingsControl.UpdateProgress(66, "Git ready!");
                         }
                         else
                         {
                             WriteLog("⚠️ WARNING: Git found but cannot execute!");
-                            _setupControl.UpdateGitStatus("Found (cannot execute)", true);
-                            _setupControl.UpdateProgress(66, "Git found!");
+                            _settingsControl.UpdateGitStatus("Found (cannot execute)", true);
+                            // _settingsControl.UpdateProgress(66, "Git found!");
                         }
                     }
                 }
@@ -2210,11 +2194,11 @@ namespace WhatsAppSimHubPlugin
                 {
                     WriteLog("⚠️ npm packages not found - installing...");
 
-                    if (_setupControl != null)
+                    if (_settingsControl != null)
                     {
-                        _setupControl.UpdateWhatsAppWebJsStatus("Installing...", false);
-                        _setupControl.UpdateBaileysStatus("Installing...", false);
-                        _setupControl.UpdateProgress(70, "Installing npm packages...");
+                        _settingsControl.UpdateWhatsAppWebJsStatus("Installing...", false);
+                        _settingsControl.UpdateBaileysStatus("Installing...", false);
+                        // _settingsControl.UpdateProgress(70, "Installing npm packages...");
                     }
 
                     bool success = await _dependencyManager.InstallNpmPackages().ConfigureAwait(false);
@@ -2227,49 +2211,49 @@ namespace WhatsAppSimHubPlugin
                         bool whatsappWebJsInstalled = _dependencyManager.IsWhatsAppWebJsInstalled();
                         bool baileysInstalled = _dependencyManager.IsBaileysInstalled();
 
-                        if (_setupControl != null)
+                        if (_settingsControl != null)
                         {
                             if (whatsappWebJsInstalled)
                             {
-                                _setupControl.UpdateWhatsAppWebJsStatus("Installed", true);
+                                _settingsControl.UpdateWhatsAppWebJsStatus("Installed", true);
                                 WriteLog("✅ whatsapp-web.js library verified");
                             }
                             else
                             {
-                                _setupControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
+                                _settingsControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
                                 WriteLog("⚠️ whatsapp-web.js library not found after installation");
                             }
 
                             if (baileysInstalled)
                             {
-                                _setupControl.UpdateBaileysStatus("Installed", true);
+                                _settingsControl.UpdateBaileysStatus("Installed", true);
                                 WriteLog("✅ Baileys library verified");
                             }
                             else
                             {
-                                _setupControl.UpdateBaileysStatus("Not found", false, true);
+                                _settingsControl.UpdateBaileysStatus("Not found", false, true);
                                 WriteLog("⚠️ Baileys library not found after installation");
                             }
 
                             if (whatsappWebJsInstalled && baileysInstalled)
                             {
-                                _setupControl.UpdateProgress(100, "All dependencies ready!");
+                                // _settingsControl.UpdateProgress(100, "All dependencies ready!");
                             }
                             else
                             {
-                                _setupControl.UpdateProgress(90, "Some libraries missing - plugin may not work correctly");
+                                // _settingsControl.UpdateProgress(90, "Some libraries missing - plugin may not work correctly");
                             }
                         }
                     }
                     else
                     {
                         WriteLog("❌ ERROR: Failed to install npm packages!");
-                        if (_setupControl != null)
+                        if (_settingsControl != null)
                         {
-                            _setupControl.UpdateWhatsAppWebJsStatus("Installation failed", false, true);
-                            _setupControl.UpdateBaileysStatus("Installation failed", false, true);
-                            _setupControl.UpdateProgress(0, "ERROR: npm install failed");
-                            _setupControl.ShowRetryButton();
+                            _settingsControl.UpdateWhatsAppWebJsStatus("Installation failed", false, true);
+                            _settingsControl.UpdateBaileysStatus("Installation failed", false, true);
+                            // _settingsControl.UpdateProgress(0, "ERROR: npm install failed");
+                            // _settingsControl.ShowRetryButton();
                         }
                         return;
                     }
@@ -2282,37 +2266,37 @@ namespace WhatsAppSimHubPlugin
                     bool whatsappWebJsInstalled = _dependencyManager.IsWhatsAppWebJsInstalled();
                     bool baileysInstalled = _dependencyManager.IsBaileysInstalled();
 
-                    if (_setupControl != null)
+                    if (_settingsControl != null)
                     {
                         if (whatsappWebJsInstalled)
                         {
-                            _setupControl.UpdateWhatsAppWebJsStatus("Already installed", true);
+                            _settingsControl.UpdateWhatsAppWebJsStatus("Already installed", true);
                             WriteLog("✅ whatsapp-web.js library found");
                         }
                         else
                         {
-                            _setupControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
+                            _settingsControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
                             WriteLog("⚠️ whatsapp-web.js library not found");
                         }
 
                         if (baileysInstalled)
                         {
-                            _setupControl.UpdateBaileysStatus("Already installed", true);
+                            _settingsControl.UpdateBaileysStatus("Already installed", true);
                             WriteLog("✅ Baileys library found");
                         }
                         else
                         {
-                            _setupControl.UpdateBaileysStatus("Not found", false, true);
+                            _settingsControl.UpdateBaileysStatus("Not found", false, true);
                             WriteLog("⚠️ Baileys library not found");
                         }
 
                         if (whatsappWebJsInstalled && baileysInstalled)
                         {
-                            _setupControl.UpdateProgress(100, "All dependencies ready!");
+                            // _settingsControl.UpdateProgress(100, "All dependencies ready!");
                         }
                         else
                         {
-                            _setupControl.UpdateProgress(90, "Some libraries missing - plugin may not work correctly");
+                            // _settingsControl.UpdateProgress(90, "Some libraries missing - plugin may not work correctly");
                         }
                     }
                 }
@@ -2335,9 +2319,9 @@ namespace WhatsAppSimHubPlugin
                 }
 
                 // Mostrar botão Continue!
-                if (_setupControl != null)
+                if (_settingsControl != null)
                 {
-                    _setupControl.ShowContinueButton();
+                    // _settingsControl.ShowContinueButton();
                 }
 
                 // Aguardar 1s para user ver a UI completa
@@ -2534,15 +2518,15 @@ namespace WhatsAppSimHubPlugin
             // Reset states
 
             // Esconder o botão
-            _setupControl?.HideRetryButton();
+            // _settingsControl?.HideRetryButton();
 
             // Resetar UI
-            if (_setupControl != null)
+            if (_settingsControl != null)
             {
-                _setupControl.UpdateNodeStatus("Retrying...", false);
-                _setupControl.UpdateGitStatus("Waiting...", false);
-                _setupControl.UpdateNpmStatus("Waiting...", false);
-                _setupControl.UpdateProgress(0, "Retrying setup...");
+                _settingsControl.UpdateNodeStatus("Retrying...", false);
+                _settingsControl.UpdateGitStatus("Waiting...", false);
+                _settingsControl.UpdateNpmStatus("Waiting...", false);
+                // _settingsControl.UpdateProgress(0, "Retrying setup...");
             }
 
             // TENTAR NOVAMENTE TUDO!
@@ -2584,15 +2568,15 @@ namespace WhatsAppSimHubPlugin
             }
 
             // Esconder botão e mostrar mensagem de restart
-            if (_setupControl != null)
+            if (_settingsControl != null)
             {
-                _setupControl.Dispatcher.Invoke(() =>
+                _settingsControl.Dispatcher.Invoke(() =>
                 {
                     // Esconder botão
-                    _setupControl.HideContinueButton();
+                    // _settingsControl.HideContinueButton();
 
                     // Mostrar mensagem de restart
-                    _setupControl.UpdateProgress(100,
+                    // _settingsControl.UpdateProgress(100,
                         "🔄 Setup complete!\n\n" +
                         "SimHub will restart in 3 seconds...\n" +
                         "When it reopens, the main WhatsApp interface will appear.");
@@ -2748,11 +2732,11 @@ del ""%~f0""
                     WriteLog($"   Stack: {ex.StackTrace}");
 
                     // Fallback: mostrar mensagem para user fazer manualmente
-                    if (_setupControl != null)
+                    if (_settingsControl != null)
                     {
-                        _setupControl.Dispatcher.Invoke(() =>
+                        _settingsControl.Dispatcher.Invoke(() =>
                         {
-                            _setupControl.UpdateProgress(100,
+                            // _settingsControl.UpdateProgress(100,
                                 "⚠️ Could not restart automatically.\n\n" +
                                 "Please close and reopen SimHub manually.\n" +
                                 "The main WhatsApp interface will then appear.");
