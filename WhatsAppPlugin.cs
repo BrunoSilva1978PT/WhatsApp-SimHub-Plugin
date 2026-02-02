@@ -272,6 +272,7 @@ namespace WhatsAppSimHubPlugin
         // ===== PROPRIEDADES PARA CONNECTION TAB =====
         private string _connectionStatus = "Disconnected";
         private string _connectedNumber = "";
+        private string _lastLoggedDashboard = null; // Para debug - evitar spam de logs
 
         // ===== ESTADO INTERNO (NÃO EXPOR AO SIMHUB) =====
         private List<QueuedMessage> _currentMessageGroup = null;
@@ -1523,8 +1524,12 @@ namespace WhatsAppSimHubPlugin
                         {
                             currentDashboard = dashProp.GetValue(overlayDashboard) as string;
                         }
-                        else
+
+                        // 🔍 DEBUG: Log do valor exacto retornado pelo SimHub (apenas quando muda)
+                        if (currentDashboard != _lastLoggedDashboard)
                         {
+                            WriteLog($"🔍 SimHub CurrentOverlayDashboard = \"{currentDashboard ?? "null"}\"");
+                            _lastLoggedDashboard = currentDashboard;
                         }
 
                         // 🔥 LÓGICA DE DASHBOARD - toda a verificação está em DetermineDashboardToSet
@@ -1582,30 +1587,33 @@ namespace WhatsAppSimHubPlugin
                     return OUR_DASHBOARD;
                 }
 
-                // PASSO 2: Dashboard definido - verificar se EXISTE no disco
+                // PASSO 2: Verificar se currentDashboard EXISTE no disco ANTES de qualquer comparação
                 // (SimHub pode ter referência a dashboard apagado)
-                if (!_dashboardMerger.DashboardExists(currentDashboard))
+                bool dashExists = _dashboardMerger.DashboardExists(currentDashboard);
+                if (!dashExists)
                 {
                     WriteLog($"⚠️ Dashboard '{currentDashboard}' is defined but does not exist on disk");
                     WriteLog($"→ Setting WhatsAppPlugin");
                     return OUR_DASHBOARD;
                 }
 
-                // PASSO 3: É o nosso dashboard → não mexer
-                if (currentDashboard == OUR_DASHBOARD)
+                // PASSO 3: É o nosso dashboard → não mexer (case-insensitive)
+                if (string.Equals(currentDashboard, OUR_DASHBOARD, StringComparison.OrdinalIgnoreCase))
                 {
                     // Silencioso - já está OK
                     return null;
                 }
 
-                // PASSO 4: É o merged dashboard → não mexer
-                if (currentDashboard == MERGED_DASHBOARD)
+                // PASSO 4: É o merged dashboard → não mexer (case-insensitive)
+                // Também verificar se COMEÇA com o nome do merged (SimHub pode adicionar sufixo)
+                if (string.Equals(currentDashboard, MERGED_DASHBOARD, StringComparison.OrdinalIgnoreCase) ||
+                    currentDashboard.StartsWith(MERGED_DASHBOARD, StringComparison.OrdinalIgnoreCase))
                 {
                     // Silencioso - já está OK
                     return null;
                 }
 
-                // PASSO 5: É outro dashboard (e existe) → fazer merge
+                // PASSO 5: É outro dashboard (e existe, já confirmámos no PASSO 2) → fazer merge
                 WriteLog($"🔀 Found different dashboard: {currentDashboard} → Merging with WhatsAppPlugin");
                 string mergedDashboard = _dashboardMerger.MergeDashboards(currentDashboard, OUR_DASHBOARD);
 
