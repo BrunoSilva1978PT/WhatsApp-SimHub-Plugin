@@ -1086,10 +1086,6 @@ namespace WhatsAppSimHubPlugin.UI
         {
             if (_contacts == null) return;
 
-            EmptyContactsState.Visibility = _contacts.Count == 0
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-
             ContactsDataGrid.Visibility = _contacts.Count > 0
                 ? Visibility.Visible
                 : Visibility.Collapsed;
@@ -1429,6 +1425,10 @@ namespace WhatsAppSimHubPlugin.UI
                         }
                     }
                 }
+
+                // Scripts version
+                var scriptsVersion = GetLocalScriptVersion();
+                ScriptsVersionText.Text = scriptsVersion ?? "Not installed";
             }
             catch (Exception ex)
             {
