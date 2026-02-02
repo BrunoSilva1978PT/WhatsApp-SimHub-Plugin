@@ -1525,18 +1525,8 @@ namespace WhatsAppSimHubPlugin
                         {
                         }
 
-                        // 🔥 NOVA LÓGICA COM MERGE
-
-                        // Verificar se dashboard atual existe (user pode ter apagado)
-                        if (!string.IsNullOrEmpty(currentDashboard) &&
-                            !_dashboardMerger.DashboardExists(currentDashboard))
-                        {
-                            WriteLog($"⚠️ Current dashboard '{currentDashboard}' does not exist (user deleted it)!");
-                            WriteLog($"→ Treating as empty - will install WhatsAppPlugin");
-                            // Tratar como vazio para forçar instalação do plugin
-                            currentDashboard = null;
-                        }
-
+                        // 🔥 LÓGICA DE DASHBOARD - toda a verificação está em DetermineDashboardToSet
+                        // (verifica existência, decide se é nosso/merged/outro, faz merge se preciso)
                         string targetDashboard = DetermineDashboardToSet(currentDashboard);
 
                         // Se precisa mudar dashboard
@@ -1578,11 +1568,12 @@ namespace WhatsAppSimHubPlugin
 
         /// <summary>
         /// Determina qual dashboard deve ser configurado no Information Overlay
-        /// Lógica:
-        /// - Nenhum dashboard → Nosso dashboard (WhatsAppPlugin)
-        /// - Outro dashboard → Fazer merge e retornar merged
-        /// - Nosso dashboard → null (não mudar)
-        /// - Merged dashboard → null (não mudar)
+        /// Lógica (ORDEM IMPORTANTE):
+        /// 1. Nenhum dashboard definido → WhatsAppPlugin (não verifica mais nada)
+        /// 2. Dashboard definido mas não existe → WhatsAppPlugin
+        /// 3. Dashboard é WhatsAppPlugin → null (não muda)
+        /// 4. Dashboard é merged → null (não muda)
+        /// 5. Dashboard é outro (existe) → fazer merge
         /// </summary>
         private string DetermineDashboardToSet(string currentDashboard)
         {
@@ -1591,39 +1582,38 @@ namespace WhatsAppSimHubPlugin
                 const string OUR_DASHBOARD = "WhatsAppPlugin";
                 string MERGED_DASHBOARD = DashboardMerger.MergedDashboardName;
 
-                // Caso 1: Nenhum dashboard definido → instalar o nosso
+                // PASSO 1: Nenhum dashboard definido → instalar o nosso e SAIR
                 if (string.IsNullOrEmpty(currentDashboard))
                 {
                     WriteLog("📋 No dashboard in Information Overlay → Setting WhatsAppPlugin");
                     return OUR_DASHBOARD;
                 }
 
-                // Caso 2: Já está o nosso dashboard → não mexer
+                // PASSO 2: Dashboard definido - verificar se EXISTE no disco
+                // (SimHub pode ter referência a dashboard apagado)
+                if (!_dashboardMerger.DashboardExists(currentDashboard))
+                {
+                    WriteLog($"⚠️ Dashboard '{currentDashboard}' is defined but does not exist on disk");
+                    WriteLog($"→ Setting WhatsAppPlugin");
+                    return OUR_DASHBOARD;
+                }
+
+                // PASSO 3: É o nosso dashboard → não mexer
                 if (currentDashboard == OUR_DASHBOARD)
                 {
                     // Silencioso - já está OK
                     return null;
                 }
 
-                // Caso 3: Já está o merged → não mexer
+                // PASSO 4: É o merged dashboard → não mexer
                 if (currentDashboard == MERGED_DASHBOARD)
                 {
                     // Silencioso - já está OK
                     return null;
                 }
 
-                // Caso 4: Está outro dashboard → verificar se existe e fazer merge
-                WriteLog($"🔀 Found different dashboard: {currentDashboard}");
-
-                // ⚠️ VALIDAR SE O DASHBOARD EXISTE REALMENTE
-                if (!_dashboardMerger.DashboardExists(currentDashboard))
-                {
-                    WriteLog($"⚠️ Dashboard '{currentDashboard}' does not exist in DashTemplates (user may have deleted it)");
-                    WriteLog($"→ Installing WhatsAppPlugin only");
-                    return OUR_DASHBOARD;
-                }
-
-                WriteLog($"✅ Dashboard exists → Merging with WhatsAppPlugin");
+                // PASSO 5: É outro dashboard (e existe) → fazer merge
+                WriteLog($"🔀 Found different dashboard: {currentDashboard} → Merging with WhatsAppPlugin");
                 string mergedDashboard = _dashboardMerger.MergeDashboards(currentDashboard, OUR_DASHBOARD);
 
                 if (mergedDashboard != null)
