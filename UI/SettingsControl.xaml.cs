@@ -725,6 +725,66 @@ namespace WhatsAppSimHubPlugin.UI
             }
         }
 
+        private void ResetSessionButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Confirm with user
+                var result = System.Windows.MessageBox.Show(
+                    "This will delete your saved WhatsApp session and you will need to scan the QR code again.\n\nContinue?",
+                    "Reset Session",
+                    System.Windows.MessageBoxButton.YesNo,
+                    System.Windows.MessageBoxImage.Warning);
+
+                if (result != System.Windows.MessageBoxResult.Yes)
+                    return;
+
+                ResetSessionButton.IsEnabled = false;
+                ShowToast("Resetting session...", "🔄", 3);
+
+                // Stop current connection
+                _plugin.DisconnectWhatsApp();
+
+                // Delete auth folders based on backend mode
+                var pluginPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "SimHub", "WhatsAppPlugin");
+
+                var authPaths = new[]
+                {
+                    Path.Combine(pluginPath, "data"),           // whatsapp-web.js auth
+                    Path.Combine(pluginPath, "data_baileys", "auth_info")  // baileys auth
+                };
+
+                foreach (var authPath in authPaths)
+                {
+                    if (Directory.Exists(authPath))
+                    {
+                        try
+                        {
+                            Directory.Delete(authPath, true);
+                            _plugin.WriteLog($"Deleted auth folder: {authPath}");
+                        }
+                        catch (Exception ex)
+                        {
+                            _plugin.WriteLog($"Failed to delete {authPath}: {ex.Message}");
+                        }
+                    }
+                }
+
+                ShowToast("Session reset! Click Connect to scan QR code.", "✅", 5);
+                UpdateConnectionStatus("Disconnected");
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Error resetting session: {ex.Message}", "❌", 10);
+            }
+            finally
+            {
+                ResetSessionButton.IsEnabled = true;
+            }
+        }
+
         #endregion
 
         #region Contacts Tab

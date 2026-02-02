@@ -71,10 +71,14 @@
                                             Width="100" Margin="0,0,10,0" IsEnabled="False"
                                             Background="#E74877" Foreground="White"
                                             Click="DisconnectButton_Click"/>
-                                    <styles:SHButtonPrimary x:Name="ReconnectButton" Content="Reconnect"
-                                            Width="100"
+                                    <styles:SHButtonPrimary x:Name="ReconnectButton" Content="Connect"
+                                            Width="100" Margin="0,0,10,0"
                                             Background="#0E7A0D" Foreground="White"
                                             Click="ReconnectButton_Click"/>
+                                    <styles:SHButtonSecondary x:Name="ResetSessionButton" Content="Reset Session"
+                                            Width="110"
+                                            Background="#FF9800" Foreground="White"
+                                            Click="ResetSessionButton_Click"/>
                                 </StackPanel>
                         </StackPanel>
 
@@ -336,7 +340,9 @@
                                     <TextBlock Text="Troubleshooting Tips" FontSize="14" FontWeight="Bold" Foreground="White"/>
                                 </StackPanel>
                                 <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12" LineHeight="20">
-                                    <Run Text="• If connection fails, try Disconnect and then Reconnect"/>
+                                    <Run Text="• If connection fails, try Disconnect and then Connect"/>
+                                    <LineBreak/>
+                                    <Run Text="• If you get 'Connection Error', try 'Reset Session' to clear saved authentication"/>
                                     <LineBreak/>
                                     <Run Text="• On your phone, go to WhatsApp → Settings → Linked Devices and remove this device, then scan QR code again"/>
                                     <LineBreak/>
