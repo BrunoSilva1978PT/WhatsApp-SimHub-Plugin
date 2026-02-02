@@ -28,14 +28,14 @@ namespace WhatsAppSimHubPlugin.Core
             try
             {
                 _vocoreDevice = device;
-                
+
                 // Obter Settings do device
                 var settingsProp = device.GetType().GetProperty("Settings");
                 if (settingsProp != null)
                 {
                     _vocoreSettings = settingsProp.GetValue(device);
                 }
-                
+
                 return _vocoreSettings != null;
             }
             catch (Exception ex)
@@ -62,13 +62,13 @@ namespace WhatsAppSimHubPlugin.Core
             {
                 // 🎯 DASHBOARD CORRETO DO WHATSAPP PLUGIN!
                 const string CORRECT_DASHBOARD = "WhatsAppPlugin";
-                
+
                 var settingsType = _vocoreSettings.GetType();
-                
+
                 // ============================================
                 // VERIFICAR ESTADO ATUAL
                 // ============================================
-                
+
                 var overlayDashboardProp = settingsType.GetProperty("CurrentOverlayDashboard");
                 if (overlayDashboardProp == null)
                 {
@@ -86,27 +86,27 @@ namespace WhatsAppSimHubPlugin.Core
                 var overlayType = overlayDashboard.GetType();
                 var dashboardProp = overlayType.GetProperty("Dashboard");
                 var useOverlayProp = settingsType.GetProperty("UseOverlayDashboard");
-                
+
                 if (dashboardProp == null || useOverlayProp == null)
                 {
                     log?.Invoke("❌ Required properties not found");
                     return false;
                 }
-                
+
                 // Estado atual
                 var currentDashboard = dashboardProp.GetValue(overlayDashboard) as string;
                 var currentOverlayEnabled = (bool)(useOverlayProp.GetValue(_vocoreSettings) ?? false);
-                
+
                 bool needsChange = false;
-                
+
                 // ============================================
                 // PASSO 1: VERIFICAR/MUDAR DASHBOARD
                 // ============================================
-                
+
                 if (currentDashboard != CORRECT_DASHBOARD)
                 {
                     log?.Invoke($"🔄 Dashboard incorreto: '{currentDashboard}' → '{CORRECT_DASHBOARD}'");
-                    
+
                     var trySetMethod = overlayType.GetMethod("TrySet");
                     if (trySetMethod != null)
                     {
@@ -129,7 +129,7 @@ namespace WhatsAppSimHubPlugin.Core
                 // ============================================
                 // PASSO 2: VERIFICAR/ATIVAR OVERLAY
                 // ============================================
-                
+
                 if (!currentOverlayEnabled)
                 {
                     log?.Invoke("🔄 UseOverlayDashboard: false → true");
@@ -142,11 +142,11 @@ namespace WhatsAppSimHubPlugin.Core
                     // ✅ Overlay já está ativo, não mexer!
                     log?.Invoke("✅ Overlay already active");
                 }
-                
+
                 // ============================================
                 // VERIFICAÇÃO FINAL
                 // ============================================
-                
+
                 if (needsChange)
                 {
                     log?.Invoke("");
@@ -171,38 +171,25 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Remove overlay (desativa)
+        /// Limpa mensagens do overlay (NÃO desliga o overlay)
+        /// O Information Overlay deve ficar sempre ligado para mostrar mensagens
         /// </summary>
         public bool ClearOverlay(Action<string> log = null)
         {
-            if (_vocoreSettings == null) return false;
-
-            try
-            {
-                // Desativar UseOverlayDashboard
-                var useOverlayProp = _vocoreSettings.GetType().GetProperty("UseOverlayDashboard");
-                if (useOverlayProp != null)
-                {
-                    log?.Invoke("🔄 Setting UseOverlayDashboard = false...");
-                    useOverlayProp.SetValue(_vocoreSettings, false);
-                    log?.Invoke("✅ Overlay cleared");
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                log?.Invoke($"❌ ClearOverlay failed: {ex.Message}");
-                return false;
-            }
+            // NÃO desligar o overlay - apenas limpar conteúdo
+            // O overlay precisa ficar ligado para mostrar novas mensagens
+            // A limpeza de mensagens é feita via as propriedades ShowMessage=false no plugin
+            return true;
         }
 
         /// <summary>
         /// Alias para ClearOverlay() (compatibilidade)
+        /// NÃO desliga o Information Overlay
         /// </summary>
         public void Clear()
         {
-            ClearOverlay(null);
+            // Não faz nada - overlay deve ficar sempre ligado
+            // As mensagens são controladas via _showMessage no plugin principal
         }
 
         /// <summary>
@@ -219,7 +206,7 @@ namespace WhatsAppSimHubPlugin.Core
                 IsVip = false,
                 IsUrgent = true
             };
-            
+
             ShowMessage(systemMsg, null);
         }
 
