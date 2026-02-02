@@ -663,29 +663,30 @@ namespace WhatsAppSimHubPlugin.Core
         {
             try
             {
-                // Timeout de 10 segundos para ler a porta
-                using (var cts = new CancellationTokenSource(10000))
+                // Usar ReadLineAsync com timeout
+                var readTask = _nodeProcess.StandardOutput.ReadLineAsync();
+                var timeoutTask = Task.Delay(10000);
+
+                var completedTask = await Task.WhenAny(readTask, timeoutTask).ConfigureAwait(false);
+
+                if (completedTask == timeoutTask)
                 {
-                    var readTask = Task.Run(() => _nodeProcess.StandardOutput.ReadLine(), cts.Token);
-
-                    var portLine = await readTask.ConfigureAwait(false);
-
-                    if (!string.IsNullOrEmpty(portLine) && portLine.StartsWith("PORT:"))
-                    {
-                        var portStr = portLine.Substring(5); // Remove "PORT:"
-                        if (int.TryParse(portStr, out int port) && port > 0 && port < 65536)
-                        {
-                            return port;
-                        }
-                    }
-
-                    StatusChanged?.Invoke(this, $"Warning: Could not parse port from '{portLine}', using default 3000");
+                    StatusChanged?.Invoke(this, "Warning: Timeout reading port from Node.js, using default 3000");
                     return 3000;
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                StatusChanged?.Invoke(this, "Warning: Timeout reading port from Node.js, using default 3000");
+
+                var portLine = await readTask.ConfigureAwait(false);
+
+                if (!string.IsNullOrEmpty(portLine) && portLine.StartsWith("PORT:"))
+                {
+                    var portStr = portLine.Substring(5); // Remove "PORT:"
+                    if (int.TryParse(portStr, out int port) && port > 0 && port < 65536)
+                    {
+                        return port;
+                    }
+                }
+
+                StatusChanged?.Invoke(this, $"Warning: Could not parse port from '{portLine}', using default 3000");
                 return 3000;
             }
             catch (Exception ex)
