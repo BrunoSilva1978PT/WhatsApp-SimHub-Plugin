@@ -99,3 +99,6 @@ scripts/auth_info/
 *.md
 !README.md
 !lib/README.md
+
+# Local build scripts (machine-specific paths)
+*.bat

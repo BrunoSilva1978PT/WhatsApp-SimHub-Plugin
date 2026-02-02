@@ -41,6 +41,10 @@ namespace WhatsAppSimHubPlugin.UI
         private readonly PluginSettings _settings;
         private ObservableCollection<Contact> _contacts;
         private ObservableCollection<string> _keywords;
+
+        // Public properties for external access (used by WhatsAppPlugin.cs)
+        public Button ReconnectButton => ConnectionTab.ReconnectButtonCtrl;
+        public Button DisconnectButton => ConnectionTab.DisconnectButtonCtrl;
         private DispatcherTimer _deviceRefreshTimer; // 🔥 Auto-refresh timer
         private DispatcherTimer _connectionStatusTimer; // 🔥 Timer para detectar crashes
         private bool _isLoadingDevices = false; // 🔥 Flag para evitar trigger durante loading
@@ -58,6 +62,24 @@ namespace WhatsAppSimHubPlugin.UI
 
             // ✅ IMPORTANTE: DataContext para bindings funcionarem
             this.DataContext = _settings;
+
+            // ✅ Wire up ConnectionTab event handlers
+            WireUpConnectionTabEvents();
+
+            // ✅ Wire up ContactsTab event handlers
+            WireUpContactsTabEvents();
+
+            // ✅ Wire up KeywordsTab event handlers
+            WireUpKeywordsTabEvents();
+
+            // ✅ Wire up DisplayTab event handlers
+            WireUpDisplayTabEvents();
+
+            // ✅ Wire up QueueTab event handlers
+            WireUpQueueTabEvents();
+
+            // ✅ Wire up QuickRepliesTab event handlers
+            WireUpQuickRepliesTabEvents();
 
             // ✅ Criar ControlsEditor dinamicamente via reflexão
             CreateControlsEditors();
@@ -85,11 +107,102 @@ namespace WhatsAppSimHubPlugin.UI
             _connectionStatusTimer.Start();
         }
 
+        /// <summary>
+        /// Wire up event handlers for ConnectionTab UserControl
+        /// </summary>
+        private void WireUpConnectionTabEvents()
+        {
+            // Connection buttons
+            ConnectionTab.DisconnectButtonCtrl.Click += DisconnectButton_Click;
+            ConnectionTab.ReconnectButtonCtrl.Click += ReconnectButton_Click;
+            ConnectionTab.ResetSessionButtonCtrl.Click += ResetSessionButton_Click;
+
+            // Backend mode
+            ConnectionTab.BackendModeComboCtrl.SelectionChanged += BackendModeCombo_SelectionChanged;
+
+            // WhatsApp-Web.js controls
+            ConnectionTab.WhatsAppWebJsCheckButtonCtrl.Click += WhatsAppWebJsCheckButton_Click;
+            ConnectionTab.WhatsAppWebJsInstallButtonCtrl.Click += WhatsAppWebJsInstallButton_Click;
+            ConnectionTab.WhatsAppWebJsVersionComboCtrl.SelectionChanged += WhatsAppWebJsVersionCombo_SelectionChanged;
+            ConnectionTab.WhatsAppWebJsOfficialRadioCtrl.Checked += WhatsAppWebJsSourceRadio_Changed;
+            ConnectionTab.WhatsAppWebJsManualRadioCtrl.Checked += WhatsAppWebJsSourceRadio_Changed;
+            ConnectionTab.WhatsAppWebJsApplyRepoButtonCtrl.Click += WhatsAppWebJsApplyRepo_Click;
+            ConnectionTab.WhatsAppWebJsUpdateBadgeCtrl.MouseLeftButtonDown += WhatsAppWebJsUpdateBadge_Click;
+
+            // Baileys controls
+            ConnectionTab.BaileysCheckButtonCtrl.Click += BaileysCheckButton_Click;
+            ConnectionTab.BaileysInstallButtonCtrl.Click += BaileysInstallButton_Click;
+            ConnectionTab.BaileysVersionComboCtrl.SelectionChanged += BaileysVersionCombo_SelectionChanged;
+            ConnectionTab.BaileysOfficialRadioCtrl.Checked += BaileysSourceRadio_Changed;
+            ConnectionTab.BaileysManualRadioCtrl.Checked += BaileysSourceRadio_Changed;
+            ConnectionTab.BaileysApplyRepoButtonCtrl.Click += BaileysApplyRepo_Click;
+            ConnectionTab.BaileysUpdateBadgeCtrl.MouseLeftButtonDown += BaileysUpdateBadge_Click;
+
+            // Scripts controls
+            ConnectionTab.ScriptsCheckButtonCtrl.Click += ScriptsCheckButton_Click;
+            ConnectionTab.ScriptsUpdateBadgeCtrl.MouseLeftButtonDown += ScriptsUpdateBadge_Click;
+        }
+
+        /// <summary>
+        /// Wire up event handlers for ContactsTab UserControl
+        /// </summary>
+        private void WireUpContactsTabEvents()
+        {
+            // Chat contacts
+            ContactsTab.RefreshChatsButtonCtrl.Click += RefreshChatsButton_Click;
+            ContactsTab.AddFromChatsButtonCtrl.Click += AddFromChatsButton_Click;
+
+            // Manual add
+            ContactsTab.AddManualButtonCtrl.Click += AddManualButton_Click;
+        }
+
+        /// <summary>
+        /// Wire up event handlers for KeywordsTab UserControl
+        /// </summary>
+        private void WireUpKeywordsTabEvents()
+        {
+            KeywordsTab.AddKeywordButtonCtrl.Click += AddKeyword_Click;
+            KeywordsTab.NewKeywordCtrl.KeyDown += NewKeyword_KeyDown;
+        }
+
+        /// <summary>
+        /// Wire up event handlers for DisplayTab UserControl
+        /// </summary>
+        private void WireUpDisplayTabEvents()
+        {
+            DisplayTab.TargetDeviceComboBoxCtrl.SelectionChanged += TargetDeviceCombo_SelectionChanged;
+            DisplayTab.RefreshDevicesButtonCtrl.Click += RefreshDevicesButton_Click;
+            DisplayTab.TestOverlayButtonCtrl.Click += TestOverlayButton_Click;
+        }
+
+        /// <summary>
+        /// Wire up event handlers for QueueTab UserControl
+        /// </summary>
+        private void WireUpQueueTabEvents()
+        {
+            QueueTab.NormalDurationSliderCtrl.ValueChanged += NormalDurationSlider_ValueChanged;
+            QueueTab.UrgentDurationSliderCtrl.ValueChanged += UrgentDurationSlider_ValueChanged;
+            QueueTab.MaxMessagesPerContactSliderCtrl.ValueChanged += MaxMessagesPerContactSlider_ValueChanged;
+            QueueTab.MaxQueueSizeSliderCtrl.ValueChanged += MaxQueueSizeSlider_ValueChanged;
+            QueueTab.RemoveAfterFirstDisplayCheckboxCtrl.Checked += RemoveAfterFirstDisplayCheckbox_Changed;
+            QueueTab.RemoveAfterFirstDisplayCheckboxCtrl.Unchecked += RemoveAfterFirstDisplayCheckbox_Changed;
+            QueueTab.ReminderIntervalSliderCtrl.ValueChanged += ReminderIntervalSlider_ValueChanged;
+        }
+
+        /// <summary>
+        /// Wire up event handlers for QuickRepliesTab UserControl
+        /// </summary>
+        private void WireUpQuickRepliesTabEvents()
+        {
+            QuickRepliesTab.Reply1TextBoxCtrl.TextChanged += Reply1TextBox_TextChanged;
+            QuickRepliesTab.Reply2TextBoxCtrl.TextChanged += Reply2TextBox_TextChanged;
+        }
+
         private void InitializeData()
         {
             // Contacts
             _contacts = new ObservableCollection<Contact>(_settings.Contacts);
-            ContactsDataGrid.ItemsSource = _contacts;
+            ContactsTab.ContactsDataGridCtrl.ItemsSource = _contacts;
 
             // ⭐ SINCRONIZAR: quando _contacts muda, atualizar _settings.Contacts
             _contacts.CollectionChanged += (s, e) =>
@@ -107,7 +220,7 @@ namespace WhatsAppSimHubPlugin.UI
 
             // Keywords
             _keywords = new ObservableCollection<string>(_settings.Keywords);
-            KeywordsListBox.ItemsSource = _keywords;
+            KeywordsTab.KeywordsListBoxCtrl.ItemsSource = _keywords;
 
             // Devices
             LoadAvailableDevices();
@@ -138,7 +251,7 @@ namespace WhatsAppSimHubPlugin.UI
                 _isLoadingDevices = true; // 🔥 Bloquear SelectionChanged
 
                 // Limpar ComboBox
-                TargetDeviceComboBox.Items.Clear();
+                DisplayTab.TargetDeviceComboBoxCtrl.Items.Clear();
 
                 // 🔥 SEMPRE mostrar device salvo (mesmo se offline)
                 if (!string.IsNullOrEmpty(_settings.TargetDevice))
@@ -153,8 +266,8 @@ namespace WhatsAppSimHubPlugin.UI
                             : $"{_settings.TargetDevice} (Offline) ❌",
                         Tag = _settings.TargetDevice
                     };
-                    TargetDeviceComboBox.Items.Add(savedItem);
-                    TargetDeviceComboBox.SelectedIndex = 0;
+                    DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(savedItem);
+                    DisplayTab.TargetDeviceComboBoxCtrl.SelectedIndex = 0;
                 }
 
                 // Adicionar outros VoCores online (se não forem o salvo)
@@ -165,18 +278,18 @@ namespace WhatsAppSimHubPlugin.UI
                         Content = $"{device.Name} ✅",
                         Tag = device.Id
                     };
-                    TargetDeviceComboBox.Items.Add(item);
+                    DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(item);
                 }
 
                 // Se não houver devices E não houver device salvo
-                if (TargetDeviceComboBox.Items.Count == 0)
+                if (DisplayTab.TargetDeviceComboBoxCtrl.Items.Count == 0)
                 {
                     var placeholder = new ComboBoxItem
                     {
                         Content = "No VoCore detected - connect and refresh",
                         IsEnabled = false
                     };
-                    TargetDeviceComboBox.Items.Add(placeholder);
+                    DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(placeholder);
                 }
 
                 // 🔥 Atualizar status label
@@ -189,8 +302,8 @@ namespace WhatsAppSimHubPlugin.UI
                     Content = $"Error: {ex.Message}",
                     IsEnabled = false
                 };
-                TargetDeviceComboBox.Items.Clear();
-                TargetDeviceComboBox.Items.Add(errorItem);
+                DisplayTab.TargetDeviceComboBoxCtrl.Items.Clear();
+                DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(errorItem);
             }
             finally
             {
@@ -234,7 +347,7 @@ namespace WhatsAppSimHubPlugin.UI
             _isLoadingDevices = true;
             try
             {
-                TargetDeviceComboBox.Items.Clear();
+                DisplayTab.TargetDeviceComboBoxCtrl.Items.Clear();
 
                 if (!string.IsNullOrEmpty(_settings.TargetDevice))
                 {
@@ -246,8 +359,8 @@ namespace WhatsAppSimHubPlugin.UI
                             : $"{_settings.TargetDevice} (Offline) ❌",
                         Tag = _settings.TargetDevice
                     };
-                    TargetDeviceComboBox.Items.Add(savedItem);
-                    TargetDeviceComboBox.SelectedIndex = 0;
+                    DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(savedItem);
+                    DisplayTab.TargetDeviceComboBoxCtrl.SelectedIndex = 0;
                 }
 
                 foreach (var device in devices.Where(d => d.Id != _settings.TargetDevice))
@@ -257,17 +370,17 @@ namespace WhatsAppSimHubPlugin.UI
                         Content = $"{device.Name} ✅",
                         Tag = device.Id
                     };
-                    TargetDeviceComboBox.Items.Add(item);
+                    DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(item);
                 }
 
-                if (TargetDeviceComboBox.Items.Count == 0)
+                if (DisplayTab.TargetDeviceComboBoxCtrl.Items.Count == 0)
                 {
                     var placeholder = new ComboBoxItem
                     {
                         Content = "No VoCore detected - connect and refresh",
                         IsEnabled = false
                     };
-                    TargetDeviceComboBox.Items.Add(placeholder);
+                    DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(placeholder);
                 }
 
                 UpdateDeviceStatus(devices.Count);
@@ -283,17 +396,17 @@ namespace WhatsAppSimHubPlugin.UI
             // Atualizar label de status ao lado do Refresh
             Dispatcher.Invoke(() =>
             {
-                if (DeviceStatusLabel != null)
+                if (DisplayTab.DeviceStatusLabelCtrl != null)
                 {
                     if (connectedCount > 0)
                     {
-                        DeviceStatusLabel.Text = $"✅ {connectedCount} VoCore(s) connected";
-                        DeviceStatusLabel.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
+                        DisplayTab.DeviceStatusLabelCtrl.Text = $"✅ {connectedCount} VoCore(s) connected";
+                        DisplayTab.DeviceStatusLabelCtrl.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
                     }
                     else
                     {
-                        DeviceStatusLabel.Text = "❌ No VoCores detected";
-                        DeviceStatusLabel.Foreground = new SolidColorBrush(Color.FromRgb(231, 72, 119));
+                        DisplayTab.DeviceStatusLabelCtrl.Text = "❌ No VoCores detected";
+                        DisplayTab.DeviceStatusLabelCtrl.Foreground = new SolidColorBrush(Color.FromRgb(231, 72, 119));
                     }
                 }
             });
@@ -304,11 +417,11 @@ namespace WhatsAppSimHubPlugin.UI
             try
             {
                 // 🔧 Carregar Backend Mode
-                foreach (ComboBoxItem item in BackendModeCombo.Items)
+                foreach (ComboBoxItem item in ConnectionTab.BackendModeComboCtrl.Items)
                 {
                     if (item.Tag?.ToString() == _settings.BackendMode)
                     {
-                        BackendModeCombo.SelectedItem = item;
+                        ConnectionTab.BackendModeComboCtrl.SelectedItem = item;
                         break;
                     }
                 }
@@ -316,36 +429,36 @@ namespace WhatsAppSimHubPlugin.UI
                 // 🔧 Carregar Target Device (se salvo)
                 if (!string.IsNullOrEmpty(_settings.TargetDevice))
                 {
-                    foreach (ComboBoxItem item in TargetDeviceComboBox.Items)
+                    foreach (ComboBoxItem item in DisplayTab.TargetDeviceComboBoxCtrl.Items)
                     {
                         if (item.Tag?.ToString() == _settings.TargetDevice)
                         {
-                            TargetDeviceComboBox.SelectedItem = item;
+                            DisplayTab.TargetDeviceComboBoxCtrl.SelectedItem = item;
                             break;
                         }
                     }
                 }
 
                 // Sliders - converter de ms para segundos onde necessário
-                MaxMessagesPerContactSlider.Value = _settings.MaxGroupSize;
-                MaxQueueSizeSlider.Value = _settings.MaxQueueSize;
-                NormalDurationSlider.Value = _settings.NormalDuration / 1000; // ms → seconds
-                UrgentDurationSlider.Value = _settings.UrgentDuration / 1000; // ms → seconds
+                QueueTab.MaxMessagesPerContactSliderCtrl.Value = _settings.MaxGroupSize;
+                QueueTab.MaxQueueSizeSliderCtrl.Value = _settings.MaxQueueSize;
+                QueueTab.NormalDurationSliderCtrl.Value = _settings.NormalDuration / 1000; // ms → seconds
+                QueueTab.UrgentDurationSliderCtrl.Value = _settings.UrgentDuration / 1000; // ms → seconds
 
                 // Checkbox RemoveAfterFirstDisplay
-                RemoveAfterFirstDisplayCheckbox.IsChecked = _settings.RemoveAfterFirstDisplay;
+                QueueTab.RemoveAfterFirstDisplayCheckboxCtrl.IsChecked = _settings.RemoveAfterFirstDisplay;
 
                 // ReminderInterval slider (ms → minutes)
-                ReminderIntervalSlider.Value = _settings.ReminderInterval / 60000;
+                QueueTab.ReminderIntervalSliderCtrl.Value = _settings.ReminderInterval / 60000;
 
                 // Mostrar/esconder painel baseado no checkbox
-                ReminderIntervalPanel.Visibility = _settings.RemoveAfterFirstDisplay ? Visibility.Collapsed : Visibility.Visible;
+                QueueTab.ReminderIntervalPanelCtrl.Visibility = _settings.RemoveAfterFirstDisplay ? Visibility.Collapsed : Visibility.Visible;
 
                 // Quick replies - apenas textos
-                Reply1TextBox.Text = _settings.Reply1Text;
-                Reply2TextBox.Text = _settings.Reply2Text;
+                QuickRepliesTab.Reply1TextBoxCtrl.Text = _settings.Reply1Text;
+                QuickRepliesTab.Reply2TextBoxCtrl.Text = _settings.Reply2Text;
 
-                ShowConfirmationCheck.IsChecked = _settings.ShowConfirmation;
+                QuickRepliesTab.ShowConfirmationCheckCtrl.IsChecked = _settings.ShowConfirmation;
 
                 // Atualizar UI da tab Contacts baseado no backend
                 UpdateContactsTabForBackend();
@@ -392,7 +505,7 @@ namespace WhatsAppSimHubPlugin.UI
                 return;
             }
 
-            var currentStatus = StatusText.Text.ToLower();
+            var currentStatus = ConnectionTab.StatusTextCtrl.Text.ToLower();
 
             // Se já mostra erro de Node.js, não verificar de novo
             if (currentStatus.Contains("node.js"))
@@ -428,72 +541,72 @@ namespace WhatsAppSimHubPlugin.UI
         {
             Dispatcher.Invoke(() =>
             {
-                StatusText.Text = status;
+                ConnectionTab.StatusTextCtrl.Text = status;
 
                 switch (status.ToLower())
                 {
                     case "connected":
-                        StatusIndicator.Fill = new SolidColorBrush(Color.FromRgb(14, 122, 13)); // Green
+                        ConnectionTab.StatusIndicatorCtrl.Fill = new SolidColorBrush(Color.FromRgb(14, 122, 13)); // Green
 
                         // Disconnect enabled, Reconnect disabled
-                        DisconnectButton.IsEnabled = true;
-                        DisconnectButton.Opacity = 1.0;
-                        ReconnectButton.IsEnabled = false;
-                        ReconnectButton.Opacity = 0.5;
+                        ConnectionTab.DisconnectButtonCtrl.IsEnabled = true;
+                        ConnectionTab.DisconnectButtonCtrl.Opacity = 1.0;
+                        ConnectionTab.ReconnectButtonCtrl.IsEnabled = false;
+                        ConnectionTab.ReconnectButtonCtrl.Opacity = 0.5;
 
-                        ConnectedNumberText.Text = number != null ? $"Connected as: +{number}" : "Connected";
+                        ConnectionTab.ConnectedNumberTextCtrl.Text = number != null ? $"Connected as: +{number}" : "Connected";
 
                         // ✅ ESCONDER QR CODE quando conecta
-                        QRCodeImage.Visibility = Visibility.Collapsed;
-                        QRCodeInstructions.Visibility = Visibility.Collapsed;
+                        ConnectionTab.QRCodeImageCtrl.Visibility = Visibility.Collapsed;
+                        ConnectionTab.QRCodeInstructionsCtrl.Visibility = Visibility.Collapsed;
                         break;
 
                     case "connecting":
-                        StatusIndicator.Fill = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
+                        ConnectionTab.StatusIndicatorCtrl.Fill = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
 
                         // Disconnect deve estar sempre disponível
-                        DisconnectButton.IsEnabled = true;
-                        DisconnectButton.Opacity = 1.0;
-                        ReconnectButton.IsEnabled = false;
-                        ReconnectButton.Opacity = 0.5;
-                        ConnectedNumberText.Text = "Connecting to WhatsApp...";
+                        ConnectionTab.DisconnectButtonCtrl.IsEnabled = true;
+                        ConnectionTab.DisconnectButtonCtrl.Opacity = 1.0;
+                        ConnectionTab.ReconnectButtonCtrl.IsEnabled = false;
+                        ConnectionTab.ReconnectButtonCtrl.Opacity = 0.5;
+                        ConnectionTab.ConnectedNumberTextCtrl.Text = "Connecting to WhatsApp...";
                         break;
 
                     case "qr":
-                        StatusIndicator.Fill = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
+                        ConnectionTab.StatusIndicatorCtrl.Fill = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
 
                         // Disconnect deve estar sempre disponível
-                        DisconnectButton.IsEnabled = true;
-                        DisconnectButton.Opacity = 1.0;
-                        ReconnectButton.IsEnabled = false;
-                        ReconnectButton.Opacity = 0.5;
-                        ConnectedNumberText.Text = "Waiting for QR code scan...";
+                        ConnectionTab.DisconnectButtonCtrl.IsEnabled = true;
+                        ConnectionTab.DisconnectButtonCtrl.Opacity = 1.0;
+                        ConnectionTab.ReconnectButtonCtrl.IsEnabled = false;
+                        ConnectionTab.ReconnectButtonCtrl.Opacity = 0.5;
+                        ConnectionTab.ConnectedNumberTextCtrl.Text = "Waiting for QR code scan...";
                         break;
 
 
                     case "node.js not installed":
-                        StatusIndicator.Fill = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
+                        ConnectionTab.StatusIndicatorCtrl.Fill = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
 
                         // Both disabled
-                        DisconnectButton.IsEnabled = false;
-                        DisconnectButton.Opacity = 0.5;
-                        ReconnectButton.IsEnabled = false;
-                        ReconnectButton.Opacity = 0.5;
+                        ConnectionTab.DisconnectButtonCtrl.IsEnabled = false;
+                        ConnectionTab.DisconnectButtonCtrl.Opacity = 0.5;
+                        ConnectionTab.ReconnectButtonCtrl.IsEnabled = false;
+                        ConnectionTab.ReconnectButtonCtrl.Opacity = 0.5;
 
-                        ConnectedNumberText.Text = "Node.js is not installed. Please install Node.js from nodejs.org";
+                        ConnectionTab.ConnectedNumberTextCtrl.Text = "Node.js is not installed. Please install Node.js from nodejs.org";
                         break;
 
                     case "disconnected":
                     case "error":
-                        StatusIndicator.Fill = new SolidColorBrush(Color.FromRgb(231, 72, 119)); // Red
+                        ConnectionTab.StatusIndicatorCtrl.Fill = new SolidColorBrush(Color.FromRgb(231, 72, 119)); // Red
 
                         // Disconnect disabled, Reconnect enabled
-                        DisconnectButton.IsEnabled = false;
-                        DisconnectButton.Opacity = 0.5;
-                        ReconnectButton.IsEnabled = true;
-                        ReconnectButton.Opacity = 1.0;
+                        ConnectionTab.DisconnectButtonCtrl.IsEnabled = false;
+                        ConnectionTab.DisconnectButtonCtrl.Opacity = 0.5;
+                        ConnectionTab.ReconnectButtonCtrl.IsEnabled = true;
+                        ConnectionTab.ReconnectButtonCtrl.Opacity = 1.0;
 
-                        ConnectedNumberText.Text = "No connection";
+                        ConnectionTab.ConnectedNumberTextCtrl.Text = "No connection";
                         break;
                 }
             });
@@ -514,15 +627,15 @@ namespace WhatsAppSimHubPlugin.UI
                     bitmap.CacheOption = BitmapCacheOption.OnLoad;
                     bitmap.EndInit();
 
-                    QRCodeImage.Source = bitmap;
-                    QRCodeImage.Visibility = Visibility.Visible;
-                    QRCodeInstructions.Visibility = Visibility.Visible;
+                    ConnectionTab.QRCodeImageCtrl.Source = bitmap;
+                    ConnectionTab.QRCodeImageCtrl.Visibility = Visibility.Visible;
+                    ConnectionTab.QRCodeInstructionsCtrl.Visibility = Visibility.Visible;
                 }
                 catch (Exception)
                 {
                     // Se falhar, mostrar mensagem
-                    QRCodeInstructions.Text = $"Scan this QR Code with WhatsApp:\n{qrData}";
-                    QRCodeInstructions.Visibility = Visibility.Visible;
+                    ConnectionTab.QRCodeInstructionsCtrl.Text = $"Scan this QR Code with WhatsApp:\n{qrData}";
+                    ConnectionTab.QRCodeInstructionsCtrl.Visibility = Visibility.Visible;
                 }
             });
         }
@@ -535,8 +648,8 @@ namespace WhatsAppSimHubPlugin.UI
 
                 _plugin.DisconnectWhatsApp();
                 UpdateConnectionStatus("Disconnected");
-                QRCodeImage.Visibility = Visibility.Collapsed;
-                QRCodeInstructions.Visibility = Visibility.Collapsed;
+                ConnectionTab.QRCodeImageCtrl.Visibility = Visibility.Collapsed;
+                ConnectionTab.QRCodeInstructionsCtrl.Visibility = Visibility.Collapsed;
             }
             catch (Exception ex)
             {
@@ -571,7 +684,7 @@ namespace WhatsAppSimHubPlugin.UI
                 }
 
                 // Desactivar botão durante o teste
-                TestOverlayButton.IsEnabled = false;
+                DisplayTab.TestOverlayButtonCtrl.IsEnabled = false;
 
                 // ✅ NOVO TESTE: Não muda VoCore, não muda dashboard, só mostra mensagem
                 _plugin.ShowTestMessage();
@@ -580,11 +693,11 @@ namespace WhatsAppSimHubPlugin.UI
 
                 // Reactivar botão após 5 segundos
                 await Task.Delay(5000);
-                TestOverlayButton.IsEnabled = true;
+                DisplayTab.TestOverlayButtonCtrl.IsEnabled = true;
             }
             catch (Exception ex)
             {
-                TestOverlayButton.IsEnabled = true; // Garantir que reactiva em caso de erro
+                DisplayTab.TestOverlayButtonCtrl.IsEnabled = true; // Garantir que reactiva em caso de erro
                 ShowToast($"Error testing overlay: {ex.Message}", "❌", 10);
             }
         }
@@ -597,7 +710,7 @@ namespace WhatsAppSimHubPlugin.UI
             try
             {
                 // Salvar device selecionado
-                if (TargetDeviceComboBox.SelectedItem is ComboBoxItem selectedItem)
+                if (DisplayTab.TargetDeviceComboBoxCtrl.SelectedItem is ComboBoxItem selectedItem)
                 {
                     var deviceId = selectedItem.Tag?.ToString();
                     if (!string.IsNullOrEmpty(deviceId))
@@ -617,30 +730,30 @@ namespace WhatsAppSimHubPlugin.UI
 
         private void MaxMessagesPerContactSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (MaxMessagesPerContactValue != null && _settings != null)
+            if (QueueTab.MaxMessagesPerContactValueCtrl != null && _settings != null)
             {
                 int value = (int)e.NewValue;
-                MaxMessagesPerContactValue.Text = value.ToString();
+                QueueTab.MaxMessagesPerContactValueCtrl.Text = value.ToString();
                 _settings.MaxGroupSize = value;
             }
         }
 
         private void MaxQueueSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (MaxQueueSizeValue != null && _settings != null)
+            if (QueueTab.MaxQueueSizeValueCtrl != null && _settings != null)
             {
                 int value = (int)e.NewValue;
-                MaxQueueSizeValue.Text = value.ToString();
+                QueueTab.MaxQueueSizeValueCtrl.Text = value.ToString();
                 _settings.MaxQueueSize = value;
             }
         }
 
         private void NormalDurationSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (NormalDurationValue != null && _settings != null)
+            if (QueueTab.NormalDurationValueCtrl != null && _settings != null)
             {
                 int value = (int)e.NewValue;
-                NormalDurationValue.Text = $"{value}s";
+                QueueTab.NormalDurationValueCtrl.Text = $"{value}s";
                 _settings.NormalDuration = value * 1000; // Convert to milliseconds
                 _plugin?.SaveSettings(); // 💾 SALVAR
             }
@@ -648,10 +761,10 @@ namespace WhatsAppSimHubPlugin.UI
 
         private void UrgentDurationSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (UrgentDurationValue != null && _settings != null)
+            if (QueueTab.UrgentDurationValueCtrl != null && _settings != null)
             {
                 int value = (int)e.NewValue;
-                UrgentDurationValue.Text = $"{value}s";
+                QueueTab.UrgentDurationValueCtrl.Text = $"{value}s";
                 _settings.UrgentDuration = value * 1000; // Convert to milliseconds
                 _plugin?.SaveSettings(); // 💾 SALVAR
             }
@@ -661,7 +774,7 @@ namespace WhatsAppSimHubPlugin.UI
         {
             if (_settings != null)
             {
-                _settings.Reply1Text = Reply1TextBox.Text.Trim();
+                _settings.Reply1Text = QuickRepliesTab.Reply1TextBoxCtrl.Text.Trim();
                 _plugin?.SaveSettings(); // 💾 SALVAR
             }
         }
@@ -670,7 +783,7 @@ namespace WhatsAppSimHubPlugin.UI
         {
             if (_settings != null)
             {
-                _settings.Reply2Text = Reply2TextBox.Text.Trim();
+                _settings.Reply2Text = QuickRepliesTab.Reply2TextBoxCtrl.Text.Trim();
                 _plugin?.SaveSettings(); // 💾 SALVAR
             }
         }
@@ -680,7 +793,7 @@ namespace WhatsAppSimHubPlugin.UI
             if (_settings == null)
                 return;
 
-            bool isChecked = RemoveAfterFirstDisplayCheckbox.IsChecked == true;
+            bool isChecked = QueueTab.RemoveAfterFirstDisplayCheckboxCtrl.IsChecked == true;
             _settings.RemoveAfterFirstDisplay = isChecked;
 
             // 💾 SALVAR SETTINGS AUTOMATICAMENTE
@@ -693,18 +806,18 @@ namespace WhatsAppSimHubPlugin.UI
             }
 
             // Mostrar/esconder painel do ReminderInterval
-            if (ReminderIntervalPanel != null)
+            if (QueueTab.ReminderIntervalPanelCtrl != null)
             {
-                ReminderIntervalPanel.Visibility = isChecked ? Visibility.Collapsed : Visibility.Visible;
+                QueueTab.ReminderIntervalPanelCtrl.Visibility = isChecked ? Visibility.Collapsed : Visibility.Visible;
             }
         }
 
         private void ReminderIntervalSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (ReminderIntervalValue != null && _settings != null)
+            if (QueueTab.ReminderIntervalValueCtrl != null && _settings != null)
             {
                 int value = (int)e.NewValue;
-                ReminderIntervalValue.Text = $"{value} min";
+                QueueTab.ReminderIntervalValueCtrl.Text = $"{value} min";
                 _settings.ReminderInterval = value * 60000; // Convert to milliseconds
                 _plugin?.SaveSettings();
             }
@@ -739,7 +852,7 @@ namespace WhatsAppSimHubPlugin.UI
                 if (result != System.Windows.MessageBoxResult.Yes)
                     return;
 
-                ResetSessionButton.IsEnabled = false;
+                ConnectionTab.ResetSessionButtonCtrl.IsEnabled = false;
                 ShowToast("Resetting session...", "🔄", 3);
 
                 // Stop current connection
@@ -782,7 +895,7 @@ namespace WhatsAppSimHubPlugin.UI
             }
             finally
             {
-                ResetSessionButton.IsEnabled = true;
+                ConnectionTab.ResetSessionButtonCtrl.IsEnabled = true;
             }
         }
 
@@ -798,23 +911,23 @@ namespace WhatsAppSimHubPlugin.UI
             Dispatcher.Invoke(() =>
             {
                 _chatContacts = contacts;
-                ChatContactsComboBox.ItemsSource = _chatContacts;
+                ContactsTab.ChatContactsComboBoxCtrl.ItemsSource = _chatContacts;
 
                 if (contacts != null && contacts.Count > 0)
                 {
-                    ChatContactsComboBox.IsEnabled = true;
-                    AddFromChatsButton.IsEnabled = true;
-                    RefreshChatsButton.IsEnabled = true;
-                    ChatsStatusText.Text = $"✅ {contacts.Count} contacts from active chats";
-                    ChatsStatusText.Foreground = System.Windows.Media.Brushes.LimeGreen;
+                    ContactsTab.ChatContactsComboBoxCtrl.IsEnabled = true;
+                    ContactsTab.AddFromChatsButtonCtrl.IsEnabled = true;
+                    ContactsTab.RefreshChatsButtonCtrl.IsEnabled = true;
+                    ContactsTab.ChatsStatusTextCtrl.Text = $"✅ {contacts.Count} contacts from active chats";
+                    ContactsTab.ChatsStatusTextCtrl.Foreground = System.Windows.Media.Brushes.LimeGreen;
                 }
                 else
                 {
-                    ChatContactsComboBox.IsEnabled = false;
-                    AddFromChatsButton.IsEnabled = false;
-                    RefreshChatsButton.IsEnabled = false;
-                    ChatsStatusText.Text = "⚠️ No active chats found";
-                    ChatsStatusText.Foreground = System.Windows.Media.Brushes.Orange;
+                    ContactsTab.ChatContactsComboBoxCtrl.IsEnabled = false;
+                    ContactsTab.AddFromChatsButtonCtrl.IsEnabled = false;
+                    ContactsTab.RefreshChatsButtonCtrl.IsEnabled = false;
+                    ContactsTab.ChatsStatusTextCtrl.Text = "⚠️ No active chats found";
+                    ContactsTab.ChatsStatusTextCtrl.Foreground = System.Windows.Media.Brushes.Orange;
                 }
             });
         }
@@ -824,7 +937,7 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private void AddFromChatsButton_Click(object sender, RoutedEventArgs e)
         {
-            var selected = ChatContactsComboBox.SelectedItem as Contact;
+            var selected = ContactsTab.ChatContactsComboBoxCtrl.SelectedItem as Contact;
 
             if (selected == null)
             {
@@ -853,7 +966,7 @@ namespace WhatsAppSimHubPlugin.UI
 
             _contacts.Add(newContact);
 
-            ChatContactsComboBox.SelectedIndex = -1;
+            ContactsTab.ChatContactsComboBoxCtrl.SelectedIndex = -1;
 
             ShowToast($"{newContact.Name} adicionado aos contactos permitidos!", "✅");
         }
@@ -864,10 +977,10 @@ namespace WhatsAppSimHubPlugin.UI
         private void RefreshChatsButton_Click(object sender, RoutedEventArgs e)
         {
             // Atualizar UI para mostrar que está a refreshar
-            ChatsStatusText.Text = "🔄 Refreshing contacts...";
-            ChatsStatusText.Foreground = System.Windows.Media.Brushes.Orange;
+            ContactsTab.ChatsStatusTextCtrl.Text = "🔄 Refreshing contacts...";
+            ContactsTab.ChatsStatusTextCtrl.Foreground = System.Windows.Media.Brushes.Orange;
 
-            RefreshChatsButton.IsEnabled = false;
+            ContactsTab.RefreshChatsButtonCtrl.IsEnabled = false;
 
             // Pedir ao plugin para refresh
             _plugin.RefreshChatContacts();
@@ -881,7 +994,7 @@ namespace WhatsAppSimHubPlugin.UI
 
         private void AddKeyword_Click(object sender, RoutedEventArgs e)
         {
-            var keyword = NewKeyword.Text.Trim().ToLowerInvariant();
+            var keyword = KeywordsTab.NewKeywordCtrl.Text.Trim().ToLowerInvariant();
 
             if (string.IsNullOrEmpty(keyword))
             {
@@ -899,7 +1012,7 @@ namespace WhatsAppSimHubPlugin.UI
             _keywords.Add(keyword);
             _settings.Keywords.Add(keyword);
 
-            NewKeyword.Clear();
+            KeywordsTab.NewKeywordCtrl.Clear();
             _plugin.SaveSettings();
 
         }
@@ -937,7 +1050,7 @@ namespace WhatsAppSimHubPlugin.UI
             // Null check: evento pode disparar antes de _plugin/_settings serem inicializados
             if (_plugin == null || _settings == null) return;
 
-            if (TargetDeviceComboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
+            if (DisplayTab.TargetDeviceComboBoxCtrl.SelectedItem is ComboBoxItem item && item.Tag != null)
             {
                 string newDevice = item.Tag.ToString();
 
@@ -1111,8 +1224,8 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private void AddManualButton_Click(object sender, RoutedEventArgs e)
         {
-            string name = ManualNameTextBox.Text.Trim();
-            string number = ManualNumberTextBox.Text.Trim();
+            string name = ContactsTab.ManualNameTextBoxCtrl.Text.Trim();
+            string number = ContactsTab.ManualNumberTextBoxCtrl.Text.Trim();
 
             // Validar
             if (string.IsNullOrWhiteSpace(name) || name == "Name")
@@ -1150,8 +1263,8 @@ namespace WhatsAppSimHubPlugin.UI
             _plugin.SaveSettings();
 
             // Limpar
-            ManualNameTextBox.Text = "Name";
-            ManualNumberTextBox.Text = "+351...";
+            ContactsTab.ManualNameTextBoxCtrl.Text = "Name";
+            ContactsTab.ManualNumberTextBoxCtrl.Text = "+351...";
 
             ShowToast($"{contact.Name} added to allowed contacts!", "✅", 5);
         }
@@ -1181,9 +1294,9 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private async void BackendModeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (BackendModeCombo.SelectedItem == null) return;
+            if (ConnectionTab.BackendModeComboCtrl.SelectedItem == null) return;
 
-            var selected = BackendModeCombo.SelectedItem as ComboBoxItem;
+            var selected = ConnectionTab.BackendModeComboCtrl.SelectedItem as ComboBoxItem;
             var newMode = selected?.Tag?.ToString();
 
             if (string.IsNullOrEmpty(newMode)) return;
@@ -1234,7 +1347,7 @@ namespace WhatsAppSimHubPlugin.UI
         {
             if (_contacts == null) return;
 
-            ContactsDataGrid.Visibility = _contacts.Count > 0
+            ContactsTab.ContactsDataGridCtrl.Visibility = _contacts.Count > 0
                 ? Visibility.Visible
                 : Visibility.Collapsed;
         }
@@ -1279,9 +1392,9 @@ namespace WhatsAppSimHubPlugin.UI
                     controlsEditorType.GetProperty("ActionName")?.SetValue(reply1Editor, "WhatsAppPlugin.SendReply1");
 
                     // ✅ Substituir conteúdo do ContentPresenter
-                    if (Reply1ControlEditorPlaceholder != null)
+                    if (QuickRepliesTab.Reply1ControlEditorPlaceholderCtrl != null)
                     {
-                        Reply1ControlEditorPlaceholder.Content = reply1Editor;
+                        QuickRepliesTab.Reply1ControlEditorPlaceholderCtrl.Content = reply1Editor;
                     }
 
                     WriteDebugLog("[ControlsEditor] Reply1 editor created successfully");
@@ -1297,9 +1410,9 @@ namespace WhatsAppSimHubPlugin.UI
                     controlsEditorType.GetProperty("ActionName")?.SetValue(reply2Editor, "WhatsAppPlugin.SendReply2");
 
                     // ✅ Substituir conteúdo do ContentPresenter
-                    if (Reply2ControlEditorPlaceholder != null)
+                    if (QuickRepliesTab.Reply2ControlEditorPlaceholderCtrl != null)
                     {
-                        Reply2ControlEditorPlaceholder.Content = reply2Editor;
+                        QuickRepliesTab.Reply2ControlEditorPlaceholderCtrl.Content = reply2Editor;
                     }
 
                     WriteDebugLog("[ControlsEditor] Reply2 editor created successfully");
@@ -1400,21 +1513,21 @@ namespace WhatsAppSimHubPlugin.UI
             bool isBaileys = _settings.BackendMode == "baileys";
 
             // Desativar funcionalidade de chats se for Baileys
-            ChatContactsComboBox.IsEnabled = !isBaileys;
-            RefreshChatsButton.IsEnabled = !isBaileys;
-            AddFromChatsButton.IsEnabled = !isBaileys;
+            ContactsTab.ChatContactsComboBoxCtrl.IsEnabled = !isBaileys;
+            ContactsTab.RefreshChatsButtonCtrl.IsEnabled = !isBaileys;
+            ContactsTab.AddFromChatsButtonCtrl.IsEnabled = !isBaileys;
 
             // Atualizar texto de status
             if (isBaileys)
             {
-                ChatsStatusText.Text = "⚠️ Chat contacts list is not supported with Baileys backend. Please use WhatsApp-Web.js.";
-                ChatsStatusText.Foreground = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
+                ContactsTab.ChatsStatusTextCtrl.Text = "⚠️ Chat contacts list is not supported with Baileys backend. Please use WhatsApp-Web.js.";
+                ContactsTab.ChatsStatusTextCtrl.Foreground = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
             }
             else
             {
                 // Restaurar texto original (será atualizado quando carregar contactos)
-                ChatsStatusText.Text = "Click Refresh to load contacts from active chats";
-                ChatsStatusText.Foreground = new SolidColorBrush(Color.FromRgb(133, 133, 133)); // Gray
+                ContactsTab.ChatsStatusTextCtrl.Text = "Click Refresh to load contacts from active chats";
+                ContactsTab.ChatsStatusTextCtrl.Foreground = new SolidColorBrush(Color.FromRgb(133, 133, 133)); // Gray
             }
         }
 
@@ -1433,27 +1546,27 @@ namespace WhatsAppSimHubPlugin.UI
             // WhatsApp-Web.js source
             if (_settings.WhatsAppWebJsSource == "manual")
             {
-                WhatsAppWebJsManualRadio.IsChecked = true;
-                WhatsAppWebJsManualPanel.Visibility = Visibility.Visible;
-                WhatsAppWebJsRepoTextBox.Text = _settings.WhatsAppWebJsManualRepo;
+                ConnectionTab.WhatsAppWebJsManualRadioCtrl.IsChecked = true;
+                ConnectionTab.WhatsAppWebJsManualPanelCtrl.Visibility = Visibility.Visible;
+                ConnectionTab.WhatsAppWebJsRepoTextBoxCtrl.Text = _settings.WhatsAppWebJsManualRepo;
             }
             else
             {
-                WhatsAppWebJsOfficialRadio.IsChecked = true;
-                WhatsAppWebJsManualPanel.Visibility = Visibility.Collapsed;
+                ConnectionTab.WhatsAppWebJsOfficialRadioCtrl.IsChecked = true;
+                ConnectionTab.WhatsAppWebJsManualPanelCtrl.Visibility = Visibility.Collapsed;
             }
 
             // Baileys source
             if (_settings.BaileysSource == "manual")
             {
-                BaileysManualRadio.IsChecked = true;
-                BaileysManualPanel.Visibility = Visibility.Visible;
-                BaileysRepoTextBox.Text = _settings.BaileysManualRepo;
+                ConnectionTab.BaileysManualRadioCtrl.IsChecked = true;
+                ConnectionTab.BaileysManualPanelCtrl.Visibility = Visibility.Visible;
+                ConnectionTab.BaileysRepoTextBoxCtrl.Text = _settings.BaileysManualRepo;
             }
             else
             {
-                BaileysOfficialRadio.IsChecked = true;
-                BaileysManualPanel.Visibility = Visibility.Collapsed;
+                ConnectionTab.BaileysOfficialRadioCtrl.IsChecked = true;
+                ConnectionTab.BaileysManualPanelCtrl.Visibility = Visibility.Collapsed;
             }
 
             // Load current installed versions
@@ -1482,7 +1595,7 @@ namespace WhatsAppSimHubPlugin.UI
                     {
                         // WhatsApp-Web.js - ler do package.json
                         var wwjsSpec = deps["whatsapp-web.js"]?.ToString();
-                        WhatsAppWebJsVersionCombo.Items.Clear();
+                        ConnectionTab.WhatsAppWebJsVersionComboCtrl.Items.Clear();
 
                         if (!string.IsNullOrEmpty(wwjsSpec))
                         {
@@ -1510,7 +1623,7 @@ namespace WhatsAppSimHubPlugin.UI
                                 Content = "github:main (latest dev)",
                                 Tag = "github:pedroslopez/whatsapp-web.js#main"
                             };
-                            WhatsAppWebJsVersionCombo.Items.Add(mainItem);
+                            ConnectionTab.WhatsAppWebJsVersionComboCtrl.Items.Add(mainItem);
                             if (tagVersion.Contains("#main")) mainItem.IsSelected = true;
 
                             // Adicionar versão instalada se não for github:main
@@ -1522,13 +1635,13 @@ namespace WhatsAppSimHubPlugin.UI
                                     Tag = tagVersion,
                                     IsSelected = true
                                 };
-                                WhatsAppWebJsVersionCombo.Items.Add(installedItem);
+                                ConnectionTab.WhatsAppWebJsVersionComboCtrl.Items.Add(installedItem);
                             }
                         }
 
                         // Baileys - ler do package.json
                         var baileysSpec = deps["@whiskeysockets/baileys"]?.ToString();
-                        BaileysVersionCombo.Items.Clear();
+                        ConnectionTab.BaileysVersionComboCtrl.Items.Clear();
 
                         if (!string.IsNullOrEmpty(baileysSpec))
                         {
@@ -1556,7 +1669,7 @@ namespace WhatsAppSimHubPlugin.UI
                                 Content = "@latest (latest version)",
                                 Tag = "npm:@whiskeysockets/baileys@latest"
                             };
-                            BaileysVersionCombo.Items.Add(latestItem);
+                            ConnectionTab.BaileysVersionComboCtrl.Items.Add(latestItem);
                             if (tagVersion.Contains("@latest")) latestItem.IsSelected = true;
 
                             // Adicionar versão instalada se não for @latest
@@ -1568,7 +1681,7 @@ namespace WhatsAppSimHubPlugin.UI
                                     Tag = tagVersion,
                                     IsSelected = true
                                 };
-                                BaileysVersionCombo.Items.Add(installedItem);
+                                ConnectionTab.BaileysVersionComboCtrl.Items.Add(installedItem);
                             }
                         }
                     }
@@ -1576,7 +1689,7 @@ namespace WhatsAppSimHubPlugin.UI
 
                 // Scripts version
                 var scriptsVersion = GetLocalScriptVersion();
-                ScriptsVersionText.Text = scriptsVersion ?? "Not installed";
+                ConnectionTab.ScriptsVersionTextCtrl.Text = scriptsVersion ?? "Not installed";
             }
             catch (Exception ex)
             {
@@ -1589,8 +1702,8 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private async void WhatsAppWebJsCheckButton_Click(object sender, RoutedEventArgs e)
         {
-            WhatsAppWebJsCheckButton.IsEnabled = false;
-            WhatsAppWebJsCheckButton.Content = "Checking...";
+            ConnectionTab.WhatsAppWebJsCheckButtonCtrl.IsEnabled = false;
+            ConnectionTab.WhatsAppWebJsCheckButtonCtrl.Content = "Checking...";
 
             try
             {
@@ -1602,8 +1715,8 @@ namespace WhatsAppSimHubPlugin.UI
                     var currentVersion = _settings.WhatsAppWebJsVersion;
 
                     // Guardar item selecionado atual
-                    var currentlySelected = WhatsAppWebJsVersionCombo.SelectedItem as ComboBoxItem;
-                    var existingItems = WhatsAppWebJsVersionCombo.Items.Cast<ComboBoxItem>().ToList();
+                    var currentlySelected = ConnectionTab.WhatsAppWebJsVersionComboCtrl.SelectedItem as ComboBoxItem;
+                    var existingItems = ConnectionTab.WhatsAppWebJsVersionComboCtrl.Items.Cast<ComboBoxItem>().ToList();
 
                     // Adicionar versões stable do npm (últimas 10) que ainda não existem
                     foreach (var version in versions.Take(10))
@@ -1618,14 +1731,14 @@ namespace WhatsAppSimHubPlugin.UI
                                 Content = version,
                                 Tag = version
                             };
-                            WhatsAppWebJsVersionCombo.Items.Add(item);
+                            ConnectionTab.WhatsAppWebJsVersionComboCtrl.Items.Add(item);
                         }
                     }
 
                     // Restaurar seleção
                     if (currentlySelected != null)
                     {
-                        WhatsAppWebJsVersionCombo.SelectedItem = currentlySelected;
+                        ConnectionTab.WhatsAppWebJsVersionComboCtrl.SelectedItem = currentlySelected;
                     }
 
                     // Verificar se há update disponível
@@ -1639,12 +1752,12 @@ namespace WhatsAppSimHubPlugin.UI
 
                     if (hasUpdate)
                     {
-                        WhatsAppWebJsUpdateBadge.Visibility = Visibility.Visible;
+                        ConnectionTab.WhatsAppWebJsUpdateBadgeCtrl.Visibility = Visibility.Visible;
                         ShowToast($"New whatsapp-web.js version available: {versions[0]}", "🆕", 5);
                     }
                     else
                     {
-                        WhatsAppWebJsUpdateBadge.Visibility = Visibility.Collapsed;
+                        ConnectionTab.WhatsAppWebJsUpdateBadgeCtrl.Visibility = Visibility.Collapsed;
                         ShowToast("whatsapp-web.js versions loaded!", "✅", 3);
                     }
                 }
@@ -1655,8 +1768,8 @@ namespace WhatsAppSimHubPlugin.UI
             }
             finally
             {
-                WhatsAppWebJsCheckButton.IsEnabled = true;
-                WhatsAppWebJsCheckButton.Content = "Check for updates";
+                ConnectionTab.WhatsAppWebJsCheckButtonCtrl.IsEnabled = true;
+                ConnectionTab.WhatsAppWebJsCheckButtonCtrl.Content = "Check for updates";
             }
         }
 
@@ -1665,8 +1778,8 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private async void BaileysCheckButton_Click(object sender, RoutedEventArgs e)
         {
-            BaileysCheckButton.IsEnabled = false;
-            BaileysCheckButton.Content = "Checking...";
+            ConnectionTab.BaileysCheckButtonCtrl.IsEnabled = false;
+            ConnectionTab.BaileysCheckButtonCtrl.Content = "Checking...";
 
             try
             {
@@ -1678,8 +1791,8 @@ namespace WhatsAppSimHubPlugin.UI
                     var currentVersion = _settings.BaileysVersion;
 
                     // Guardar item selecionado atual
-                    var currentlySelected = BaileysVersionCombo.SelectedItem as ComboBoxItem;
-                    var existingItems = BaileysVersionCombo.Items.Cast<ComboBoxItem>().ToList();
+                    var currentlySelected = ConnectionTab.BaileysVersionComboCtrl.SelectedItem as ComboBoxItem;
+                    var existingItems = ConnectionTab.BaileysVersionComboCtrl.Items.Cast<ComboBoxItem>().ToList();
 
                     // Adicionar versões stable do npm (últimas 10) que ainda não existem
                     foreach (var version in versions.Take(10))
@@ -1694,14 +1807,14 @@ namespace WhatsAppSimHubPlugin.UI
                                 Content = version,
                                 Tag = version
                             };
-                            BaileysVersionCombo.Items.Add(item);
+                            ConnectionTab.BaileysVersionComboCtrl.Items.Add(item);
                         }
                     }
 
                     // Restaurar seleção
                     if (currentlySelected != null)
                     {
-                        BaileysVersionCombo.SelectedItem = currentlySelected;
+                        ConnectionTab.BaileysVersionComboCtrl.SelectedItem = currentlySelected;
                     }
 
                     // Verificar se há update disponível
@@ -1715,12 +1828,12 @@ namespace WhatsAppSimHubPlugin.UI
 
                     if (hasUpdate)
                     {
-                        BaileysUpdateBadge.Visibility = Visibility.Visible;
+                        ConnectionTab.BaileysUpdateBadgeCtrl.Visibility = Visibility.Visible;
                         ShowToast($"New baileys version available: {versions[0]}", "🆕", 5);
                     }
                     else
                     {
-                        BaileysUpdateBadge.Visibility = Visibility.Collapsed;
+                        ConnectionTab.BaileysUpdateBadgeCtrl.Visibility = Visibility.Collapsed;
                         ShowToast("baileys versions loaded!", "✅", 3);
                     }
                 }
@@ -1731,8 +1844,8 @@ namespace WhatsAppSimHubPlugin.UI
             }
             finally
             {
-                BaileysCheckButton.IsEnabled = true;
-                BaileysCheckButton.Content = "Check for updates";
+                ConnectionTab.BaileysCheckButtonCtrl.IsEnabled = true;
+                ConnectionTab.BaileysCheckButtonCtrl.Content = "Check for updates";
             }
         }
 
@@ -1775,18 +1888,18 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private void WhatsAppWebJsVersionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (WhatsAppWebJsVersionCombo.SelectedItem is ComboBoxItem item && item.Tag != null)
+            if (ConnectionTab.WhatsAppWebJsVersionComboCtrl.SelectedItem is ComboBoxItem item && item.Tag != null)
             {
                 var selectedVersion = item.Tag.ToString();
 
                 // Show/hide Install button based on selection
                 if (selectedVersion != _settings.WhatsAppWebJsVersion)
                 {
-                    WhatsAppWebJsInstallButton.Visibility = Visibility.Visible;
+                    ConnectionTab.WhatsAppWebJsInstallButtonCtrl.Visibility = Visibility.Visible;
                 }
                 else
                 {
-                    WhatsAppWebJsInstallButton.Visibility = Visibility.Collapsed;
+                    ConnectionTab.WhatsAppWebJsInstallButtonCtrl.Visibility = Visibility.Collapsed;
                 }
             }
         }
@@ -1796,18 +1909,18 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private void BaileysVersionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (BaileysVersionCombo.SelectedItem is ComboBoxItem item && item.Tag != null)
+            if (ConnectionTab.BaileysVersionComboCtrl.SelectedItem is ComboBoxItem item && item.Tag != null)
             {
                 var selectedVersion = item.Tag.ToString();
 
                 // Show/hide Install button based on selection
                 if (selectedVersion != _settings.BaileysVersion)
                 {
-                    BaileysInstallButton.Visibility = Visibility.Visible;
+                    ConnectionTab.BaileysInstallButtonCtrl.Visibility = Visibility.Visible;
                 }
                 else
                 {
-                    BaileysInstallButton.Visibility = Visibility.Collapsed;
+                    ConnectionTab.BaileysInstallButtonCtrl.Visibility = Visibility.Collapsed;
                 }
             }
         }
@@ -1857,12 +1970,12 @@ namespace WhatsAppSimHubPlugin.UI
                         if (packageName == "whatsapp-web.js")
                         {
                             _settings.WhatsAppWebJsVersion = version;
-                            WhatsAppWebJsUpdateBadge.Visibility = Visibility.Collapsed;
+                            ConnectionTab.WhatsAppWebJsUpdateBadgeCtrl.Visibility = Visibility.Collapsed;
                         }
                         else if (packageName.Contains("baileys"))
                         {
                             _settings.BaileysVersion = version;
-                            BaileysUpdateBadge.Visibility = Visibility.Collapsed;
+                            ConnectionTab.BaileysUpdateBadgeCtrl.Visibility = Visibility.Collapsed;
                         }
 
                         _plugin.SaveSettings();
@@ -1887,7 +2000,7 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private void WhatsAppWebJsInstallButton_Click(object sender, RoutedEventArgs e)
         {
-            if (WhatsAppWebJsVersionCombo.SelectedItem is ComboBoxItem item && item.Tag != null)
+            if (ConnectionTab.WhatsAppWebJsVersionComboCtrl.SelectedItem is ComboBoxItem item && item.Tag != null)
             {
                 var selectedVersion = item.Tag.ToString();
 
@@ -1915,7 +2028,7 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private void BaileysInstallButton_Click(object sender, RoutedEventArgs e)
         {
-            if (BaileysVersionCombo.SelectedItem is ComboBoxItem item && item.Tag != null)
+            if (ConnectionTab.BaileysVersionComboCtrl.SelectedItem is ComboBoxItem item && item.Tag != null)
             {
                 var selectedVersion = item.Tag.ToString();
 
@@ -2035,12 +2148,12 @@ namespace WhatsAppSimHubPlugin.UI
                             if (packageName == "whatsapp-web.js")
                             {
                                 _settings.WhatsAppWebJsVersion = version;
-                                WhatsAppWebJsInstallButton.Visibility = Visibility.Collapsed;
+                                ConnectionTab.WhatsAppWebJsInstallButtonCtrl.Visibility = Visibility.Collapsed;
                             }
                             else if (packageName.Contains("baileys"))
                             {
                                 _settings.BaileysVersion = version;
-                                BaileysInstallButton.Visibility = Visibility.Collapsed;
+                                ConnectionTab.BaileysInstallButtonCtrl.Visibility = Visibility.Collapsed;
                             }
                             _plugin.SaveSettings();
                             LoadInstalledVersions();
@@ -2092,14 +2205,14 @@ namespace WhatsAppSimHubPlugin.UI
             // Skip if not initialized yet (called during InitializeComponent)
             if (_plugin == null || _settings == null) return;
 
-            if (WhatsAppWebJsManualRadio.IsChecked == true)
+            if (ConnectionTab.WhatsAppWebJsManualRadioCtrl.IsChecked == true)
             {
-                WhatsAppWebJsManualPanel.Visibility = Visibility.Visible;
+                ConnectionTab.WhatsAppWebJsManualPanelCtrl.Visibility = Visibility.Visible;
                 _settings.WhatsAppWebJsSource = "manual";
             }
             else
             {
-                WhatsAppWebJsManualPanel.Visibility = Visibility.Collapsed;
+                ConnectionTab.WhatsAppWebJsManualPanelCtrl.Visibility = Visibility.Collapsed;
                 _settings.WhatsAppWebJsSource = "official";
 
                 // If switching back to official and manual was applied, revert
@@ -2119,14 +2232,14 @@ namespace WhatsAppSimHubPlugin.UI
             // Skip if not initialized yet (called during InitializeComponent)
             if (_plugin == null || _settings == null) return;
 
-            if (BaileysManualRadio.IsChecked == true)
+            if (ConnectionTab.BaileysManualRadioCtrl.IsChecked == true)
             {
-                BaileysManualPanel.Visibility = Visibility.Visible;
+                ConnectionTab.BaileysManualPanelCtrl.Visibility = Visibility.Visible;
                 _settings.BaileysSource = "manual";
             }
             else
             {
-                BaileysManualPanel.Visibility = Visibility.Collapsed;
+                ConnectionTab.BaileysManualPanelCtrl.Visibility = Visibility.Collapsed;
                 _settings.BaileysSource = "official";
 
                 // If switching back to official and manual was applied, revert
@@ -2143,7 +2256,7 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private async void WhatsAppWebJsApplyRepo_Click(object sender, RoutedEventArgs e)
         {
-            var repo = WhatsAppWebJsRepoTextBox.Text.Trim();
+            var repo = ConnectionTab.WhatsAppWebJsRepoTextBoxCtrl.Text.Trim();
 
             if (string.IsNullOrEmpty(repo))
             {
@@ -2172,7 +2285,7 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private async void BaileysApplyRepo_Click(object sender, RoutedEventArgs e)
         {
-            var repo = BaileysRepoTextBox.Text.Trim();
+            var repo = ConnectionTab.BaileysRepoTextBoxCtrl.Text.Trim();
 
             if (string.IsNullOrEmpty(repo))
             {
@@ -2263,9 +2376,9 @@ namespace WhatsAppSimHubPlugin.UI
             if (_whatsappWebJsVersions.Count > 0)
             {
                 // Select the latest version in combo
-                if (WhatsAppWebJsVersionCombo.Items.Count > 0)
+                if (ConnectionTab.WhatsAppWebJsVersionComboCtrl.Items.Count > 0)
                 {
-                    WhatsAppWebJsVersionCombo.SelectedIndex = 0;
+                    ConnectionTab.WhatsAppWebJsVersionComboCtrl.SelectedIndex = 0;
                 }
             }
         }
@@ -2278,9 +2391,9 @@ namespace WhatsAppSimHubPlugin.UI
             if (_baileysVersions.Count > 0)
             {
                 // Select the latest version in combo
-                if (BaileysVersionCombo.Items.Count > 0)
+                if (ConnectionTab.BaileysVersionComboCtrl.Items.Count > 0)
                 {
-                    BaileysVersionCombo.SelectedIndex = 0;
+                    ConnectionTab.BaileysVersionComboCtrl.SelectedIndex = 0;
                 }
             }
         }
@@ -2290,8 +2403,8 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private async void ScriptsCheckButton_Click(object sender, RoutedEventArgs e)
         {
-            ScriptsCheckButton.IsEnabled = false;
-            ScriptsCheckButton.Content = "Checking...";
+            ConnectionTab.ScriptsCheckButtonCtrl.IsEnabled = false;
+            ConnectionTab.ScriptsCheckButtonCtrl.Content = "Checking...";
 
             try
             {
@@ -2304,12 +2417,12 @@ namespace WhatsAppSimHubPlugin.UI
                 if (githubVersion != null && localVersion != githubVersion)
                 {
                     _latestScriptVersion = githubVersion;
-                    ScriptsUpdateBadge.Visibility = Visibility.Visible;
+                    ConnectionTab.ScriptsUpdateBadgeCtrl.Visibility = Visibility.Visible;
                     ShowToast($"New scripts version available: {githubVersion} (current: {localVersion})", "🆕", 5);
                 }
                 else
                 {
-                    ScriptsUpdateBadge.Visibility = Visibility.Collapsed;
+                    ConnectionTab.ScriptsUpdateBadgeCtrl.Visibility = Visibility.Collapsed;
                     ShowToast($"Scripts are up to date (v{localVersion})", "✅", 3);
                 }
             }
@@ -2319,8 +2432,8 @@ namespace WhatsAppSimHubPlugin.UI
             }
             finally
             {
-                ScriptsCheckButton.IsEnabled = true;
-                ScriptsCheckButton.Content = "Check for updates";
+                ConnectionTab.ScriptsCheckButtonCtrl.IsEnabled = true;
+                ConnectionTab.ScriptsCheckButtonCtrl.Content = "Check for updates";
             }
         }
 
@@ -2418,7 +2531,7 @@ namespace WhatsAppSimHubPlugin.UI
                     "https://raw.githubusercontent.com/bfreis94/whatsapp-plugin/main/Resources/baileys-server.mjs");
                 File.WriteAllText(Path.Combine(nodePath, "baileys-server.mjs"), baileysContent);
 
-                ScriptsUpdateBadge.Visibility = Visibility.Collapsed;
+                ConnectionTab.ScriptsUpdateBadgeCtrl.Visibility = Visibility.Collapsed;
                 ShowToast($"Scripts updated to v{_latestScriptVersion}!", "✅", 5);
             }
             catch (Exception ex)
@@ -2437,20 +2550,20 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 if (isError)
                 {
-                    NodeJsStatusIcon.Text = "❌";
-                    NodeJsStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
+                    ConnectionTab.NodeJsStatusIconCtrl.Text = "❌";
+                    ConnectionTab.NodeJsStatusIconCtrl.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
                 }
                 else if (isComplete)
                 {
-                    NodeJsStatusIcon.Text = "✓";
-                    NodeJsStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
+                    ConnectionTab.NodeJsStatusIconCtrl.Text = "✓";
+                    ConnectionTab.NodeJsStatusIconCtrl.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
                 }
                 else
                 {
-                    NodeJsStatusIcon.Text = "⏳";
-                    NodeJsStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
+                    ConnectionTab.NodeJsStatusIconCtrl.Text = "⏳";
+                    ConnectionTab.NodeJsStatusIconCtrl.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
                 }
-                NodeJsStatusText.Text = $"Node.js: {status}";
+                ConnectionTab.NodeJsStatusTextCtrl.Text = $"Node.js: {status}";
                 UpdateDependenciesOverallStatus();
             });
         }
@@ -2461,20 +2574,20 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 if (isError)
                 {
-                    GitStatusIcon.Text = "❌";
-                    GitStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
+                    ConnectionTab.GitStatusIconCtrl.Text = "❌";
+                    ConnectionTab.GitStatusIconCtrl.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
                 }
                 else if (isComplete)
                 {
-                    GitStatusIcon.Text = "✓";
-                    GitStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
+                    ConnectionTab.GitStatusIconCtrl.Text = "✓";
+                    ConnectionTab.GitStatusIconCtrl.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
                 }
                 else
                 {
-                    GitStatusIcon.Text = "⏳";
-                    GitStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
+                    ConnectionTab.GitStatusIconCtrl.Text = "⏳";
+                    ConnectionTab.GitStatusIconCtrl.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
                 }
-                GitStatusText.Text = $"Git: {status}";
+                ConnectionTab.GitStatusTextCtrl.Text = $"Git: {status}";
                 UpdateDependenciesOverallStatus();
             });
         }
@@ -2485,20 +2598,20 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 if (isError)
                 {
-                    NpmPackagesStatusIcon.Text = "❌";
-                    NpmPackagesStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
+                    ConnectionTab.NpmPackagesStatusIconCtrl.Text = "❌";
+                    ConnectionTab.NpmPackagesStatusIconCtrl.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
                 }
                 else if (isComplete)
                 {
-                    NpmPackagesStatusIcon.Text = "✓";
-                    NpmPackagesStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
+                    ConnectionTab.NpmPackagesStatusIconCtrl.Text = "✓";
+                    ConnectionTab.NpmPackagesStatusIconCtrl.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
                 }
                 else
                 {
-                    NpmPackagesStatusIcon.Text = "⏳";
-                    NpmPackagesStatusIcon.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
+                    ConnectionTab.NpmPackagesStatusIconCtrl.Text = "⏳";
+                    ConnectionTab.NpmPackagesStatusIconCtrl.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
                 }
-                NpmPackagesStatusText.Text = $"Npm packages: {status}";
+                ConnectionTab.NpmPackagesStatusTextCtrl.Text = $"Npm packages: {status}";
                 UpdateDependenciesOverallStatus();
             });
         }
@@ -2509,25 +2622,25 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 if (isInstalling)
                 {
-                    DependenciesStatusText.Text = "🔄 Installing dependencies...";
-                    DependenciesStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
-                    DependenciesProgressText.Text = progressMessage;
-                    DependenciesProgressText.Visibility = Visibility.Visible;
+                    ConnectionTab.DependenciesStatusTextCtrl.Text = "🔄 Installing dependencies...";
+                    ConnectionTab.DependenciesStatusTextCtrl.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
+                    ConnectionTab.DependenciesProgressTextCtrl.Text = progressMessage;
+                    ConnectionTab.DependenciesProgressTextCtrl.Visibility = Visibility.Visible;
 
                     // Disable connection buttons during installation
-                    DisconnectButton.IsEnabled = false;
-                    ReconnectButton.IsEnabled = false;
+                    ConnectionTab.DisconnectButtonCtrl.IsEnabled = false;
+                    ConnectionTab.ReconnectButtonCtrl.IsEnabled = false;
                 }
                 else
                 {
-                    DependenciesProgressText.Visibility = Visibility.Collapsed;
+                    ConnectionTab.DependenciesProgressTextCtrl.Visibility = Visibility.Collapsed;
                     UpdateDependenciesOverallStatus();
 
                     // Re-enable connection buttons after installation
                     // Check connection state to enable appropriate buttons
-                    bool isConnected = StatusText.Text == "Connected";
-                    DisconnectButton.IsEnabled = isConnected;
-                    ReconnectButton.IsEnabled = true;
+                    bool isConnected = ConnectionTab.StatusTextCtrl.Text == "Connected";
+                    ConnectionTab.DisconnectButtonCtrl.IsEnabled = isConnected;
+                    ConnectionTab.ReconnectButtonCtrl.IsEnabled = true;
                 }
             });
         }
@@ -2536,32 +2649,32 @@ namespace WhatsAppSimHubPlugin.UI
         {
             Dispatcher.Invoke(() =>
             {
-                bool nodeOk = NodeJsStatusIcon.Text == "✓";
-                bool gitOk = GitStatusIcon.Text == "✓";
-                bool npmOk = NpmPackagesStatusIcon.Text == "✓";
+                bool nodeOk = ConnectionTab.NodeJsStatusIconCtrl.Text == "✓";
+                bool gitOk = ConnectionTab.GitStatusIconCtrl.Text == "✓";
+                bool npmOk = ConnectionTab.NpmPackagesStatusIconCtrl.Text == "✓";
 
-                bool anyError = NodeJsStatusIcon.Text == "❌" ||
-                                GitStatusIcon.Text == "❌" ||
-                                NpmPackagesStatusIcon.Text == "❌";
+                bool anyError = ConnectionTab.NodeJsStatusIconCtrl.Text == "❌" ||
+                                ConnectionTab.GitStatusIconCtrl.Text == "❌" ||
+                                ConnectionTab.NpmPackagesStatusIconCtrl.Text == "❌";
 
-                bool anyPending = NodeJsStatusIcon.Text == "⏳" ||
-                                  GitStatusIcon.Text == "⏳" ||
-                                  NpmPackagesStatusIcon.Text == "⏳";
+                bool anyPending = ConnectionTab.NodeJsStatusIconCtrl.Text == "⏳" ||
+                                  ConnectionTab.GitStatusIconCtrl.Text == "⏳" ||
+                                  ConnectionTab.NpmPackagesStatusIconCtrl.Text == "⏳";
 
                 if (anyError)
                 {
-                    DependenciesStatusText.Text = "❌ Installation failed";
-                    DependenciesStatusText.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
+                    ConnectionTab.DependenciesStatusTextCtrl.Text = "❌ Installation failed";
+                    ConnectionTab.DependenciesStatusTextCtrl.Foreground = new SolidColorBrush(Color.FromRgb(244, 71, 71));
                 }
                 else if (anyPending)
                 {
-                    DependenciesStatusText.Text = "⏳ Installing...";
-                    DependenciesStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
+                    ConnectionTab.DependenciesStatusTextCtrl.Text = "⏳ Installing...";
+                    ConnectionTab.DependenciesStatusTextCtrl.Foreground = new SolidColorBrush(Color.FromRgb(0, 122, 204));
                 }
                 else if (nodeOk && gitOk && npmOk)
                 {
-                    DependenciesStatusText.Text = "✅ All dependencies installed";
-                    DependenciesStatusText.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
+                    ConnectionTab.DependenciesStatusTextCtrl.Text = "✅ All dependencies installed";
+                    ConnectionTab.DependenciesStatusTextCtrl.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
                 }
             });
         }

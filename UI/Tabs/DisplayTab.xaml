@@ -1,0 +1,68 @@
+<UserControl x:Class="WhatsAppSimHubPlugin.UI.Tabs.DisplayTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="20">
+            <!-- Target Device -->
+            <TextBlock Text="Target Device"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       Foreground="#00BCD4"
+                       Margin="0,0,0,5"/>
+            <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
+
+            <StackPanel Margin="0,0,0,20">
+                <TextBlock Text="VoCore Device:"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,8"/>
+
+                <StackPanel Orientation="Horizontal">
+                    <ComboBox x:Name="TargetDeviceComboBox"
+                              Width="380"
+                              Height="36"
+                              Background="#252526"
+                              Foreground="White"
+                              BorderBrush="#3E3E42">
+                        <!-- Devices will be loaded dynamically -->
+                    </ComboBox>
+
+                    <styles:SHButtonPrimary x:Name="RefreshDevicesButton" Content="🔄 Refresh"
+                            Width="110" Height="36"
+                            Margin="10,0,0,0"
+                            Background="#007ACC"
+                            Foreground="White"
+                            ToolTip="Refresh VoCore device list"/>
+
+                    <styles:SHButtonPrimary x:Name="TestOverlayButton" Content="🧪 Test"
+                            Width="100" Height="36"
+                            Margin="10,0,0,0"
+                            Background="#0E7A0D"
+                            Foreground="White"
+                            ToolTip="Test overlay on selected VoCore"/>
+
+                    <TextBlock x:Name="DeviceStatusLabel"
+                               Text="Checking..."
+                               VerticalAlignment="Center"
+                               Margin="15,0,0,0"
+                               FontSize="12"
+                               FontWeight="Bold"/>
+                </StackPanel>
+
+                <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,15,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
+                        <TextBlock Text="Select a VoCore to display WhatsApp notifications during races."
+                                   Foreground="White"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -95,6 +95,24 @@
     <Compile Include="UI\SettingsControl.xaml.cs">
       <DependentUpon>SettingsControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UI\Tabs\ConnectionTab.xaml.cs">
+      <DependentUpon>ConnectionTab.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Tabs\ContactsTab.xaml.cs">
+      <DependentUpon>ContactsTab.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Tabs\KeywordsTab.xaml.cs">
+      <DependentUpon>KeywordsTab.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Tabs\DisplayTab.xaml.cs">
+      <DependentUpon>DisplayTab.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Tabs\QueueTab.xaml.cs">
+      <DependentUpon>QueueTab.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Tabs\QuickRepliesTab.xaml.cs">
+      <DependentUpon>QuickRepliesTab.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -119,6 +137,30 @@
   </ItemGroup>
   <ItemGroup>
     <Page Include="UI\SettingsControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Tabs\ConnectionTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Tabs\ContactsTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Tabs\KeywordsTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Tabs\DisplayTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Tabs\QueueTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Tabs\QuickRepliesTab.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
