@@ -224,10 +224,10 @@ namespace WhatsAppSimHubPlugin
             // Re-attach ao VoCore
             AttachToVoCore();
 
-            // Ativar overlay se attach foi bem sucedido
+            // Ativar overlay se attach foi bem sucedido (em background para não bloquear UI)
             if (_vocoreDevice != null && _vocoreSettings != null)
             {
-                EnsureOverlayActive();
+                _ = Task.Run(() => EnsureOverlayActive());
             }
             else
             {
@@ -1633,43 +1633,48 @@ namespace WhatsAppSimHubPlugin
 
         /// <summary>
         /// Timer: Verifica de 30 em 30s se dashboard existe e reinstala se necessário
+        /// Corre em background para não bloquear o SimHub/VoCore
         /// </summary>
         private void DashboardCheckTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            try
+            // Executar em background thread para não bloquear o timer thread
+            _ = Task.Run(() =>
             {
-                // Verificar se dashboard ainda existe
-                if (_dashboardInstaller == null) return;
-
-                bool exists = _dashboardInstaller.IsDashboardInstalled();
-
-                if (!exists)
+                try
                 {
-                    // Dashboard foi apagado! Reinstalar automaticamente
-                    WriteLog("⚠️ Dashboard not found! Auto-reinstalling...");
+                    // Verificar se dashboard ainda existe
+                    if (_dashboardInstaller == null) return;
 
-                    bool reinstalled = _dashboardInstaller.InstallDashboard();
+                    bool exists = _dashboardInstaller.IsDashboardInstalled();
 
-                    if (reinstalled)
+                    if (!exists)
                     {
-                        WriteLog("✅ Dashboard auto-reinstalled successfully!");
+                        // Dashboard foi apagado! Reinstalar automaticamente
+                        WriteLog("⚠️ Dashboard not found! Auto-reinstalling...");
+
+                        bool reinstalled = _dashboardInstaller.InstallDashboard();
+
+                        if (reinstalled)
+                        {
+                            WriteLog("✅ Dashboard auto-reinstalled successfully!");
+                        }
+                        else
+                        {
+                            WriteLog("❌ Failed to auto-reinstall dashboard");
+                        }
                     }
-                    else
+
+                    // ⭐ VERIFICAR SE OVERLAY ESTÁ ATIVO (a cada 30s)
+                    if (_vocoreDevice != null && _vocoreSettings != null)
                     {
-                        WriteLog("❌ Failed to auto-reinstall dashboard");
+                        EnsureOverlayActive();
                     }
                 }
-
-                // ⭐ VERIFICAR SE OVERLAY ESTÁ ATIVO (a cada 30s)
-                if (_vocoreDevice != null && _vocoreSettings != null)
+                catch (Exception ex)
                 {
-                    EnsureOverlayActive();
+                    WriteLog($"❌ DashboardCheckTimer error: {ex.Message}");
                 }
-            }
-            catch (Exception ex)
-            {
-                WriteLog($"❌ DashboardCheckTimer error: {ex.Message}");
-            }
+            });
         }
 
         /// <summary>
@@ -2393,12 +2398,12 @@ namespace WhatsAppSimHubPlugin
                 {
                     AttachToVoCore();
 
-                    // Auto-ativar overlay
+                    // Auto-ativar overlay (em background para não bloquear)
                     if (_vocoreDevice != null)
                     {
                         WriteLog("🎯 Auto-activating overlay...");
                         await Task.Delay(1000).ConfigureAwait(false);
-                        EnsureOverlayActive();
+                        _ = Task.Run(() => EnsureOverlayActive());
                     }
                 }
 
