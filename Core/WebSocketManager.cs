@@ -21,6 +21,7 @@ namespace WhatsAppSimHubPlugin.Core
         private ClientWebSocket _webSocket;
         private CancellationTokenSource _cts;
         private bool _isConnected = false;
+        private int _selectedPort = 3000; // Porta dinâmica comunicada pelo Node.js
 
         public event EventHandler<string> QrCodeReceived;
         public event EventHandler<(string number, string name)> Ready;
@@ -631,7 +632,16 @@ namespace WhatsAppSimHubPlugin.Core
                 }
             };
 
-            // ⭐ CAPTURAR STDOUT TAMBÉM
+            StatusChanged?.Invoke(this, "Debug: Starting node process");
+            _nodeProcess.Start();
+            _nodeProcess.BeginErrorReadLine();
+
+            // ⭐ LER PORTA DO STDOUT (primeira linha é "PORT:XXXX")
+            StatusChanged?.Invoke(this, "Debug: Waiting for port from Node.js...");
+            _selectedPort = await ReadPortFromNodeAsync().ConfigureAwait(false);
+            StatusChanged?.Invoke(this, $"Debug: Node.js selected port {_selectedPort}");
+
+            // Agora começar a ler stdout assíncrono (resto das mensagens)
             _nodeProcess.OutputDataReceived += (sender, e) =>
             {
                 if (!string.IsNullOrEmpty(e.Data))
@@ -640,14 +650,49 @@ namespace WhatsAppSimHubPlugin.Core
                     StatusChanged?.Invoke(this, $"NodeOutput: {e.Data}");
                 }
             };
-
-            StatusChanged?.Invoke(this, "Debug: Starting node process");
-            _nodeProcess.Start();
-            _nodeProcess.BeginErrorReadLine();
             _nodeProcess.BeginOutputReadLine();
 
-            StatusChanged?.Invoke(this, "Debug: Node process started, waiting 3s");
-            await Task.Delay(3000).ConfigureAwait(false); // ⭐ 3s para Node.js iniciar
+            StatusChanged?.Invoke(this, "Debug: Node process started, waiting 2s for WebSocket server");
+            await Task.Delay(2000).ConfigureAwait(false); // ⭐ 2s para WebSocket server iniciar
+        }
+
+        /// <summary>
+        /// Lê a porta do stdout do Node.js (primeira linha deve ser "PORT:XXXX")
+        /// </summary>
+        private async Task<int> ReadPortFromNodeAsync()
+        {
+            try
+            {
+                // Timeout de 10 segundos para ler a porta
+                using (var cts = new CancellationTokenSource(10000))
+                {
+                    var readTask = Task.Run(() => _nodeProcess.StandardOutput.ReadLine(), cts.Token);
+
+                    var portLine = await readTask.ConfigureAwait(false);
+
+                    if (!string.IsNullOrEmpty(portLine) && portLine.StartsWith("PORT:"))
+                    {
+                        var portStr = portLine.Substring(5); // Remove "PORT:"
+                        if (int.TryParse(portStr, out int port) && port > 0 && port < 65536)
+                        {
+                            return port;
+                        }
+                    }
+
+                    StatusChanged?.Invoke(this, $"Warning: Could not parse port from '{portLine}', using default 3000");
+                    return 3000;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                StatusChanged?.Invoke(this, "Warning: Timeout reading port from Node.js, using default 3000");
+                return 3000;
+            }
+            catch (Exception ex)
+            {
+                StatusChanged?.Invoke(this, $"Warning: Error reading port: {ex.Message}, using default 3000");
+                return 3000;
+            }
         }
 
         private async Task ConnectWebSocket()
@@ -671,7 +716,7 @@ namespace WhatsAppSimHubPlugin.Core
                     // Timeout de 10 segundos para conexão WebSocket
                     using (var connectCts = new CancellationTokenSource(10000))
                     {
-                        await _webSocket.ConnectAsync(new Uri("ws://127.0.0.1:3000"), connectCts.Token).ConfigureAwait(false);
+                        await _webSocket.ConnectAsync(new Uri($"ws://127.0.0.1:{_selectedPort}"), connectCts.Token).ConfigureAwait(false);
                     }
 
                     _isConnected = true;

@@ -1,8 +1,12 @@
 /**
  * WhatsApp SimHub Plugin - Baileys Backend
- * @version 1.0.0
+ * @version 1.0.1
+ *
+ * CHANGELOG v1.0.1:
+ * - Dynamic port selection (finds available port automatically)
+ * - Outputs PORT:XXXX to stdout for C# to read
  */
-const SCRIPT_VERSION = "1.0.0";
+const SCRIPT_VERSION = "1.0.1";
 
 import makeWASocket from "@whiskeysockets/baileys";
 import {
@@ -17,6 +21,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { execSync } from "child_process";
 
 const appData =
   process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
@@ -75,11 +80,56 @@ process.on("unhandledRejection", (err) => {
   isHandlingError = false;
 });
 
+/**
+ * Find an available port by checking which ports are in use via netstat
+ * @param {number} startPort - Port to start searching from
+ * @param {number} endPort - Port to stop searching at
+ * @returns {number} - Available port number
+ */
+function findAvailablePort(startPort = 3000, endPort = 3100) {
+  try {
+    // Get list of ports in use on localhost
+    const netstatOutput = execSync("netstat -ano", { encoding: "utf8" });
+    const lines = netstatOutput.split("\n");
+
+    const usedPorts = new Set();
+
+    for (const line of lines) {
+      // Match lines with 127.0.0.1:PORT or 0.0.0.0:PORT (LISTENING)
+      const match = line.match(/(?:127\.0\.0\.1|0\.0\.0\.0):(\d+)/);
+      if (match) {
+        usedPorts.add(parseInt(match[1], 10));
+      }
+    }
+
+    // Find first available port in range
+    for (let port = startPort; port <= endPort; port++) {
+      if (!usedPorts.has(port)) {
+        return port;
+      }
+    }
+
+    // Fallback to startPort if all are "in use" (unlikely)
+    return startPort;
+  } catch (error) {
+    // If netstat fails, just return startPort and let the server try
+    log("[PORT] Warning: Could not check ports via netstat: " + error.message);
+    return startPort;
+  }
+}
+
+// Find available port
+const selectedPort = findAvailablePort(3000, 3100);
+
+// ⭐ IMPORTANT: Output port for C# to read (must be before any other output)
+console.log("PORT:" + selectedPort);
+
 log("[BAILEYS] Starting Baileys server...");
-log("[WS] Starting server on port 3000...");
+log("[WS] Script version: " + SCRIPT_VERSION);
+log("[WS] Starting server on port " + selectedPort + "...");
 
 const wss = new WebSocketServer({
-  port: 3000,
+  port: selectedPort,
   host: "127.0.0.1",
 });
 
@@ -94,7 +144,7 @@ wss.on("error", (error) => {
 });
 
 wss.on("listening", () => {
-  log("[WS] Server successfully listening on 127.0.0.1:3000");
+  log("[WS] Server successfully listening on 127.0.0.1:" + selectedPort);
 });
 
 function send(data) {
