@@ -102,3 +102,6 @@ scripts/auth_info/
 
 # Local build scripts (machine-specific paths)
 *.bat
+
+# Test scripts (local development only)
+tests/
