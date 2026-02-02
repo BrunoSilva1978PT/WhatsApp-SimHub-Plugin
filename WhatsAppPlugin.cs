@@ -1493,18 +1493,20 @@ namespace WhatsAppSimHubPlugin
 
                 // PASSO 1: Verificar se information overlay está ligado
                 var useOverlayProp = settingsType.GetProperty("UseOverlayDashboard");
-                if (useOverlayProp != null)
+                if (useOverlayProp == null)
                 {
-                    var isActive = (bool)useOverlayProp.GetValue(_vocoreSettings);
-
-                    if (!isActive)
-                    {
-                        // Ligar overlay - SÓ faz log quando muda!
-                        useOverlayProp.SetValue(_vocoreSettings, true);
-                        WriteLog("✅ Information overlay activated");
-                    }
-                    // ✅ Já está ligado - não faz log (silencioso)
+                    return; // Propriedade não existe, sair
                 }
+
+                var isActive = (bool)useOverlayProp.GetValue(_vocoreSettings);
+
+                if (!isActive)
+                {
+                    // Ligar overlay
+                    useOverlayProp.SetValue(_vocoreSettings, true);
+                    WriteLog("✅ Information overlay activated");
+                }
+                // Se já está ligado, não faz nada
 
                 // PASSO 2: Verificar e configurar dashboard (com merge se necessário)
                 var overlayDashboardProp = settingsType.GetProperty("CurrentOverlayDashboard");
@@ -1536,26 +1538,17 @@ namespace WhatsAppSimHubPlugin
                             if (trySetMethod != null)
                             {
                                 WriteLog($"📊 Changing dashboard: {currentDashboard ?? "none"} → {targetDashboard}");
-                                var result = trySetMethod.Invoke(overlayDashboard, new object[] { targetDashboard });
+                                trySetMethod.Invoke(overlayDashboard, new object[] { targetDashboard });
 
-                                // Verificar se realmente mudou (async para não bloquear SimHub)
-                                var verifyPropCapture = overlayDashboard.GetType().GetProperty("Dashboard");
-                                if (verifyPropCapture != null)
+                                // IMPORTANTE: TrySet pode desligar o overlay - garantir que fica ligado
+                                var isStillActive = (bool)useOverlayProp.GetValue(_vocoreSettings);
+                                if (!isStillActive)
                                 {
-                                    var overlayCapture = overlayDashboard;
-                                    _ = Task.Run(async () =>
-                                    {
-                                        await Task.Delay(500).ConfigureAwait(false);
-                                        try
-                                        {
-                                            string newDashboard = verifyPropCapture.GetValue(overlayCapture) as string;
-                                        }
-                                        catch { /* Ignore verification errors */ }
-                                    });
+                                    useOverlayProp.SetValue(_vocoreSettings, true);
+                                    WriteLog("✅ Re-activated overlay after dashboard change");
                                 }
                             }
                         }
-                        // ✅ Já está correto - não faz log (silencioso)
                     }
                 }
                 // ✅ Tudo OK - não faz log "Overlay already configured" (silencioso)
