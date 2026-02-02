@@ -745,30 +745,31 @@ namespace WhatsAppSimHubPlugin.UI
                 // Stop current connection
                 _plugin.DisconnectWhatsApp();
 
-                // Delete auth folders based on backend mode
+                // Delete auth folder for current backend only
                 var pluginPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                     "SimHub", "WhatsAppPlugin");
 
-                var authPaths = new[]
+                string authPath;
+                if (_settings.BackendMode == "baileys")
                 {
-                    Path.Combine(pluginPath, "data"),           // whatsapp-web.js auth
-                    Path.Combine(pluginPath, "data_baileys", "auth_info")  // baileys auth
-                };
+                    authPath = Path.Combine(pluginPath, "data_baileys", "auth_info");
+                }
+                else
+                {
+                    authPath = Path.Combine(pluginPath, "data");
+                }
 
-                foreach (var authPath in authPaths)
+                if (Directory.Exists(authPath))
                 {
-                    if (Directory.Exists(authPath))
+                    try
                     {
-                        try
-                        {
-                            Directory.Delete(authPath, true);
-                            _plugin.WriteLog($"Deleted auth folder: {authPath}");
-                        }
-                        catch (Exception ex)
-                        {
-                            _plugin.WriteLog($"Failed to delete {authPath}: {ex.Message}");
-                        }
+                        Directory.Delete(authPath, true);
+                        _plugin.WriteLog($"Deleted auth folder: {authPath}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _plugin.WriteLog($"Failed to delete {authPath}: {ex.Message}");
                     }
                 }
 
