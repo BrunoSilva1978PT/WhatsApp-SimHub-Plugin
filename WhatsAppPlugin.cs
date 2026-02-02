@@ -274,6 +274,12 @@ namespace WhatsAppSimHubPlugin
         private string _connectedNumber = "";
         private string _lastLoggedDashboard = null; // Para debug - evitar spam de logs
 
+        // ===== RETRY SYSTEM =====
+        private bool _userRequestedDisconnect = false; // True se user clicou em Disconnect
+        private int _connectionRetryCount = 0;
+        private const int MAX_RETRY_ATTEMPTS = 3;
+        private const int RETRY_DELAY_MS = 5000; // 5 segundos entre tentativas
+
         // ===== ESTADO INTERNO (NÃO EXPOR AO SIMHUB) =====
         private List<QueuedMessage> _currentMessageGroup = null;
         private string _currentContactNumber = "";
@@ -725,6 +731,19 @@ namespace WhatsAppSimHubPlugin
             _connectedNumber = e.number;
             _settingsControl?.UpdateConnectionStatus("Connected", e.number);
 
+            // Reset retry counter on successful connection
+            _connectionRetryCount = 0;
+
+            // Garantir que overlay está limpo
+            _showMessage = false;
+            _overlaySender = "";
+            for (int i = 0; i < _overlayMessages.Length; i++)
+                _overlayMessages[i] = "";
+
+            // Retomar queues (caso estivessem pausadas)
+            _messageQueue?.ResumeQueue();
+            WriteLog("Queue resumed after successful connection");
+
             // 🔥 ESCONDER AVISO DE DISCONNECT
             _overlayRenderer?.Clear();
 
@@ -856,11 +875,71 @@ namespace WhatsAppSimHubPlugin
         {
             WriteLog($"Node.js reported error or disconnected");
 
-            _connectionStatus = "Error";
-            _settingsControl?.UpdateConnectionStatus("Error");
+            // Se user pediu disconnect, não tentar reconectar
+            if (_userRequestedDisconnect)
+            {
+                WriteLog("User requested disconnect - not retrying");
+                _connectionStatus = "Disconnected";
+                _settingsControl?.UpdateConnectionStatus("Disconnected");
+                return;
+            }
 
-            // 🔥 MOSTRAR AVISO NO OVERLAY
-            _overlayRenderer?.SetSystemMessage("⚠️ WhatsApp Disconnected\nCheck SimHub settings");
+            // Tentar reconectar até 3 vezes
+            _connectionRetryCount++;
+            WriteLog($"Connection attempt {_connectionRetryCount}/{MAX_RETRY_ATTEMPTS}");
+
+            if (_connectionRetryCount <= MAX_RETRY_ATTEMPTS)
+            {
+                _connectionStatus = $"Reconnecting ({_connectionRetryCount}/{MAX_RETRY_ATTEMPTS})...";
+                _settingsControl?.UpdateConnectionStatus($"Reconnecting ({_connectionRetryCount}/{MAX_RETRY_ATTEMPTS})...");
+
+                // Pausar queues durante retry
+                _messageQueue?.PauseQueue();
+                WriteLog("Queue paused during reconnection attempt");
+
+                // Tentar reconectar após delay
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(RETRY_DELAY_MS);
+
+                    // Verificar novamente se user não pediu disconnect entretanto
+                    if (_userRequestedDisconnect)
+                    {
+                        WriteLog("User requested disconnect during retry delay - aborting");
+                        return;
+                    }
+
+                    try
+                    {
+                        WriteLog($"Retry attempt {_connectionRetryCount}...");
+                        _nodeManager?.Stop();
+                        await Task.Delay(500);
+                        await _nodeManager.StartAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteLog($"Retry {_connectionRetryCount} failed: {ex.Message}");
+                        // O próximo erro vai disparar NodeManager_OnError novamente
+                    }
+                });
+            }
+            else
+            {
+                // Falhou todas as tentativas
+                WriteLog($"❌ All {MAX_RETRY_ATTEMPTS} reconnection attempts failed");
+                _connectionStatus = "Connection Failed";
+                _settingsControl?.UpdateConnectionStatus("Connection Failed");
+
+                // Pausar queues
+                _messageQueue?.PauseQueue();
+
+                // Mostrar mensagem fixa no ecrã
+                _showMessage = true;
+                _overlaySender = "No connection to WhatsApp";
+                for (int i = 0; i < _overlayMessages.Length; i++)
+                    _overlayMessages[i] = "";
+                WriteLog("Showing 'No connection' message on overlay");
+            }
         }
 
         private void NodeManager_OnStatusChanged(object sender, string status)
@@ -1234,12 +1313,38 @@ namespace WhatsAppSimHubPlugin
         // Métodos públicos para a UI
         public void DisconnectWhatsApp()
         {
+            WriteLog("User requested disconnect");
+
+            // Marcar que foi o user que pediu disconnect (não tentar reconectar)
+            _userRequestedDisconnect = true;
+            _connectionRetryCount = 0;
+
+            // Limpar ambas as queues
+            _messageQueue?.ClearQueue();
+            WriteLog("Queues cleared on user disconnect");
+
+            // Limpar overlay
+            _showMessage = false;
+            _overlaySender = "";
+            for (int i = 0; i < _overlayMessages.Length; i++)
+                _overlayMessages[i] = "";
+
             _nodeManager?.Stop();
         }
 
         public async System.Threading.Tasks.Task ReconnectWhatsApp()
         {
-            WriteLog("Reconnecting WhatsApp...");
+            WriteLog("User requested connect...");
+
+            // Reset flags - user quer conectar
+            _userRequestedDisconnect = false;
+            _connectionRetryCount = 0;
+
+            // Garantir que overlay está limpo
+            _showMessage = false;
+            _overlaySender = "";
+            for (int i = 0; i < _overlayMessages.Length; i++)
+                _overlayMessages[i] = "";
 
             try
             {

@@ -332,11 +332,26 @@
                                        TextWrapping="Wrap" Visibility="Collapsed" Margin="0,5,0,0"/>
                         </StackPanel>
 
-                        <!-- Troubleshooting Info -->
-                        <Border Background="#1E3A5F" Padding="12" CornerRadius="6">
+                        <!-- Information -->
+                        <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,0,0,10">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                     <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
+                                    <TextBlock Text="Information" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+                                <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12" LineHeight="20">
+                                    <Run Text="• Your WhatsApp session is stored locally and encrypted"/>
+                                    <LineBreak/>
+                                    <Run Text="• If you don't want to receive WhatsApp messages, just click Disconnect"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Troubleshooting Tips -->
+                        <Border Background="#1E3A5F" Padding="12" CornerRadius="6">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <TextBlock Text="⚠️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
                                     <TextBlock Text="Troubleshooting Tips" FontSize="14" FontWeight="Bold" Foreground="White"/>
                                 </StackPanel>
                                 <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12" LineHeight="20">
@@ -351,8 +366,6 @@
                                     <Run Text="• Try changing backend version or use a custom repository in Source Manual"/>
                                     <LineBreak/>
                                     <Run Text="• Check for script updates using 'Check for updates' button"/>
-                                    <LineBreak/>
-                                    <Run Text="• Your WhatsApp session is stored locally and encrypted"/>
                                 </TextBlock>
                             </StackPanel>
                         </Border>
