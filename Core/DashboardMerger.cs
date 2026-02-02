@@ -250,7 +250,7 @@ namespace WhatsAppSimHubPlugin.Core
                 wrapper["GridSize"] = 10;
                 wrapper["Images"] = baseDash["Images"] ?? new JArray();
                 var metadata = new JObject();
-                metadata["Author"] = "WhatsAppSimHubPlugin (wrapper)";
+                metadata["Author"] = "WhatsApp SimHub Plugin";
                 metadata["ScreenCount"] = 1.0;
                 var inGameIndexs = new JArray();
                 inGameIndexs.Add(0);
@@ -264,7 +264,7 @@ namespace WhatsAppSimHubPlugin.Core
                 metadata["MetadataVersion"] = 2.0;
                 metadata["EnableOnDashboardMessaging"] = true;
                 metadata["PitScreensIndexs"] = new JArray();
-                metadata["Title"] = $"{baseDashName} + WhatsApp (Wrapper)";
+                metadata["Title"] = "WhatsApp SimHub Plugin Merged Dash";
                 metadata["DashboardVersion"] = "V2.0";
                 wrapper["Metadata"] = metadata;
                 wrapper["ShowOnScreenControls"] = true;
