@@ -56,10 +56,17 @@ namespace WhatsAppSimHubPlugin
         // Propriedade para verificar se o script Node.js está a correr
         public bool IsScriptRunning => _nodeManager?.IsConnected ?? false;
 
-        // Verificar se Node.js está instalado
+        // Verificar se Node.js está instalado (cached para evitar bloqueios)
+        private bool? _nodeJsInstalledCache = null;
+        private DateTime _nodeJsCacheTime = DateTime.MinValue;
+
         public bool IsNodeJsInstalled()
         {
-            // Verificar se node.exe existe em locais comuns
+            // Usar cache por 30 segundos para evitar verificações repetidas
+            if (_nodeJsInstalledCache.HasValue && (DateTime.Now - _nodeJsCacheTime).TotalSeconds < 30)
+                return _nodeJsInstalledCache.Value;
+
+            // Verificar se node.exe existe em locais comuns (não bloqueia)
             var nodePaths = new[]
             {
                 @"C:\Program Files\nodejs\node.exe",
@@ -69,10 +76,14 @@ namespace WhatsAppSimHubPlugin
             foreach (var path in nodePaths)
             {
                 if (System.IO.File.Exists(path))
+                {
+                    _nodeJsInstalledCache = true;
+                    _nodeJsCacheTime = DateTime.Now;
                     return true;
+                }
             }
 
-            // Tentar via PATH environment variable
+            // Tentar via PATH environment variable (async em background)
             try
             {
                 var proc = new System.Diagnostics.Process
@@ -87,11 +98,20 @@ namespace WhatsAppSimHubPlugin
                     }
                 };
                 proc.Start();
-                proc.WaitForExit(1000);
-                return proc.ExitCode == 0;
+
+                // Usar Task.Run para não bloquear, mas com timeout curto
+                var waitTask = Task.Run(() => proc.WaitForExit(1000));
+                bool completed = waitTask.Wait(1500); // Timeout total de 1.5s
+
+                bool result = completed && proc.ExitCode == 0;
+                _nodeJsInstalledCache = result;
+                _nodeJsCacheTime = DateTime.Now;
+                return result;
             }
             catch
             {
+                _nodeJsInstalledCache = false;
+                _nodeJsCacheTime = DateTime.Now;
                 return false;
             }
         }
@@ -305,6 +325,7 @@ namespace WhatsAppSimHubPlugin
             _nodeManager.StatusChanged += NodeManager_OnStatusChanged;
             _nodeManager.ChatContactsListReceived += NodeManager_OnChatContactsListReceived;
             _nodeManager.ChatContactsError += NodeManager_OnChatContactsError;
+            _nodeManager.InstallationCompleted += NodeManager_OnInstallationCompleted;
 
             // Inicializar overlay renderer
             _overlayRenderer = new OverlayRenderer(_settings);
@@ -833,6 +854,20 @@ namespace WhatsAppSimHubPlugin
             {
                 _connectionStatus = "Installing dependencies...";
                 _settingsControl?.UpdateConnectionStatus("Installing dependencies...");
+
+                // Desabilitar botões durante instalação
+                _settingsControl?.Dispatcher?.BeginInvoke(new Action(() =>
+                {
+                    if (_settingsControl?.ReconnectButton != null)
+                    {
+                        _settingsControl.ReconnectButton.IsEnabled = false;
+                        _settingsControl.ReconnectButton.ToolTip = "Installing dependencies...";
+                    }
+                    if (_settingsControl?.DisconnectButton != null)
+                    {
+                        _settingsControl.DisconnectButton.IsEnabled = false;
+                    }
+                }));
             }
             else if (status == "Installed")
             {
@@ -867,6 +902,31 @@ namespace WhatsAppSimHubPlugin
                 // Logar mas não fazer nada no UI
                 WriteLog($"🔍 {status}");
             }
+        }
+
+        private void NodeManager_OnInstallationCompleted(object sender, bool success)
+        {
+            WriteLog($"📦 Installation completed: {(success ? "SUCCESS" : "FAILED")}");
+
+            // Atualizar UI na thread correta
+            _settingsControl?.Dispatcher?.BeginInvoke(new Action(() =>
+            {
+                if (success)
+                {
+                    _settingsControl?.UpdateConnectionStatus("Connecting");
+                    // Botões serão re-habilitados quando Connected/Ready
+                }
+                else
+                {
+                    _settingsControl?.UpdateConnectionStatus("Installation failed");
+                    // Re-habilitar botões para permitir retry
+                    if (_settingsControl?.ReconnectButton != null)
+                    {
+                        _settingsControl.ReconnectButton.IsEnabled = true;
+                        _settingsControl.ReconnectButton.ToolTip = null;
+                    }
+                }
+            }));
         }
 
         private void NodeManager_OnChatContactsListReceived(object sender, JArray contactsArray)
@@ -993,10 +1053,14 @@ namespace WhatsAppSimHubPlugin
                 _nodeManager.Stop();
                 _nodeManager.Dispose();
                 WriteLog("Node.js process stopped");
-
-                // Give time for Node.js to cleanup Chrome/CefSharp properly
-                System.Threading.Thread.Sleep(2000);
             }
+
+            // Give time for Node.js to cleanup Chrome/CefSharp properly (async para não bloquear SimHub)
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(2000).ConfigureAwait(false);
+                // Cleanup continues in background
+            });
 
             _messageQueue?.Dispose();
 
@@ -1047,7 +1111,16 @@ namespace WhatsAppSimHubPlugin
                         {
                             WriteLog($"  Killing Node.js process {proc.Id}");
                             proc.Kill();
-                            proc.WaitForExit(1000);
+                            // Fire-and-forget wait para não bloquear SimHub
+                            var procToWait = proc;
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    await Task.Run(() => procToWait.WaitForExit(1000)).ConfigureAwait(false);
+                                }
+                                catch { }
+                            });
                             killedCount++;
                         }
                     }
@@ -1208,6 +1281,7 @@ namespace WhatsAppSimHubPlugin
                     _nodeManager.StatusChanged -= NodeManager_OnStatusChanged;
                     _nodeManager.ChatContactsListReceived -= NodeManager_OnChatContactsListReceived;
                     _nodeManager.ChatContactsError -= NodeManager_OnChatContactsError;
+                    _nodeManager.InstallationCompleted -= NodeManager_OnInstallationCompleted;
                 }
 
                 // 4. Criar novo nodeManager com o backend escolhido
@@ -1220,6 +1294,7 @@ namespace WhatsAppSimHubPlugin
                 _nodeManager.StatusChanged += NodeManager_OnStatusChanged;
                 _nodeManager.ChatContactsListReceived += NodeManager_OnChatContactsListReceived;
                 _nodeManager.ChatContactsError += NodeManager_OnChatContactsError;
+                _nodeManager.InstallationCompleted += NodeManager_OnInstallationCompleted;
 
                 // 5. Iniciar o novo backend
                 WriteLog($"Starting {newBackend} backend...");
@@ -1463,12 +1538,20 @@ namespace WhatsAppSimHubPlugin
                                 WriteLog($"📊 Changing dashboard: {currentDashboard ?? "none"} → {targetDashboard}");
                                 var result = trySetMethod.Invoke(overlayDashboard, new object[] { targetDashboard });
 
-                                // Verificar se realmente mudou
-                                System.Threading.Thread.Sleep(500);
-                                var verifyProp = overlayDashboard.GetType().GetProperty("Dashboard");
-                                if (verifyProp != null)
+                                // Verificar se realmente mudou (async para não bloquear SimHub)
+                                var verifyPropCapture = overlayDashboard.GetType().GetProperty("Dashboard");
+                                if (verifyPropCapture != null)
                                 {
-                                    string newDashboard = verifyProp.GetValue(overlayDashboard) as string;
+                                    var overlayCapture = overlayDashboard;
+                                    _ = Task.Run(async () =>
+                                    {
+                                        await Task.Delay(500).ConfigureAwait(false);
+                                        try
+                                        {
+                                            string newDashboard = verifyPropCapture.GetValue(overlayCapture) as string;
+                                        }
+                                        catch { /* Ignore verification errors */ }
+                                    });
                                 }
                             }
                         }
@@ -1723,9 +1806,9 @@ namespace WhatsAppSimHubPlugin
                     if (_messageQueue != null)
                     {
                         WriteLog($"[TEST] Scheduling ProcessQueue in 100ms...");
-                        System.Threading.Tasks.Task.Run(() =>
+                        _ = Task.Run(async () =>
                         {
-                            System.Threading.Thread.Sleep(100); // Pequeno delay
+                            await Task.Delay(100).ConfigureAwait(false);
                             WriteLog($"[TEST] Calling TriggerProcessQueue()...");
                             _messageQueue?.TriggerProcessQueue();
                             WriteLog($"[TEST] ✅ TriggerProcessQueue() completed");
@@ -1795,9 +1878,9 @@ namespace WhatsAppSimHubPlugin
                     // ✅ REPROCESSAR FILA
                     if (_messageQueue != null)
                     {
-                        System.Threading.Tasks.Task.Run(() =>
+                        _ = Task.Run(async () =>
                         {
-                            System.Threading.Thread.Sleep(100);
+                            await Task.Delay(100).ConfigureAwait(false);
                             _messageQueue?.TriggerProcessQueue();
                             WriteLog($"[CONFIRMATION] ✅ Queue resumed");
                         });

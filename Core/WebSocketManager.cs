@@ -29,9 +29,14 @@ namespace WhatsAppSimHubPlugin.Core
         public event EventHandler<string> StatusChanged;  // ← NOVO EVENTO!
         public event EventHandler<JArray> ChatContactsListReceived;  // 📱 Contactos das conversas
         public event EventHandler<string> ChatContactsError;  // ❌ Erro ao carregar
+        public event EventHandler<bool> InstallationCompleted;  // 🔧 Instalação terminou (true=sucesso)
 
         // Propriedade pública para verificar conexão
         public bool IsConnected => _isConnected;
+
+        // Flag para tracking de instalação em progresso
+        private bool _isInstalling = false;
+        public bool IsInstalling => _isInstalling;
 
         // Propriedades para subscrição de eventos (compatibilidade)
         public event EventHandler<string> OnQrCode
@@ -154,21 +159,40 @@ namespace WhatsAppSimHubPlugin.Core
         public async Task StartAsync()
         {
             if (_isConnected) return;
+            if (_isInstalling)
+            {
+                StatusChanged?.Invoke(this, "Debug: Installation already in progress, skipping StartAsync");
+                return;
+            }
 
             try
             {
-                await EnsureNpmPackagesInstalled();
-                await StartNodeProcess();
-                await ConnectWebSocket();
+                // Verificar se precisa instalar pacotes
+                bool needsInstall = await CheckIfNpmInstallNeeded().ConfigureAwait(false);
+
+                if (needsInstall)
+                {
+                    // Iniciar instalação em background (event-based, não bloqueia)
+                    StartNpmInstallBackground();
+                    // O fluxo continua quando InstallationCompleted for disparado
+                    return;
+                }
+
+                // Pacotes já instalados, continuar normalmente
+                await StartNodeProcess().ConfigureAwait(false);
+                await ConnectWebSocket().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 StatusChanged?.Invoke(this, $"Error: {ex.Message}");
-                throw; // Re-throw para o chamador saber que falhou
+                throw;
             }
         }
 
-        private async Task EnsureNpmPackagesInstalled()
+        /// <summary>
+        /// Verifica se npm install é necessário (não bloqueia)
+        /// </summary>
+        private Task<bool> CheckIfNpmInstallNeeded()
         {
             var nodeModulesPath = Path.Combine(_pluginPath, "node", "node_modules");
             var packageJsonPath = Path.Combine(_pluginPath, "node", "package.json");
@@ -177,134 +201,245 @@ namespace WhatsAppSimHubPlugin.Core
             StatusChanged?.Invoke(this, "Debug: Checking npm packages");
 
             // Verificar se package.json mudou desde último install
-            bool needsReinstall = false;
-
             if (File.Exists(packageJsonPath) && File.Exists(packageLockPath))
             {
                 var packageJsonTime = File.GetLastWriteTime(packageJsonPath);
                 var packageLockTime = File.GetLastWriteTime(packageLockPath);
 
-                // Se package.json é mais recente que package-lock.json, precisa reinstalar
                 if (packageJsonTime > packageLockTime)
                 {
-                    StatusChanged?.Invoke(this, "Debug: package.json changed - reinstalling");
-                    needsReinstall = true;
+                    StatusChanged?.Invoke(this, "Debug: package.json changed - reinstalling needed");
+                    return Task.FromResult(true);
                 }
             }
 
-            if (!needsReinstall && Directory.Exists(nodeModulesPath))
+            if (Directory.Exists(nodeModulesPath))
             {
                 var whatsappPath = Path.Combine(nodeModulesPath, "whatsapp-web.js");
                 if (Directory.Exists(whatsappPath))
                 {
                     StatusChanged?.Invoke(this, "Debug: Packages already installed");
-                    return;
+                    return Task.FromResult(false);
                 }
             }
 
-            // ⭐ SÓ NOTIFICAR "Installing" SE REALMENTE VAI INSTALAR!
+            return Task.FromResult(true);
+        }
+
+        /// <summary>
+        /// Inicia npm install em background (event-based, não bloqueia SimHub)
+        /// Dispara InstallationCompleted quando terminar
+        /// </summary>
+        private void StartNpmInstallBackground()
+        {
+            if (_isInstalling) return;
+
+            _isInstalling = true;
             StatusChanged?.Invoke(this, "Installing");
 
-            await Task.Run(async () =>
+            // Fire-and-forget: corre em background thread
+            _ = Task.Run(async () =>
             {
-                StatusChanged?.Invoke(this, "Debug: Finding npm");
-                var npm = FindNpm();
-
-                StatusChanged?.Invoke(this, $"Debug: npm path = {npm}");
-
-                var workDir = Path.Combine(_pluginPath, "node");
-                StatusChanged?.Invoke(this, $"Debug: work dir = {workDir}");
-
-                var process = new Process
+                bool success = false;
+                try
                 {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = npm,
-                        Arguments = "install",
-                        WorkingDirectory = workDir,
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true
-                    }
-                };
-
-                StatusChanged?.Invoke(this, "Debug: Starting npm install");
-                process.Start();
-
-                // Ler output
-                string output = process.StandardOutput.ReadToEnd();
-                string error = process.StandardError.ReadToEnd();
-
-                process.WaitForExit(120000);
-
-                StatusChanged?.Invoke(this, $"Debug: npm exit code = {process.ExitCode}");
-
-                if (!string.IsNullOrEmpty(output))
-                    StatusChanged?.Invoke(this, $"Debug: npm output = {output.Substring(0, Math.Min(200, output.Length))}");
-
-                if (!string.IsNullOrEmpty(error))
-                    StatusChanged?.Invoke(this, $"Debug: npm error = {error.Substring(0, Math.Min(200, error.Length))}");
-
-                // ⭐ VERIFICAR SE FALHOU POR FALTA DE GIT
-                if (process.ExitCode != 0 || !string.IsNullOrEmpty(error))
+                    success = await RunNpmInstallAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
                 {
-                    // Erro comum: Git não instalado
-                    if (error.Contains("spawn git") || error.Contains("ENOENT") || process.ExitCode == -4058)
+                    StatusChanged?.Invoke(this, $"Error: npm install exception: {ex.Message}");
+                    success = false;
+                }
+                finally
+                {
+                    _isInstalling = false;
+
+                    // Disparar evento de conclusão
+                    InstallationCompleted?.Invoke(this, success);
+
+                    if (success)
                     {
-                        StatusChanged?.Invoke(this, "⚠️ Git not found - Installing automatically...");
+                        StatusChanged?.Invoke(this, "✅ Installation completed - continuing startup...");
 
-                        // ⭐ INSTALAR GIT AUTOMATICAMENTE!
-                        bool gitInstalled = await InstallGitSilently();
-
-                        if (gitInstalled)
+                        // Continuar o fluxo normal após instalação
+                        try
                         {
-                            StatusChanged?.Invoke(this, "✅ Git installed successfully!");
-                            StatusChanged?.Invoke(this, "🔄 Retrying npm install...");
-
-                            // ⭐ TENTAR NPM INSTALL NOVAMENTE (SEM Task.Run, já estamos em background!)
-                            var retryProcess = new Process
-                            {
-                                StartInfo = new ProcessStartInfo
-                                {
-                                    FileName = npm,
-                                    Arguments = "install",
-                                    WorkingDirectory = workDir,
-                                    UseShellExecute = false,
-                                    CreateNoWindow = true,
-                                    RedirectStandardOutput = true,
-                                    RedirectStandardError = true
-                                }
-                            };
-
-                            retryProcess.Start();
-                            retryProcess.WaitForExit(120000);
-
-                            if (retryProcess.ExitCode == 0)
-                            {
-                                StatusChanged?.Invoke(this, "✅ npm install completed successfully!");
-                            }
+                            await StartNodeProcess().ConfigureAwait(false);
+                            await ConnectWebSocket().ConfigureAwait(false);
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            StatusChanged?.Invoke(this, "❌ Could not install Git automatically");
-                            StatusChanged?.Invoke(this, "📥 Please install manually: https://git-scm.com/download/win");
-                            StatusChanged?.Invoke(this, "Error: Git required");
-                            return;
+                            StatusChanged?.Invoke(this, $"Error: {ex.Message}");
                         }
-                    }
-                    else
-                    {
-                        // Outro erro
-                        StatusChanged?.Invoke(this, $"❌ ERROR: npm install failed (exit code: {process.ExitCode})");
-                        StatusChanged?.Invoke(this, "Error: npm install failed");
-                        return;
                     }
                 }
             });
+        }
 
-            // ⭐ NOTIFICAR QUE TERMINOU COM SUCESSO
-            StatusChanged?.Invoke(this, "Installed");
+        /// <summary>
+        /// Executa npm install (corre em background thread)
+        /// </summary>
+        private async Task<bool> RunNpmInstallAsync()
+        {
+            StatusChanged?.Invoke(this, "Debug: Finding npm");
+            var npm = FindNpm();
+            StatusChanged?.Invoke(this, $"Debug: npm path = {npm}");
+
+            var workDir = Path.Combine(_pluginPath, "node");
+            StatusChanged?.Invoke(this, $"Debug: work dir = {workDir}");
+
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = npm,
+                    Arguments = "install",
+                    WorkingDirectory = workDir,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                },
+                EnableRaisingEvents = true
+            };
+
+            var outputBuilder = new StringBuilder();
+            var errorBuilder = new StringBuilder();
+
+            process.OutputDataReceived += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(e.Data))
+                {
+                    outputBuilder.AppendLine(e.Data);
+                    StatusChanged?.Invoke(this, $"npm: {e.Data}");
+                }
+            };
+
+            process.ErrorDataReceived += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(e.Data))
+                {
+                    errorBuilder.AppendLine(e.Data);
+                    StatusChanged?.Invoke(this, $"npm error: {e.Data}");
+                }
+            };
+
+            StatusChanged?.Invoke(this, "Debug: Starting npm install");
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            // Aguardar processo terminar (em background, não bloqueia UI)
+            var exitedTask = new TaskCompletionSource<bool>();
+            process.Exited += (s, e) => exitedTask.TrySetResult(true);
+
+            // Timeout de 2 minutos
+            var timeoutTask = Task.Delay(120000);
+            var completedTask = await Task.WhenAny(exitedTask.Task, timeoutTask).ConfigureAwait(false);
+
+            if (completedTask == timeoutTask)
+            {
+                StatusChanged?.Invoke(this, "❌ npm install timeout (2 minutes)");
+                try { process.Kill(); } catch { }
+                return false;
+            }
+
+            var error = errorBuilder.ToString();
+            StatusChanged?.Invoke(this, $"Debug: npm exit code = {process.ExitCode}");
+
+            // Verificar se falhou por falta de Git
+            if (process.ExitCode != 0 || error.Contains("spawn git") || error.Contains("ENOENT"))
+            {
+                if (error.Contains("spawn git") || error.Contains("ENOENT") || process.ExitCode == -4058)
+                {
+                    StatusChanged?.Invoke(this, "⚠️ Git not found - Installing automatically...");
+
+                    bool gitInstalled = await InstallGitSilently().ConfigureAwait(false);
+
+                    if (gitInstalled)
+                    {
+                        StatusChanged?.Invoke(this, "✅ Git installed successfully!");
+                        StatusChanged?.Invoke(this, "🔄 Retrying npm install...");
+
+                        // Retry npm install
+                        return await RetryNpmInstallAsync(npm, workDir).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        StatusChanged?.Invoke(this, "❌ Could not install Git automatically");
+                        StatusChanged?.Invoke(this, "📥 Please install manually: https://git-scm.com/download/win");
+                        StatusChanged?.Invoke(this, "Error: Git required");
+                        return false;
+                    }
+                }
+                else
+                {
+                    StatusChanged?.Invoke(this, $"❌ npm install failed (exit code: {process.ExitCode})");
+                    return false;
+                }
+            }
+
+            StatusChanged?.Invoke(this, "✅ npm install completed successfully!");
+            return true;
+        }
+
+        /// <summary>
+        /// Retry npm install após instalar Git
+        /// </summary>
+        private async Task<bool> RetryNpmInstallAsync(string npm, string workDir)
+        {
+            var retryProcess = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = npm,
+                    Arguments = "install",
+                    WorkingDirectory = workDir,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                },
+                EnableRaisingEvents = true
+            };
+
+            retryProcess.OutputDataReceived += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(e.Data))
+                    StatusChanged?.Invoke(this, $"npm: {e.Data}");
+            };
+
+            retryProcess.ErrorDataReceived += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(e.Data))
+                    StatusChanged?.Invoke(this, $"npm error: {e.Data}");
+            };
+
+            retryProcess.Start();
+            retryProcess.BeginOutputReadLine();
+            retryProcess.BeginErrorReadLine();
+
+            var exitedTask = new TaskCompletionSource<bool>();
+            retryProcess.Exited += (s, e) => exitedTask.TrySetResult(true);
+
+            var timeoutTask = Task.Delay(120000);
+            var completedTask = await Task.WhenAny(exitedTask.Task, timeoutTask).ConfigureAwait(false);
+
+            if (completedTask == timeoutTask)
+            {
+                StatusChanged?.Invoke(this, "❌ npm install retry timeout");
+                try { retryProcess.Kill(); } catch { }
+                return false;
+            }
+
+            if (retryProcess.ExitCode == 0)
+            {
+                StatusChanged?.Invoke(this, "✅ npm install completed successfully!");
+                return true;
+            }
+
+            StatusChanged?.Invoke(this, $"❌ npm install retry failed (exit code: {retryProcess.ExitCode})");
+            return false;
         }
 
         private string FindNpm()
@@ -328,7 +463,7 @@ namespace WhatsAppSimHubPlugin.Core
         /// 🔥 Mata processos Node.js antigos que estão a usar whatsapp-server.js
         /// Isto resolve o problema de EADDRINUSE quando SimHub reinicia!
         /// </summary>
-        private void KillOldNodeProcesses()
+        private async Task KillOldNodeProcessesAsync()
         {
             try
             {
@@ -338,6 +473,7 @@ namespace WhatsAppSimHubPlugin.Core
                 var nodeProcesses = Process.GetProcessesByName("node");
 
                 int killedCount = 0;
+                var killTasks = new List<Task>();
 
                 foreach (var process in nodeProcesses)
                 {
@@ -358,7 +494,16 @@ namespace WhatsAppSimHubPlugin.Core
                             StatusChanged?.Invoke(this, $"Debug: Killing Node.js process {process.Id}");
 
                             process.Kill();
-                            process.WaitForExit(1000); // Esperar max 1s
+                            // Aguardar processo terminar de forma async
+                            var procToWait = process;
+                            killTasks.Add(Task.Run(() =>
+                            {
+                                try
+                                {
+                                    procToWait.WaitForExit(1000);
+                                }
+                                catch { }
+                            }));
                             killedCount++;
                         }
                     }
@@ -369,12 +514,18 @@ namespace WhatsAppSimHubPlugin.Core
                     }
                 }
 
+                // Aguardar todos os kills completarem (async, não bloqueia UI)
+                if (killTasks.Count > 0)
+                {
+                    await Task.WhenAll(killTasks).ConfigureAwait(false);
+                }
+
                 if (killedCount > 0)
                 {
                     StatusChanged?.Invoke(this, $"Debug: Killed {killedCount} old Node.js process(es)");
 
-                    // Dar tempo para o SO libertar a porta
-                    System.Threading.Thread.Sleep(500);
+                    // Dar tempo para o SO libertar a porta (async, não bloqueia UI)
+                    await Task.Delay(500).ConfigureAwait(false);
                 }
                 else
                 {
@@ -420,12 +571,12 @@ namespace WhatsAppSimHubPlugin.Core
             return "";
         }
 
-        private Task StartNodeProcess()
+        private async Task StartNodeProcess()
         {
             StatusChanged?.Invoke(this, "Debug: StartNodeProcess called");
 
             // 🔥 MATAR PROCESSOS NODE.JS ANTIGOS!
-            KillOldNodeProcesses();
+            await KillOldNodeProcessesAsync().ConfigureAwait(false);
 
             // Escolher script baseado no backend mode
             var scriptName = _backendMode == "baileys" ? "baileys-server.mjs" : "whatsapp-server.js";
@@ -485,7 +636,7 @@ namespace WhatsAppSimHubPlugin.Core
             _nodeProcess.BeginOutputReadLine();
 
             StatusChanged?.Invoke(this, "Debug: Node process started, waiting 3s");
-            return Task.Delay(3000); // ⭐ 3s para Node.js iniciar
+            await Task.Delay(3000).ConfigureAwait(false); // ⭐ 3s para Node.js iniciar
         }
 
         private async Task ConnectWebSocket()
@@ -601,11 +752,18 @@ namespace WhatsAppSimHubPlugin.Core
 
             try
             {
-                // 1. Try to send graceful shutdown command
+                // 1. Try to send graceful shutdown command (fire-and-forget para não bloquear SimHub)
                 if (_webSocket != null && _webSocket.State == WebSocketState.Open)
                 {
                     StatusChanged?.Invoke(this, "Debug: Sending 'shutdown' command to Node.js script.");
-                    SendCommandAsync("shutdown").Wait(1000); // Send and wait max 1s
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await SendCommandAsync("shutdown").ConfigureAwait(false);
+                        }
+                        catch { /* Ignore shutdown errors */ }
+                    });
                 }
             }
             catch (Exception ex)
@@ -622,39 +780,49 @@ namespace WhatsAppSimHubPlugin.Core
             catch { }
 
 
-            // 3. Wait for the process to exit gracefully, with a fallback to Kill
-            try
-            {
-                if (_nodeProcess != null && !_nodeProcess.HasExited)
-                {
-                    StatusChanged?.Invoke(this, "Debug: Waiting for Node.js process to exit...");
-                    bool exited = _nodeProcess.WaitForExit(5000); // Wait 5 seconds
+            // 3. Wait for the process to exit gracefully, with a fallback to Kill (async para não bloquear SimHub)
+            var processToCleanup = _nodeProcess;
+            _nodeProcess = null;
 
-                    if (exited)
-                    {
-                        StatusChanged?.Invoke(this, "Debug: Node.js process exited gracefully.");
-                    }
-                    else
-                    {
-                        StatusChanged?.Invoke(this, "Debug: Node.js process did not exit in time. Killing it.");
-                        _nodeProcess.Kill();
-                    }
-                }
-            }
-            catch (Exception ex)
+            if (processToCleanup != null)
             {
-                StatusChanged?.Invoke(this, $"Debug: Exception during process stop: {ex.Message}");
-                // Fallback kill if something went wrong
-                try
+                _ = Task.Run(async () =>
                 {
-                    if (_nodeProcess != null && !_nodeProcess.HasExited) _nodeProcess.Kill();
-                }
-                catch { }
+                    try
+                    {
+                        if (!processToCleanup.HasExited)
+                        {
+                            StatusChanged?.Invoke(this, "Debug: Waiting for Node.js process to exit...");
+
+                            // Aguardar até 5 segundos de forma async
+                            var exitTask = Task.Run(() => processToCleanup.WaitForExit(5000));
+                            bool exited = await exitTask.ConfigureAwait(false);
+
+                            if (exited)
+                            {
+                                StatusChanged?.Invoke(this, "Debug: Node.js process exited gracefully.");
+                            }
+                            else
+                            {
+                                StatusChanged?.Invoke(this, "Debug: Node.js process did not exit in time. Killing it.");
+                                try { processToCleanup.Kill(); } catch { }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StatusChanged?.Invoke(this, $"Debug: Exception during process stop: {ex.Message}");
+                        try { if (!processToCleanup.HasExited) processToCleanup.Kill(); } catch { }
+                    }
+                    finally
+                    {
+                        try { processToCleanup.Dispose(); } catch { }
+                        StatusChanged?.Invoke(this, "Debug: Stop() finished.");
+                    }
+                });
             }
-            finally
+            else
             {
-                _nodeProcess?.Dispose();
-                _nodeProcess = null;
                 StatusChanged?.Invoke(this, "Debug: Stop() finished.");
             }
         }
@@ -697,10 +865,17 @@ namespace WhatsAppSimHubPlugin.Core
                     }
                 };
 
+                installProcess.EnableRaisingEvents = true;
                 installProcess.Start();
 
-                // Aguardar até 3 minutos (instalação pode demorar)
-                bool finished = installProcess.WaitForExit(180000);
+                // Aguardar até 3 minutos (instalação pode demorar) - event-based
+                var exitedTask = new TaskCompletionSource<bool>();
+                installProcess.Exited += (s, e) => exitedTask.TrySetResult(true);
+
+                var timeoutTask = Task.Delay(180000);
+                var completedTask = await Task.WhenAny(exitedTask.Task, timeoutTask).ConfigureAwait(false);
+
+                bool finished = completedTask != timeoutTask;
 
                 if (finished && installProcess.ExitCode == 0)
                 {
