@@ -59,6 +59,7 @@ namespace WhatsAppSimHubPlugin
         // Verificar se Node.js está instalado (cached para evitar bloqueios)
         private bool? _nodeJsInstalledCache = null;
         private DateTime _nodeJsCacheTime = DateTime.MinValue;
+        private bool _nodeJsCheckInProgress = false;
 
         public bool IsNodeJsInstalled()
         {
@@ -83,7 +84,41 @@ namespace WhatsAppSimHubPlugin
                 }
             }
 
-            // Tentar via PATH environment variable (async em background)
+            // Se já temos cache (expirado), retornar valor antigo e fazer check em background
+            if (_nodeJsInstalledCache.HasValue)
+            {
+                if (!_nodeJsCheckInProgress)
+                {
+                    _nodeJsCheckInProgress = true;
+                    _ = Task.Run(() =>
+                    {
+                        try
+                        {
+                            bool result = CheckNodeJsViaProcess();
+                            _nodeJsInstalledCache = result;
+                            _nodeJsCacheTime = DateTime.Now;
+                        }
+                        finally
+                        {
+                            _nodeJsCheckInProgress = false;
+                        }
+                    });
+                }
+                return _nodeJsInstalledCache.Value;
+            }
+
+            // Primeira vez - fazer check síncrono (inevitável)
+            bool firstResult = CheckNodeJsViaProcess();
+            _nodeJsInstalledCache = firstResult;
+            _nodeJsCacheTime = DateTime.Now;
+            return firstResult;
+        }
+
+        /// <summary>
+        /// Verifica Node.js via processo (pode bloquear até 1.5s)
+        /// </summary>
+        private bool CheckNodeJsViaProcess()
+        {
             try
             {
                 var proc = new System.Diagnostics.Process
@@ -98,20 +133,11 @@ namespace WhatsAppSimHubPlugin
                     }
                 };
                 proc.Start();
-
-                // Usar Task.Run para não bloquear, mas com timeout curto
-                var waitTask = Task.Run(() => proc.WaitForExit(1000));
-                bool completed = waitTask.Wait(1500); // Timeout total de 1.5s
-
-                bool result = completed && proc.ExitCode == 0;
-                _nodeJsInstalledCache = result;
-                _nodeJsCacheTime = DateTime.Now;
-                return result;
+                bool completed = proc.WaitForExit(1500);
+                return completed && proc.ExitCode == 0;
             }
             catch
             {
-                _nodeJsInstalledCache = false;
-                _nodeJsCacheTime = DateTime.Now;
                 return false;
             }
         }

@@ -73,7 +73,7 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 Interval = TimeSpan.FromSeconds(5)
             };
-            _deviceRefreshTimer.Tick += (s, e) => LoadAvailableDevices();
+            _deviceRefreshTimer.Tick += (s, e) => LoadAvailableDevicesAsync();
             _deviceRefreshTimer.Start();
 
             // 🔥 Timer SIMPLIFICADO - apenas detectar crashes APÓS conectar
@@ -195,6 +195,86 @@ namespace WhatsAppSimHubPlugin.UI
             finally
             {
                 _isLoadingDevices = false; // 🔥 Desbloquear SelectionChanged
+            }
+        }
+
+        /// <summary>
+        /// Async version that runs GetAvailableDevices in background thread to avoid UI freezing
+        /// </summary>
+        private async void LoadAvailableDevicesAsync()
+        {
+            try
+            {
+                // Run the reflection-heavy GetAvailableDevices on background thread
+                var devices = await Task.Run(() => _plugin.GetAvailableDevices()).ConfigureAwait(false);
+                var currentDeviceIds = new HashSet<string>(devices.Select(d => d.Id));
+
+                // Check if there are changes before updating UI
+                bool hasNewDevices = !currentDeviceIds.SetEquals(_knownDeviceIds);
+                if (!hasNewDevices) return;
+
+                // Update UI on dispatcher thread
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    _knownDeviceIds = currentDeviceIds;
+                    UpdateDeviceListUI(devices);
+                });
+            }
+            catch
+            {
+                // Silently ignore - timer will retry
+            }
+        }
+
+        /// <summary>
+        /// Helper method to update device list UI (must be called on UI thread)
+        /// </summary>
+        private void UpdateDeviceListUI(List<WhatsAppPlugin.DeviceInfo> devices)
+        {
+            _isLoadingDevices = true;
+            try
+            {
+                TargetDeviceComboBox.Items.Clear();
+
+                if (!string.IsNullOrEmpty(_settings.TargetDevice))
+                {
+                    var savedDeviceOnline = devices.Any(d => d.Id == _settings.TargetDevice);
+                    var savedItem = new ComboBoxItem
+                    {
+                        Content = savedDeviceOnline
+                            ? $"{devices.First(d => d.Id == _settings.TargetDevice).Name} ✅"
+                            : $"{_settings.TargetDevice} (Offline) ❌",
+                        Tag = _settings.TargetDevice
+                    };
+                    TargetDeviceComboBox.Items.Add(savedItem);
+                    TargetDeviceComboBox.SelectedIndex = 0;
+                }
+
+                foreach (var device in devices.Where(d => d.Id != _settings.TargetDevice))
+                {
+                    var item = new ComboBoxItem
+                    {
+                        Content = $"{device.Name} ✅",
+                        Tag = device.Id
+                    };
+                    TargetDeviceComboBox.Items.Add(item);
+                }
+
+                if (TargetDeviceComboBox.Items.Count == 0)
+                {
+                    var placeholder = new ComboBoxItem
+                    {
+                        Content = "No VoCore detected - connect and refresh",
+                        IsEnabled = false
+                    };
+                    TargetDeviceComboBox.Items.Add(placeholder);
+                }
+
+                UpdateDeviceStatus(devices.Count);
+            }
+            finally
+            {
+                _isLoadingDevices = false;
             }
         }
 
