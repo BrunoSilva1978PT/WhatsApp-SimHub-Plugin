@@ -637,45 +637,27 @@ namespace WhatsAppSimHubPlugin.Core
             _nodeProcess.BeginErrorReadLine();
 
             // ⭐ LER PORTA DO STDOUT (primeira linha é "PORT:XXXX")
+            // Usar leitura síncrona numa Task para evitar conflito com BeginOutputReadLine
             StatusChanged?.Invoke(this, "Debug: Waiting for port from Node.js...");
-            _selectedPort = await ReadPortFromNodeAsync().ConfigureAwait(false);
+            _selectedPort = await Task.Run(() => ReadPortFromNodeSync()).ConfigureAwait(false);
             StatusChanged?.Invoke(this, $"Debug: Node.js selected port {_selectedPort}");
 
-            // Agora começar a ler stdout assíncrono (resto das mensagens)
-            _nodeProcess.OutputDataReceived += (sender, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    System.Diagnostics.Debug.WriteLine($"[NODE OUTPUT] {e.Data}");
-                    StatusChanged?.Invoke(this, $"NodeOutput: {e.Data}");
-                }
-            };
-            _nodeProcess.BeginOutputReadLine();
+            // Continuar a ler stdout numa Task separada (não usar BeginOutputReadLine)
+            _ = Task.Run(() => ReadNodeOutputContinuously());
 
             StatusChanged?.Invoke(this, "Debug: Node process started, waiting 2s for WebSocket server");
             await Task.Delay(2000).ConfigureAwait(false); // ⭐ 2s para WebSocket server iniciar
         }
 
         /// <summary>
-        /// Lê a porta do stdout do Node.js (primeira linha deve ser "PORT:XXXX")
+        /// Lê a porta do stdout do Node.js de forma síncrona (primeira linha deve ser "PORT:XXXX")
         /// </summary>
-        private async Task<int> ReadPortFromNodeAsync()
+        private int ReadPortFromNodeSync()
         {
             try
             {
-                // Usar ReadLineAsync com timeout
-                var readTask = _nodeProcess.StandardOutput.ReadLineAsync();
-                var timeoutTask = Task.Delay(10000);
-
-                var completedTask = await Task.WhenAny(readTask, timeoutTask).ConfigureAwait(false);
-
-                if (completedTask == timeoutTask)
-                {
-                    StatusChanged?.Invoke(this, "Warning: Timeout reading port from Node.js, using default 3000");
-                    return 3000;
-                }
-
-                var portLine = await readTask.ConfigureAwait(false);
+                // Ler primeira linha (com timeout implícito - se o processo morrer, ReadLine retorna null)
+                var portLine = _nodeProcess.StandardOutput.ReadLine();
 
                 if (!string.IsNullOrEmpty(portLine) && portLine.StartsWith("PORT:"))
                 {
@@ -693,6 +675,26 @@ namespace WhatsAppSimHubPlugin.Core
             {
                 StatusChanged?.Invoke(this, $"Warning: Error reading port: {ex.Message}, using default 3000");
                 return 3000;
+            }
+        }
+
+        /// <summary>
+        /// Continua a ler stdout do Node.js numa Task separada
+        /// </summary>
+        private void ReadNodeOutputContinuously()
+        {
+            try
+            {
+                string line;
+                while ((line = _nodeProcess?.StandardOutput?.ReadLine()) != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[NODE OUTPUT] {line}");
+                    StatusChanged?.Invoke(this, $"NodeOutput: {line}");
+                }
+            }
+            catch (Exception)
+            {
+                // Processo terminou ou stream fechado - ignorar
             }
         }
 
