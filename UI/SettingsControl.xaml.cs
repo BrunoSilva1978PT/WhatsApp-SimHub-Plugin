@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
-using System.Reflection.Emit;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
@@ -17,7 +16,6 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Newtonsoft.Json.Linq;
 using WhatsAppSimHubPlugin.Models;
-using Expr = System.Linq.Expressions.Expression;
 
 namespace WhatsAppSimHubPlugin.UI
 {
@@ -470,7 +468,8 @@ namespace WhatsAppSimHubPlugin.UI
         {
             try
             {
-                _plugin.RefreshDevices();
+                // Limpar cache para forçar atualização completa
+                _knownDeviceIds.Clear();
                 LoadAvailableDevices();
                 ShowToast("Devices refreshed! VoCores should now appear if connected.", "✅", 5);
             }

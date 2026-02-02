@@ -217,15 +217,6 @@ namespace WhatsAppSimHubPlugin
         }
 
         /// <summary>
-        /// Refresh da lista de devices (não faz nada, devices são sempre atuais)
-        /// </summary>
-        public void RefreshDevices()
-        {
-            // GetAllDevices do SimHub sempre retorna lista atualizada
-            // Não é necessário fazer refresh explícito
-        }
-
-        /// <summary>
         /// Re-attach ao VoCore e ativa overlay (chamado quando user muda device na UI)
         /// </summary>
         public void ReattachAndActivateOverlay()
@@ -257,7 +248,6 @@ namespace WhatsAppSimHubPlugin
         private string _connectedNumber = "";
 
         // ===== ESTADO INTERNO (NÃO EXPOR AO SIMHUB) =====
-        private int _queueCount = 0;
         private List<QueuedMessage> _currentMessageGroup = null;
         private string _currentContactNumber = "";
         private string _currentContactRealNumber = "";  // Número real (ex: 351910203114) para enviar mensagens
@@ -998,9 +988,6 @@ namespace WhatsAppSimHubPlugin
                 // ✅ ATUALIZAR OVERLAY
                 UpdateOverlayProperties(messages);
 
-                // Atualizar contador interno
-                _queueCount = _messageQueue.GetQueueSize();
-
                 WriteLog($"[EVENT] ✅ OnGroupDisplay completed - displaying {messages.Count} messages from {messages[0].From}");
             }
         }
@@ -1026,10 +1013,7 @@ namespace WhatsAppSimHubPlugin
             // ✅ LIMPAR OVERLAY
             UpdateOverlayProperties((List<QueuedMessage>)null);
 
-            // Atualizar contador
-            _queueCount = _messageQueue.GetQueueSize();
-
-            WriteLog($"[EVENT] ✅ OnMessageRemoved completed - overlay cleared, queue count = {_queueCount}");
+            WriteLog($"[EVENT] ✅ OnMessageRemoved completed - overlay cleared, queue count = {_messageQueue.GetQueueSize()}");
         }
 
         public void End(PluginManager pluginManager)
@@ -1702,49 +1686,6 @@ namespace WhatsAppSimHubPlugin
             // Quick replies funcionam via Actions - não precisa de código aqui!
             // Ver RegisterActions() onde as Actions são definidas
         }
-
-        /// <summary>
-        /// 📤 Envia quick reply via Node.js
-        /// </summary>
-        private async void SendQuickReply(QueuedMessage message, string replyText)
-        {
-            try
-            {
-                if (_nodeManager == null || !_nodeManager.IsConnected)
-                {
-                    WriteLog("❌ Cannot send reply: Node.js not connected!");
-                    _overlayRenderer?.SetSystemMessage("❌ WhatsApp not connected\nCannot send reply");
-                    return;
-                }
-
-                WriteLog($"📤 Sending quick reply to {message.From}...");
-                WriteLog($"   Chat ID: {message.ChatId}");
-                WriteLog($"   Text: {replyText}");
-
-                // Criar comando para Node.js
-                var command = new
-                {
-                    type = "sendReply",
-                    chatId = message.ChatId,
-                    text = replyText
-                };
-
-                var json = Newtonsoft.Json.JsonConvert.SerializeObject(command);
-                await _nodeManager.SendCommandAsync(json);
-
-                WriteLog($"✅ Quick reply sent to {message.From}!");
-
-                // Mostrar confirmação no overlay
-                _overlayRenderer?.SetSystemMessage($"✅ Reply sent to\n{message.From}");
-            }
-            catch (Exception ex)
-            {
-                WriteLog($"❌ Error sending reply: {ex.Message}");
-                WriteLog($"   Stack: {ex.StackTrace}");
-                _overlayRenderer?.SetSystemMessage($"❌ Error sending reply\n{ex.Message}");
-            }
-        }
-
 
         /// <summary>
         /// Mostra mensagem de teste por 5 segundos (não muda VoCore ou dashboard)
@@ -2433,18 +2374,6 @@ namespace WhatsAppSimHubPlugin
                         _settingsControl.ReconnectButton.ToolTip = null;
                     });
                     WriteLog("✅ Connection buttons re-enabled");
-                }
-
-                // SALVAR FLAG DE SETUP COMPLETO (persiste entre restarts!)
-                try
-                {
-                    string setupFlagPath = Path.Combine(_pluginPath, ".setup-complete");
-                    // File.WriteAllText(setupFlagPath, DateTime.Now.ToString()); // DISABLED - using node_modules check instead
-                    // WriteLog($"✅ Setup flag saved: {setupFlagPath}");
-                }
-                catch (Exception)
-                {
-                    // Ignore - setup flag is optional
                 }
 
                 // Mostrar botão Continue!

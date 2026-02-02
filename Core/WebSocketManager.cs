@@ -190,40 +190,44 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Verifica se npm install é necessário (não bloqueia)
+        /// Verifica se npm install é necessário (corre em background para não bloquear)
         /// </summary>
         private Task<bool> CheckIfNpmInstallNeeded()
         {
-            var nodeModulesPath = Path.Combine(_pluginPath, "node", "node_modules");
-            var packageJsonPath = Path.Combine(_pluginPath, "node", "package.json");
-            var packageLockPath = Path.Combine(_pluginPath, "node", "package-lock.json");
-
-            StatusChanged?.Invoke(this, "Debug: Checking npm packages");
-
-            // Verificar se package.json mudou desde último install
-            if (File.Exists(packageJsonPath) && File.Exists(packageLockPath))
+            // Executar verificações de I/O em background thread
+            return Task.Run(() =>
             {
-                var packageJsonTime = File.GetLastWriteTime(packageJsonPath);
-                var packageLockTime = File.GetLastWriteTime(packageLockPath);
+                var nodeModulesPath = Path.Combine(_pluginPath, "node", "node_modules");
+                var packageJsonPath = Path.Combine(_pluginPath, "node", "package.json");
+                var packageLockPath = Path.Combine(_pluginPath, "node", "package-lock.json");
 
-                if (packageJsonTime > packageLockTime)
+                StatusChanged?.Invoke(this, "Debug: Checking npm packages");
+
+                // Verificar se package.json mudou desde último install
+                if (File.Exists(packageJsonPath) && File.Exists(packageLockPath))
                 {
-                    StatusChanged?.Invoke(this, "Debug: package.json changed - reinstalling needed");
-                    return Task.FromResult(true);
-                }
-            }
+                    var packageJsonTime = File.GetLastWriteTime(packageJsonPath);
+                    var packageLockTime = File.GetLastWriteTime(packageLockPath);
 
-            if (Directory.Exists(nodeModulesPath))
-            {
-                var whatsappPath = Path.Combine(nodeModulesPath, "whatsapp-web.js");
-                if (Directory.Exists(whatsappPath))
+                    if (packageJsonTime > packageLockTime)
+                    {
+                        StatusChanged?.Invoke(this, "Debug: package.json changed - reinstalling needed");
+                        return true;
+                    }
+                }
+
+                if (Directory.Exists(nodeModulesPath))
                 {
-                    StatusChanged?.Invoke(this, "Debug: Packages already installed");
-                    return Task.FromResult(false);
+                    var whatsappPath = Path.Combine(nodeModulesPath, "whatsapp-web.js");
+                    if (Directory.Exists(whatsappPath))
+                    {
+                        StatusChanged?.Invoke(this, "Debug: Packages already installed");
+                        return false;
+                    }
                 }
-            }
 
-            return Task.FromResult(true);
+                return true;
+            });
         }
 
         /// <summary>
@@ -462,84 +466,91 @@ namespace WhatsAppSimHubPlugin.Core
         /// <summary>
         /// 🔥 Mata processos Node.js antigos que estão a usar whatsapp-server.js
         /// Isto resolve o problema de EADDRINUSE quando SimHub reinicia!
+        /// Toda a operação corre em background para não bloquear SimHub
         /// </summary>
         private async Task KillOldNodeProcessesAsync()
         {
-            try
+            // Executar toda a lógica em background thread para não bloquear UI
+            await Task.Run(async () =>
             {
-                StatusChanged?.Invoke(this, "Debug: Killing old Node.js processes...");
-
-                // Procurar todos os processos node.exe
-                var nodeProcesses = Process.GetProcessesByName("node");
-
-                int killedCount = 0;
-                var killTasks = new List<Task>();
-
-                foreach (var process in nodeProcesses)
+                try
                 {
-                    try
+                    StatusChanged?.Invoke(this, "Debug: Killing old Node.js processes...");
+
+                    // Procurar todos os processos node.exe (operação potencialmente lenta)
+                    var nodeProcesses = Process.GetProcessesByName("node");
+
+                    int killedCount = 0;
+                    var killTasks = new List<Task>();
+
+                    foreach (var process in nodeProcesses)
                     {
-                        // Verificar se é o nosso processo (whatsapp-server.js)
-                        string commandLine = GetProcessCommandLine(process);
-
-                        if (!string.IsNullOrEmpty(commandLine) &&
-                            commandLine.Contains("whatsapp-server.js"))
+                        try
                         {
-                            // Skip se for o processo actual
-                            if (_nodeProcess != null && process.Id == _nodeProcess.Id)
-                            {
-                                continue;
-                            }
+                            // Verificar se é o nosso processo (whatsapp-server.js)
+                            // GetProcessCommandLine usa WMI que pode ser lento, mas estamos em background
+                            string commandLine = GetProcessCommandLine(process);
 
-                            StatusChanged?.Invoke(this, $"Debug: Killing Node.js process {process.Id}");
-
-                            process.Kill();
-                            // Aguardar processo terminar de forma async
-                            var procToWait = process;
-                            killTasks.Add(Task.Run(() =>
+                            if (!string.IsNullOrEmpty(commandLine) &&
+                                commandLine.Contains("whatsapp-server.js"))
                             {
-                                try
+                                // Skip se for o processo actual
+                                if (_nodeProcess != null && process.Id == _nodeProcess.Id)
                                 {
-                                    procToWait.WaitForExit(1000);
+                                    continue;
                                 }
-                                catch { }
-                            }));
-                            killedCount++;
+
+                                StatusChanged?.Invoke(this, $"Debug: Killing Node.js process {process.Id}");
+
+                                process.Kill();
+                                // Aguardar processo terminar
+                                var procToWait = process;
+                                killTasks.Add(Task.Run(() =>
+                                {
+                                    try
+                                    {
+                                        procToWait.WaitForExit(1000);
+                                    }
+                                    catch { }
+                                }));
+                                killedCount++;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // Ignorar erros ao matar processos individuais
+                            StatusChanged?.Invoke(this, $"Debug: Could not kill process: {ex.Message}");
                         }
                     }
-                    catch (Exception ex)
+
+                    // Aguardar todos os kills completarem
+                    if (killTasks.Count > 0)
                     {
-                        // Ignorar erros ao matar processos individuais
-                        StatusChanged?.Invoke(this, $"Debug: Could not kill process: {ex.Message}");
+                        await Task.WhenAll(killTasks).ConfigureAwait(false);
+                    }
+
+                    if (killedCount > 0)
+                    {
+                        StatusChanged?.Invoke(this, $"Debug: Killed {killedCount} old Node.js process(es)");
+
+                        // Dar tempo para o SO libertar a porta
+                        await Task.Delay(500).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        StatusChanged?.Invoke(this, "Debug: No old Node.js processes found");
                     }
                 }
-
-                // Aguardar todos os kills completarem (async, não bloqueia UI)
-                if (killTasks.Count > 0)
+                catch (Exception ex)
                 {
-                    await Task.WhenAll(killTasks).ConfigureAwait(false);
+                    StatusChanged?.Invoke(this, $"Debug: Error killing old processes: {ex.Message}");
                 }
-
-                if (killedCount > 0)
-                {
-                    StatusChanged?.Invoke(this, $"Debug: Killed {killedCount} old Node.js process(es)");
-
-                    // Dar tempo para o SO libertar a porta (async, não bloqueia UI)
-                    await Task.Delay(500).ConfigureAwait(false);
-                }
-                else
-                {
-                    StatusChanged?.Invoke(this, "Debug: No old Node.js processes found");
-                }
-            }
-            catch (Exception ex)
-            {
-                StatusChanged?.Invoke(this, $"Debug: Error killing old processes: {ex.Message}");
-            }
+            }).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Obtem a linha de comando de um processo (para verificar se é whatsapp-server.js)
+        /// NOTA: Usa WMI que pode ser lento - chamar apenas de background thread!
         /// </summary>
         private string GetProcessCommandLine(Process process)
         {
@@ -656,14 +667,31 @@ namespace WhatsAppSimHubPlugin.Core
                     _cts = new CancellationTokenSource();
 
                     StatusChanged?.Invoke(this, $"Debug: Connecting attempt {i + 1}/3");
-                    await _webSocket.ConnectAsync(new Uri("ws://127.0.0.1:3000"), _cts.Token);
+
+                    // Timeout de 10 segundos para conexão WebSocket
+                    using (var connectCts = new CancellationTokenSource(10000))
+                    {
+                        await _webSocket.ConnectAsync(new Uri("ws://127.0.0.1:3000"), connectCts.Token).ConfigureAwait(false);
+                    }
+
                     _isConnected = true;
                     StatusChanged?.Invoke(this, "Connected");
                     _ = Task.Run(() => ReceiveMessages());
 
                     // Enviar comando "connect" para Baileys iniciar conexão
-                    await SendCommandAsync("connect");
+                    await SendCommandAsync("connect").ConfigureAwait(false);
                     return;
+                }
+                catch (OperationCanceledException)
+                {
+                    StatusChanged?.Invoke(this, $"Debug: Attempt {i + 1} timed out");
+
+                    if (i == 2)
+                    {
+                        StatusChanged?.Invoke(this, "Error: Connection timed out after 3 attempts");
+                        throw;
+                    }
+                    await Task.Delay(2000).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -674,7 +702,7 @@ namespace WhatsAppSimHubPlugin.Core
                         StatusChanged?.Invoke(this, $"Error: Unable to connect - {ex.Message}");
                         throw;
                     }
-                    await Task.Delay(2000); // esperar 2s entre tentativas
+                    await Task.Delay(2000).ConfigureAwait(false); // esperar 2s entre tentativas
                 }
             }
         }

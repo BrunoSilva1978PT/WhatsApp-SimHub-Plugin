@@ -170,7 +170,6 @@ namespace WhatsAppSimHubPlugin.Core
                 {
                     var cloned = item.DeepClone();
                     clonedBaseItems.Add(cloned);
-                    var itemName = item["Name"]?.ToString() ?? "unnamed";
                 }
                 baseLayer["Childrens"] = clonedBaseItems;
 
@@ -449,18 +448,6 @@ namespace WhatsAppSimHubPlugin.Core
                 );
 
                 binding["Formula"]["Expression"] = scaledExpr;
-            }
-        }
-
-        private void ScaleBinding(JObject bindings, string propertyName, double scale)
-        {
-            var binding = bindings[propertyName];
-            if (binding?["Formula"]?["Expression"] != null)
-            {
-                string expr = binding["Formula"]["Expression"].ToString();
-                string scaledExpr = WrapFormulaWithScale(expr, scale);
-                binding["Formula"]["Expression"] = scaledExpr;
-                _log?.Invoke($"📐 Scaled {propertyName} formula: {expr.Length}→{scaledExpr.Length} chars");
             }
         }
 
