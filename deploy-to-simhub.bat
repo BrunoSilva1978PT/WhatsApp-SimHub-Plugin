@@ -1,19 +1,36 @@
 @echo off
+chcp 65001 >nul
+setlocal enabledelayedexpansion
+
 echo ========================================
 echo  A copiar WhatsAppSimHubPlugin.dll...
 echo ========================================
 
-set SOURCE="%~dp0bin\Release\WhatsAppSimHubPlugin.dll"
-set DEST="C:\Program Files (x86)\SimHub\WhatsAppSimHubPlugin.dll"
+REM Detectar PC e definir path do projeto
+REM Por defeito usa drive E:\
+set "PROJECT_PATH=E:\Programaçao\GitHub\WhatsApp-SimHub-Plugin"
 
-if not exist %SOURCE% (
-    echo ERRO: DLL nao encontrada em %SOURCE%
+REM Se for PC-TIAGO, sobrescreve para drive D:\
+if "%COMPUTERNAME%"=="PC-TIAGO" (
+    set "PROJECT_PATH=D:\Programaçao\GitHub\WhatsApp-SimHub-Plugin"
+    echo PC detectado: PC-TIAGO
+) else (
+    echo A usar path por defeito
+)
+echo Path: !PROJECT_PATH!
+echo.
+
+set "SOURCE=!PROJECT_PATH!\bin\Release\WhatsAppSimHubPlugin.dll"
+set "DEST=C:\Program Files (x86)\SimHub\WhatsAppSimHubPlugin.dll"
+
+if not exist "!SOURCE!" (
+    echo ERRO: DLL nao encontrada em !SOURCE!
     pause
     exit /b 1
 )
 
-copy /Y %SOURCE% %DEST%
-if %ERRORLEVEL% EQU 0 (
+copy /Y "!SOURCE!" "!DEST!"
+if !ERRORLEVEL! EQU 0 (
     echo.
     echo DLL copiada com sucesso!
     echo Podes abrir o SimHub agora.
