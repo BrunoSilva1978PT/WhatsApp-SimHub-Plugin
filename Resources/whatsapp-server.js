@@ -1,8 +1,14 @@
 /**
  * WhatsApp SimHub Plugin - WhatsApp Web.js Backend
- * @version 1.0.0
+ * @version 1.0.1
+ *
+ * CHANGELOG v1.0.1:
+ * - Fixed race condition where LocalAuth completes before C# connects
+ * - Added pendingReadyData to cache ready state
+ * - Added pendingContactsList to cache contacts list
+ * - WebSocket connection now resends ready + contacts if already available
  */
-const SCRIPT_VERSION = "1.0.0";
+const SCRIPT_VERSION = "1.0.1";
 
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const WebSocket = require("ws");
@@ -104,6 +110,7 @@ process.on("unhandledRejection", (err) => {
 });
 
 log("[WS] Starting server on port 3000...");
+log("[WS] Script version: " + SCRIPT_VERSION);
 
 const wss = new WebSocket.Server({
   port: 3000,
@@ -111,6 +118,10 @@ const wss = new WebSocket.Server({
 });
 
 let ws = null;
+
+// ⭐ FIX: Cache para dados que podem chegar antes do C# conectar
+let pendingReadyData = null; // Guardar estado ready
+let pendingContactsList = null; // Guardar lista de contactos
 
 wss.on("error", (error) => {
   log("[WS] Server error: " + error.message);
@@ -125,17 +136,38 @@ function send(data) {
     try {
       ws.send(JSON.stringify(data));
       log("[WS] Sent: " + data.type);
+      return true; // ⭐ Indicar sucesso
     } catch (err) {
       log("[WS] Send error: " + err.message);
+      return false;
     }
   } else {
-    log("[WS] Cannot send - no connection");
+    log("[WS] Cannot send - no connection (will retry when C# connects)");
+    return false; // ⭐ Indicar falha
   }
 }
 
 wss.on("connection", (socket) => {
   log("[WS] Plugin connected!");
   ws = socket;
+
+  // ⭐ FIX: SE JÁ ESTIVER READY, ENVIAR IMEDIATAMENTE!
+  if (isReady && pendingReadyData) {
+    log("[WS] ⭐ Client already ready - sending cached ready state to plugin");
+    send(pendingReadyData);
+
+    // Também enviar lista de contactos se já tivermos
+    if (pendingContactsList) {
+      log(
+        "[WS] ⭐ Sending cached contacts list (" +
+          pendingContactsList.contacts.length +
+          " contacts)",
+      );
+      send(pendingContactsList);
+    }
+  } else {
+    log("[WS] Client not ready yet - will send ready when WhatsApp connects");
+  }
 
   socket.on("message", async (msg) => {
     try {
@@ -217,12 +249,33 @@ wss.on("connection", (socket) => {
             validContacts.sort((a, b) => a.name.localeCompare(b.name));
 
             log("[CHATS] Refreshed " + validContacts.length + " contacts");
-            send({ type: "chatContactsList", contacts: validContacts });
+
+            // ⭐ Guardar em cache também
+            pendingContactsList = {
+              type: "chatContactsList",
+              contacts: validContacts,
+            };
+            send(pendingContactsList);
           })
           .catch((error) => {
             log("[CHATS ERROR] Refresh failed: " + error.message);
             send({ type: "chatContactsError", error: error.message });
           });
+      } else if (data.type === "getStatus") {
+        // ⭐ NOVO: Permitir C# pedir estado atual
+        log("[STATUS] Status request received");
+        if (isReady && pendingReadyData) {
+          send(pendingReadyData);
+          if (pendingContactsList) {
+            send(pendingContactsList);
+          }
+        } else {
+          send({
+            type: "status",
+            ready: false,
+            message: "WhatsApp not ready yet",
+          });
+        }
       }
     } catch (err) {
       log("[WS] Message error: " + err.message);
@@ -620,11 +673,20 @@ client.on("ready", async () => {
       " (only process messages after this)",
   );
 
+  // ⭐ FIX: Guardar dados do ready em cache E enviar
   if (client.info && client.info.wid) {
     const number = client.info.wid.user;
     const name = client.info.pushname || "User";
     log("[READY] Number: " + number + ", Name: " + name);
-    send({ type: "ready", number: number, name: name });
+
+    // Guardar em cache (para quando C# conectar depois)
+    pendingReadyData = { type: "ready", number: number, name: name };
+
+    // Tentar enviar (pode falhar se C# ainda não conectou - não há problema!)
+    const sent = send(pendingReadyData);
+    if (!sent) {
+      log("[READY] ⚠️ Could not send ready now - will send when C# connects");
+    }
   }
 
   isReady = true;
@@ -660,12 +722,20 @@ client.on("ready", async () => {
 
       log("[CHATS] Valid contacts from chats: " + validContacts.length);
 
-      send({
+      // ⭐ FIX: Guardar em cache E enviar
+      pendingContactsList = {
         type: "chatContactsList",
         contacts: validContacts,
-      });
+      };
 
-      log("[CHATS] Contacts list sent to plugin!");
+      const sent = send(pendingContactsList);
+      if (!sent) {
+        log(
+          "[CHATS] ⚠️ Could not send contacts now - will send when C# connects",
+        );
+      } else {
+        log("[CHATS] Contacts list sent to plugin!");
+      }
     })
     .catch((error) => {
       log("[CHATS ERROR] Failed to get chats: " + error.message);
@@ -691,6 +761,12 @@ client.on("ready", async () => {
 
 client.on("disconnected", (reason) => {
   log("[WA] Disconnected: " + reason);
+
+  // ⭐ Limpar cache quando desconecta
+  isReady = false;
+  pendingReadyData = null;
+  pendingContactsList = null;
+
   send({ type: "disconnected", reason: reason });
 });
 
