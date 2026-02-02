@@ -369,12 +369,12 @@ namespace WhatsAppSimHubPlugin
             bool dashExists = _dashboardInstaller.IsDashboardInstalled();
             WriteLog($"Dashboard accessible: {dashExists}");
 
-            // 🔥 INICIAR TIMER: Verificar dashboard de 30 em 30s
-            _dashboardCheckTimer = new Timer(30000); // 30 segundos
+            // 🔥 INICIAR TIMER: Verificar dashboard de 5 em 5s
+            _dashboardCheckTimer = new Timer(5000); // 5 segundos
             _dashboardCheckTimer.Elapsed += DashboardCheckTimer_Elapsed;
             _dashboardCheckTimer.AutoReset = true;
             _dashboardCheckTimer.Start();
-            WriteLog("✅ Dashboard auto-check timer started (30s interval)");
+            WriteLog("✅ Dashboard auto-check timer started (5s interval)");
 
             // 🎮 IDataPlugin vai chamar DataUpdate() automaticamente a 60 FPS!
             // Não precisa de timer manual para botões!
@@ -1452,7 +1452,7 @@ namespace WhatsAppSimHubPlugin
         /// Chama APENAS: 1) Ao iniciar 2) Quando muda device
         /// SÓ MUDA se não estiver correto!
         /// VERIFICA se pasta do dashboard existe (pode ter sido apagada)
-        /// THROTTLE: Só verifica dashboard a cada 30 segundos
+        /// THROTTLE: Só verifica dashboard (I/O) a cada 10 segundos
         /// </summary>
         private void EnsureOverlayActive()
         {
@@ -1463,9 +1463,9 @@ namespace WhatsAppSimHubPlugin
 
             try
             {
-                // 🔥 THROTTLE: Verificar dashboard apenas 1x a cada 30 segundos
+                // 🔥 THROTTLE: Verificar dashboard (I/O) apenas 1x a cada 10 segundos
                 var timeSinceLastCheck = (DateTime.Now - _lastDashboardCheck).TotalSeconds;
-                if (timeSinceLastCheck >= 30)
+                if (timeSinceLastCheck >= 10)
                 {
                     _lastDashboardCheck = DateTime.Now;
 

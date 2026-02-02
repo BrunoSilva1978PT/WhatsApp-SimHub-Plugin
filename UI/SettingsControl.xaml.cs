@@ -559,7 +559,7 @@ namespace WhatsAppSimHubPlugin.UI
             }
         }
 
-        private void TestOverlayButton_Click(object sender, RoutedEventArgs e)
+        private async void TestOverlayButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -570,13 +570,21 @@ namespace WhatsAppSimHubPlugin.UI
                     return;
                 }
 
+                // Desactivar botão durante o teste
+                TestOverlayButton.IsEnabled = false;
+
                 // ✅ NOVO TESTE: Não muda VoCore, não muda dashboard, só mostra mensagem
                 _plugin.ShowTestMessage();
 
                 ShowToast("Testing selected VoCore for 5s", "✅", 5);
+
+                // Reactivar botão após 5 segundos
+                await Task.Delay(5000);
+                TestOverlayButton.IsEnabled = true;
             }
             catch (Exception ex)
             {
+                TestOverlayButton.IsEnabled = true; // Garantir que reactiva em caso de erro
                 ShowToast($"Error testing overlay: {ex.Message}", "❌", 10);
             }
         }
