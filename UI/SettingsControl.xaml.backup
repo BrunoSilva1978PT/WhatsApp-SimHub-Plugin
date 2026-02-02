@@ -1,0 +1,557 @@
+<UserControl x:Class="WhatsAppSimHubPlugin.UI.SettingsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins"
+             xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="800">
+
+    <Grid Margin="10">
+        <!-- Toast Notification - Above Tabs -->
+        <Border x:Name="ToastNotification"
+                Background="#2D2D30"
+                BorderBrush="#007ACC"
+                BorderThickness="1"
+                CornerRadius="5"
+                Padding="15,10"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Margin="0,-50,0,0"
+                Visibility="Collapsed"
+                MaxWidth="400"
+                Panel.ZIndex="999">
+            <Border.Effect>
+                <DropShadowEffect Color="#007ACC" Opacity="0.6" BlurRadius="15" ShadowDepth="0"/>
+            </Border.Effect>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="ToastIcon"
+                           Text="ℹ️"
+                           FontSize="20"
+                           Margin="0,0,10,0"
+                           VerticalAlignment="Center"/>
+                <TextBlock x:Name="ToastMessage"
+                           Text="Notification"
+                           FontSize="14"
+                           Foreground="White"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <styles:SHTabControl>
+            <!-- TAB 1: CONNECTION -->
+            <styles:SHTabItem Header="🔌 Connection">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20">
+
+                        <!-- Connection Status -->
+                        <TextBlock Text="Connection Status"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
+
+                        <StackPanel Margin="0,0,0,20">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <Ellipse x:Name="StatusIndicator" Width="15" Height="15"
+                                         Fill="#E74877" Margin="0,0,10,0"/>
+                                <TextBlock x:Name="StatusText" Text="Disconnected"
+                                           FontSize="14" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <TextBlock x:Name="ConnectedNumberText" Text="No number connected"
+                                       Margin="0,0,0,10"/>
+
+                            <StackPanel Orientation="Horizontal">
+                                <styles:SHButtonSecondary x:Name="DisconnectButton" Content="Disconnect"
+                                        Width="100" Margin="0,0,10,0" IsEnabled="False"
+                                        Background="#E74877" Foreground="White"
+                                        Click="DisconnectButton_Click"/>
+                                <styles:SHButtonPrimary x:Name="ReconnectButton" Content="Reconnect"
+                                        Width="100"
+                                        Background="#0E7A0D" Foreground="White"
+                                        Click="ReconnectButton_Click"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- QR Code -->
+                        <TextBlock Text="QR Code"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
+
+                        <StackPanel Margin="0,0,0,20">
+                            <Image x:Name="QRCodeImage" Width="300" Height="300"
+                                   Stretch="Uniform" Margin="0,0,0,10"
+                                   HorizontalAlignment="Left" Visibility="Collapsed"/>
+
+                            <TextBlock x:Name="QRCodeInstructions" TextWrapping="Wrap"
+                                       Visibility="Collapsed">
+                                <Run Text="To connect:"/>
+                                <LineBreak/>
+                                <Run Text="1. Open WhatsApp on your phone"/>
+                                <LineBreak/>
+                                <Run Text="2. Go to Settings → Linked Devices"/>
+                                <LineBreak/>
+                                <Run Text="3. Tap 'Link a Device'"/>
+                                <LineBreak/>
+                                <Run Text="4. Scan the QR code above"/>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <!-- Backend Mode -->
+                        <TextBlock Text="Backend Mode"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
+
+                        <StackPanel Margin="0,0,0,20">
+                            <TextBlock TextWrapping="Wrap" Margin="0,0,0,10" Opacity="0.7">
+                                Choose which WhatsApp backend to use. Changes will take effect after restarting the connection.
+                            </TextBlock>
+
+                            <ComboBox x:Name="BackendModeCombo"
+                                      Width="300" HorizontalAlignment="Left"
+                                      SelectionChanged="BackendModeCombo_SelectionChanged">
+                                <ComboBoxItem Content="WhatsApp-Web.js (Recommended)" Tag="whatsapp-web.js"/>
+                                <ComboBoxItem Content="Baileys (Lightweight)" Tag="baileys"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Backend Versions -->
+                        <TextBlock Text="Backend Versions"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
+
+                        <StackPanel Margin="0,0,0,20">
+                            <!-- whatsapp-web.js -->
+                            <Border Background="#2D2D30" Padding="15" CornerRadius="4" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Header -->
+                                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="whatsapp-web.js" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="WhatsAppWebJsUpdateBadge" Grid.Column="1" Text="NEW UPDATE"
+                                                   Foreground="#25D366" FontWeight="Bold" FontSize="11"
+                                                   VerticalAlignment="Center" Visibility="Collapsed"
+                                                   Cursor="Hand" MouseLeftButtonUp="WhatsAppWebJsUpdateBadge_Click"/>
+                                    </Grid>
+
+                                    <!-- Version -->
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
+                                        <TextBlock Text="Version:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="WhatsAppWebJsVersionCombo" Width="150" Height="28"
+                                                  SelectionChanged="WhatsAppWebJsVersionCombo_SelectionChanged"/>
+                                        <styles:SHButtonPrimary x:Name="WhatsAppWebJsInstallButton" Content="Install"
+                                                Margin="10,0,0,0" Padding="10,5" Visibility="Collapsed"
+                                                Background="#0E7A0D" Foreground="White"
+                                                Click="WhatsAppWebJsInstallButton_Click"/>
+                                        <styles:SHButtonPrimary x:Name="WhatsAppWebJsCheckButton" Content="Check for updates"
+                                                Margin="10,0,0,0" Padding="10,5"
+                                                Click="WhatsAppWebJsCheckButton_Click"/>
+                                    </StackPanel>
+
+                                    <!-- Source -->
+                                    <StackPanel Grid.Row="2">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                            <TextBlock Text="Source:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                            <RadioButton x:Name="WhatsAppWebJsOfficialRadio" Content="Official"
+                                                         GroupName="WhatsAppWebJsSource" IsChecked="True"
+                                                         Checked="WhatsAppWebJsSourceRadio_Changed" Margin="0,0,15,0"/>
+                                            <RadioButton x:Name="WhatsAppWebJsManualRadio" Content="Manual"
+                                                         GroupName="WhatsAppWebJsSource"
+                                                         Checked="WhatsAppWebJsSourceRadio_Changed"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" x:Name="WhatsAppWebJsManualPanel" Visibility="Collapsed">
+                                            <TextBlock Text="Repository:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBox x:Name="WhatsAppWebJsRepoTextBox" Width="280" Height="28"/>
+                                            <styles:SHButtonPrimary Content="Apply" Margin="10,0,0,0" Padding="10,5"
+                                                    Click="WhatsAppWebJsApplyRepo_Click"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- baileys -->
+                            <Border Background="#2D2D30" Padding="15" CornerRadius="4" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Header -->
+                                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="baileys" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="BaileysUpdateBadge" Grid.Column="1" Text="NEW UPDATE"
+                                                   Foreground="#25D366" FontWeight="Bold" FontSize="11"
+                                                   VerticalAlignment="Center" Visibility="Collapsed"
+                                                   Cursor="Hand" MouseLeftButtonUp="BaileysUpdateBadge_Click"/>
+                                    </Grid>
+
+                                    <!-- Version -->
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
+                                        <TextBlock Text="Version:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="BaileysVersionCombo" Width="150" Height="28"
+                                                  SelectionChanged="BaileysVersionCombo_SelectionChanged"/>
+                                        <styles:SHButtonPrimary x:Name="BaileysInstallButton" Content="Install"
+                                                Margin="10,0,0,0" Padding="10,5" Visibility="Collapsed"
+                                                Background="#0E7A0D" Foreground="White"
+                                                Click="BaileysInstallButton_Click"/>
+                                        <styles:SHButtonPrimary x:Name="BaileysCheckButton" Content="Check for updates"
+                                                Margin="10,0,0,0" Padding="10,5"
+                                                Click="BaileysCheckButton_Click"/>
+                                    </StackPanel>
+
+                                    <!-- Source -->
+                                    <StackPanel Grid.Row="2">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                            <TextBlock Text="Source:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                            <RadioButton x:Name="BaileysOfficialRadio" Content="Official"
+                                                         GroupName="BaileysSource" IsChecked="True"
+                                                         Checked="BaileysSourceRadio_Changed" Margin="0,0,15,0"/>
+                                            <RadioButton x:Name="BaileysManualRadio" Content="Manual"
+                                                         GroupName="BaileysSource"
+                                                         Checked="BaileysSourceRadio_Changed"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" x:Name="BaileysManualPanel" Visibility="Collapsed">
+                                            <TextBlock Text="Repository:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBox x:Name="BaileysRepoTextBox" Width="280" Height="28"/>
+                                            <styles:SHButtonPrimary Content="Apply" Margin="10,0,0,0" Padding="10,5"
+                                                    Click="BaileysApplyRepo_Click"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Scripts -->
+                            <Border Background="#2D2D30" Padding="15" CornerRadius="4">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Scripts" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" x:Name="ScriptsVersionText" Text=""
+                                                   VerticalAlignment="Center" Margin="15,0,0,0" FontSize="12" Opacity="0.7"/>
+                                        <TextBlock x:Name="ScriptsUpdateBadge" Grid.Column="2" Text="NEW UPDATE"
+                                                   Foreground="#25D366" FontWeight="Bold" FontSize="11"
+                                                   VerticalAlignment="Center" Margin="0,0,15,0" Visibility="Collapsed"
+                                                   Cursor="Hand" MouseLeftButtonUp="ScriptsUpdateBadge_Click"/>
+                                        <styles:SHButtonPrimary x:Name="ScriptsCheckButton" Grid.Column="3" Content="Check for updates"
+                                                Padding="10,5" Click="ScriptsCheckButton_Click"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Dependencies Setup -->
+                        <TextBlock Text="Dependencies Setup"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
+
+                        <StackPanel Margin="0,0,0,20">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                                <TextBlock Text="Status:" FontWeight="SemiBold" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="DependenciesStatusText" Text="✅ All dependencies installed"
+                                           Foreground="#0E7A0D" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="DependenciesChecklistPanel" Margin="0,0,0,10">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                    <TextBlock x:Name="NodeJsStatusIcon" Text="✓" FontWeight="Bold"
+                                               Foreground="#0E7A0D" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="NodeJsStatusText" Text="Node.js installed"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                    <TextBlock x:Name="GitStatusIcon" Text="✓" FontWeight="Bold"
+                                               Foreground="#0E7A0D" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="GitStatusText" Text="Git installed"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                    <TextBlock x:Name="NpmPackagesStatusIcon" Text="✓" FontWeight="Bold"
+                                               Foreground="#0E7A0D" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="NpmPackagesStatusText" Text="npm packages installed"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <TextBlock x:Name="DependenciesProgressText" Text=""
+                                       Foreground="#858585" FontSize="12"
+                                       TextWrapping="Wrap" Visibility="Collapsed" Margin="0,5,0,0"/>
+                        </StackPanel>
+
+                        <!-- Troubleshooting Info -->
+                        <Border Background="#1E3A5F" BorderThickness="0" Padding="12" CornerRadius="6">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
+                                    <TextBlock Text="Troubleshooting Tips" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+                                <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12" LineHeight="20">
+                                    <Run Text="• If connection fails, try Disconnect and then Reconnect"/>
+                                    <LineBreak/>
+                                    <Run Text="• On your phone, go to WhatsApp → Settings → Linked Devices and remove this device, then scan QR code again"/>
+                                    <LineBreak/>
+                                    <Run Text="• Try switching backend mode (WhatsApp-Web.js ↔ Baileys)"/>
+                                    <LineBreak/>
+                                    <Run Text="• Try changing backend version or use a custom repository in Source Manual"/>
+                                    <LineBreak/>
+                                    <Run Text="• Check for script updates using 'Check for updates' button"/>
+                                    <LineBreak/>
+                                    <Run Text="• Your WhatsApp session is stored locally and encrypted"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </styles:SHTabItem>
+
+            <!-- TAB 2: CONTACTS -->
+            <styles:SHTabItem Header="👥 Contacts">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Add from Active Chats -->
+                        <Border Grid.Row="0" Background="#2D2D30" Padding="15" CornerRadius="8" Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock Text="📱 Add from Active Chats"
+                                          FontSize="16"
+                                          FontWeight="SemiBold"
+                                          Foreground="#D4D4D4"
+                                          Margin="0,0,0,10"/>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <ComboBox x:Name="ChatContactsComboBox"
+                                             Grid.Column="0"
+                                             IsEnabled="False"
+                                             DisplayMemberPath="DisplayText"
+                                             Background="#252526"
+                                             Foreground="#D4D4D4"
+                                             BorderBrush="#3E3E42"
+                                             Height="32"
+                                             Margin="0,0,10,0"
+                                             FontSize="13"/>
+
+                                    <styles:SHButtonPrimary x:Name="RefreshChatsButton"
+                                           Grid.Column="1"
+                                           Content="🔄 Refresh"
+                                           IsEnabled="False"
+                                           Background="#007ACC"
+                                           Foreground="White"
+                                           Width="110"
+                                           Height="32"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,10,0"
+                                           ToolTip="Refresh contacts list"
+                                           Click="RefreshChatsButton_Click"/>
+
+                                    <styles:SHButtonPrimary x:Name="AddFromChatsButton"
+                                           Grid.Column="2"
+                                           Content="➕ Add"
+                                           IsEnabled="False"
+                                           Background="#0E7A0D"
+                                           Foreground="White"
+                                           Padding="15,6"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           Click="AddFromChatsButton_Click"/>
+                                </Grid>
+
+                                <TextBlock x:Name="ChatsStatusText"
+                                          Text="⏳ Waiting for WhatsApp connection..."
+                                          Foreground="#858585"
+                                          FontSize="11"
+                                          Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Manual Add -->
+                        <Border Grid.Row="1" Background="#2D2D30" Padding="15" CornerRadius="8" Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock Text="✍️ Manual Add"
+                                          FontSize="16"
+                                          FontWeight="SemiBold"
+                                          Foreground="#D4D4D4"
+                                          Margin="0,0,0,10"/>
+
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBox x:Name="ManualContactName"
+                                            Grid.Row="0" Grid.Column="0"
+                                            Background="#252526"
+                                            Foreground="#D4D4D4"
+                                            BorderBrush="#3E3E42"
+                                            Height="32"
+                                            Margin="0,0,10,0"
+                                            FontSize="13"
+                                            VerticalContentAlignment="Center"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0"
+                                              Text="Name"
+                                              Foreground="#858585"
+                                              FontSize="11"
+                                              Margin="0,4,0,0"/>
+
+                                    <TextBox x:Name="ManualContactNumber"
+                                            Grid.Row="0" Grid.Column="1"
+                                            Background="#252526"
+                                            Foreground="#D4D4D4"
+                                            BorderBrush="#3E3E42"
+                                            Height="32"
+                                            Margin="0,0,10,0"
+                                            FontSize="13"
+                                            VerticalContentAlignment="Center"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1"
+                                              Text="Number (e.g. +351912345678)"
+                                              Foreground="#858585"
+                                              FontSize="11"
+                                              Margin="0,4,0,0"/>
+
+                                    <styles:SHButtonPrimary x:Name="ManualAddButton"
+                                           Grid.Row="0" Grid.Column="2"
+                                           Content="➕ Add"
+                                           Background="#0E7A0D"
+                                           Foreground="White"
+                                           Padding="15,6"
+                                           Height="32"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           Click="ManualAddButton_Click"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Allowed Contacts List -->
+                        <Border Grid.Row="2" Background="#2D2D30" Padding="15,10,15,5" CornerRadius="8,8,0,0">
+                            <TextBlock Text="📋 Allowed Contacts"
+                                      FontSize="16"
+                                      FontWeight="SemiBold"
+                                      Foreground="#D4D4D4"/>
+                        </Border>
+
+                        <Border Grid.Row="3" Background="#252526" Padding="0" CornerRadius="0,0,8,8">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <DataGrid x:Name="ContactsDataGrid"
+                                         Grid.Row="0"
+                                         AutoGenerateColumns="False"
+                                         CanUserAddRows="False"
+                                         CanUserDeleteRows="False"
+                                         CanUserReorderColumns="False"
+                                         CanUserResizeRows="False"
+                                         CanUserSortColumns="True"
+                                         Background="#252526"
+                                         RowBackground="#2D2D30"
+                                         AlternatingRowBackground="#252526"
+                                         BorderThickness="0"
+                                         GridLinesVisibility="None"
+                                         HeadersVisibility="Column"
+                                         SelectionMode="Single"
+                                         IsReadOnly="False"
+                                         Margin="0">
+
+                                    <DataGrid.ColumnHeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#3E3E42"/>
+                                            <Setter Property="Foreground" Value="#D4D4D4"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Padding" Value="10,8"/>
+                                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                            <Setter Property="BorderBrush" Value="#858585"/>
+                                        </Style>
+                                    </DataGrid.ColumnHeaderStyle>
+
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="#D4D4D4"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="Foreground" Value="#D4D4D4"/>
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#3E3E42"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.RowStyle>
+
+                                    <DataGrid.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="Foreground" Value="#D4D4D4"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.CellStyle>
+
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Name"
+                                                          Binding="{Binding Name}"
+                                                          Width="*"
+                                                          IsReadOnly="True">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value

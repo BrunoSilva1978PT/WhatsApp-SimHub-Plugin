@@ -47,13 +47,16 @@
             <styles:SHTabItem Header="🔌 Connection">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="20">
-                        <!-- Status Section -->
-                        <Border BorderThickness="1"
-                                Padding="15" CornerRadius="5" Margin="0,0,0,15">
-                            <StackPanel>
-                                <TextBlock Text="Connection Status" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <!-- Connection Status -->
+                        <TextBlock Text="Connection Status"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
 
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <StackPanel Margin="0,0,0,20">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                     <Ellipse x:Name="StatusIndicator" Width="15" Height="15"
                                              Fill="#E74877" Margin="0,0,10,0"/>
                                     <TextBlock x:Name="StatusText" Text="Disconnected"
@@ -73,16 +76,18 @@
                                             Background="#0E7A0D" Foreground="White"
                                             Click="ReconnectButton_Click"/>
                                 </StackPanel>
-                            </StackPanel>
-                        </Border>
+                        </StackPanel>
 
-                        <!-- QR Code Section -->
-                        <Border BorderThickness="1"
-                                Padding="15" CornerRadius="5" Margin="0,0,0,15">
-                            <StackPanel>
-                                <TextBlock Text="QR Code" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <!-- QR Code -->
+                        <TextBlock Text="QR Code"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
 
-                                <Image x:Name="QRCodeImage" Width="300" Height="300"
+                        <StackPanel Margin="0,0,0,20">
+                            <Image x:Name="QRCodeImage" Width="300" Height="300"
                                        Stretch="Uniform" Margin="0,0,0,10"
                                        HorizontalAlignment="Left" Visibility="Collapsed"/>
 
@@ -98,15 +103,18 @@
                                     <LineBreak/>
                                     <Run Text="4. Scan the QR code above"/>
                                 </TextBlock>
-                            </StackPanel>
-                        </Border>
+                        </StackPanel>
 
-                        <!-- Backend Selection -->
-                        <Border BorderThickness="1"
-                                Padding="15" CornerRadius="5" Margin="0,0,0,15">
-                            <StackPanel>
-                                <TextBlock Text="Backend Mode" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
-                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,10" Opacity="0.7">
+                        <!-- Backend Mode -->
+                        <TextBlock Text="Backend Mode"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
+
+                        <StackPanel Margin="0,0,0,20">
+                            <TextBlock TextWrapping="Wrap" Margin="0,0,0,10" Opacity="0.7">
                                     Choose which WhatsApp backend to use. Changes will take effect after restarting the connection.
                                 </TextBlock>
 
@@ -116,17 +124,20 @@
                                     <ComboBoxItem Content="WhatsApp-Web.js (Recommended)" Tag="whatsapp-web.js"/>
                                     <ComboBoxItem Content="Baileys (Lightweight)" Tag="baileys"/>
                                 </ComboBox>
-                            </StackPanel>
-                        </Border>
+                        </StackPanel>
 
                         <!-- Backend Versions -->
-                        <Border BorderThickness="1"
-                                Padding="15" CornerRadius="5" Margin="0,0,0,15">
-                            <StackPanel>
-                                <TextBlock Text="Backend Versions" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+                        <TextBlock Text="Backend Versions"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
 
-                                <!-- whatsapp-web.js -->
-                                <Border BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,10">
+                        <StackPanel Margin="0,0,0,20">
+
+                            <!-- whatsapp-web.js -->
+                            <Border Background="#2D2D30" Padding="15" CornerRadius="4" Margin="0,0,0,10">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
@@ -182,8 +193,8 @@
                                     </Grid>
                                 </Border>
 
-                                <!-- baileys -->
-                                <Border BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,10">
+                            <!-- baileys -->
+                            <Border Background="#2D2D30" Padding="15" CornerRadius="4" Margin="0,0,0,10">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
@@ -239,34 +250,39 @@
                                     </Grid>
                                 </Border>
 
-                                <!-- Scripts -->
-                                <Border BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="4" Padding="10">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Scripts" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="ScriptsUpdateBadge" Grid.Column="1" Text="NEW UPDATE"
-                                                   Foreground="#25D366" FontWeight="Bold" FontSize="11"
-                                                   VerticalAlignment="Center" Margin="0,0,15,0" Visibility="Collapsed"
-                                                   Cursor="Hand" MouseLeftButtonUp="ScriptsUpdateBadge_Click"/>
-                                        <styles:SHButtonPrimary x:Name="ScriptsCheckButton" Grid.Column="2" Content="Check for updates"
-                                                Padding="10,5" Click="ScriptsCheckButton_Click"/>
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
-                        </Border>
+                            <!-- Scripts -->
+                            <Border Background="#2D2D30" Padding="15" CornerRadius="4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Scripts" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" x:Name="ScriptsVersionText" Text=""
+                                               VerticalAlignment="Center" Margin="15,0,0,0" FontSize="12" Opacity="0.7"/>
+                                    <TextBlock x:Name="ScriptsUpdateBadge" Grid.Column="3" Text="NEW UPDATE"
+                                               Foreground="#25D366" FontWeight="Bold" FontSize="11"
+                                               VerticalAlignment="Center" Margin="0,0,15,0" Visibility="Collapsed"
+                                               Cursor="Hand" MouseLeftButtonUp="ScriptsUpdateBadge_Click"/>
+                                    <styles:SHButtonPrimary x:Name="ScriptsCheckButton" Grid.Column="4" Content="Check for updates"
+                                            Padding="10,5" Click="ScriptsCheckButton_Click"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
 
                         <!-- Dependencies Setup -->
-                        <Border BorderThickness="1"
-                                Padding="15" CornerRadius="5" Margin="0,0,0,15">
-                            <StackPanel>
-                                <TextBlock Text="Dependencies Setup" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+                        <TextBlock Text="Dependencies Setup"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
 
-                                <!-- Status indicator -->
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                        <StackPanel Margin="0,0,0,20">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
                                     <TextBlock Text="Status:" FontWeight="SemiBold" Margin="0,0,10,0" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="DependenciesStatusText" Text="✅ All dependencies installed"
                                                Foreground="#0E7A0D" VerticalAlignment="Center"/>
@@ -293,19 +309,30 @@
                                     </StackPanel>
                                 </StackPanel>
 
-                                <!-- Progress info when installing -->
-                                <TextBlock x:Name="DependenciesProgressText" Text=""
-                                           Foreground="#858585" FontSize="12"
-                                           TextWrapping="Wrap" Visibility="Collapsed" Margin="0,5,0,0"/>
-                            </StackPanel>
-                        </Border>
+                            <TextBlock x:Name="DependenciesProgressText" Text=""
+                                       Foreground="#858585" FontSize="12"
+                                       TextWrapping="Wrap" Visibility="Collapsed" Margin="0,5,0,0"/>
+                        </StackPanel>
 
-                        <!-- Info Section -->
-                        <Border Background="#1E3A5F" BorderThickness="0" Padding="12" CornerRadius="6" Margin="0,15,0,0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
-                                <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12">
-                                    <Run Text="Your WhatsApp session is stored locally and encrypted."/>
+                        <!-- Troubleshooting Info -->
+                        <Border Background="#1E3A5F" Padding="12" CornerRadius="6">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
+                                    <TextBlock Text="Troubleshooting Tips" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+                                <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12" LineHeight="20">
+                                    <Run Text="• If connection fails, try Disconnect and then Reconnect"/>
+                                    <LineBreak/>
+                                    <Run Text="• On your phone, go to WhatsApp → Settings → Linked Devices and remove this device, then scan QR code again"/>
+                                    <LineBreak/>
+                                    <Run Text="• Try switching backend mode (WhatsApp-Web.js ↔ Baileys)"/>
+                                    <LineBreak/>
+                                    <Run Text="• Try changing backend version or use a custom repository in Source Manual"/>
+                                    <LineBreak/>
+                                    <Run Text="• Check for script updates using 'Check for updates' button"/>
+                                    <LineBreak/>
+                                    <Run Text="• Your WhatsApp session is stored locally and encrypted"/>
                                 </TextBlock>
                             </StackPanel>
                         </Border>
@@ -627,205 +654,160 @@
 
             <!-- TAB 3: KEYWORDS -->
             <styles:SHTabItem Header="🚨 Keywords">
-                <Grid Margin="20">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
+                <StackPanel Margin="20">
 
-                    <!-- 📌 SEÇÃO KEYWORDS COM MOLDURA -->
-                    <Border Grid.Row="0" Grid.RowSpan="4"
+                    <!-- Urgent Keywords -->
+                    <TextBlock Text="Urgent Keywords"
+                               FontSize="18"
+                               FontWeight="Bold"
+                               Foreground="#00BCD4"
+                               Margin="0,0,0,5"/>
+                    <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
 
-                            BorderBrush="#555555"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="20">
+                    <!-- Add New Keyword -->
+                    <StackPanel Margin="0,0,0,20">
+                        <TextBlock Text="+ Add New Keyword"
+                                   FontWeight="Bold"
+                                   FontSize="14"
+                                   Margin="0,0,0,12"/>
+
                         <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                            <!-- Título -->
-                            <TextBlock Grid.Row="0" Text="Urgent Keywords"
-                                       FontSize="18" FontWeight="Bold"
-                                       Foreground="#00BCD4"
-                                       Margin="0,0,0,20"/>
+                            <TextBox Grid.Column="0" x:Name="NewKeyword"
+                                     Margin="0,0,10,0"
+                                     Height="36"
+                                     KeyDown="NewKeyword_KeyDown"/>
 
-                            <!-- Lista de Keywords -->
-                            <ListBox Grid.Row="1" x:Name="KeywordsListBox"
-                                     MinHeight="150"
-                                     MaxHeight="300"
+                            <styles:SHButtonPrimary Grid.Column="1" Content="➕ Add"
+                                    Width="100" Height="36"
+                                    Background="#0E7A0D"
+                                    Foreground="White"
+                                    Click="AddKeyword_Click"/>
+                        </Grid>
+                    </StackPanel>
 
-                                     BorderBrush="#555555"
-                                     BorderThickness="1"
-                                     Padding="5"
-                                     Margin="0,0,0,20">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#2D2D30"
-                                                BorderBrush="#555555"
-                                                BorderThickness="1"
-                                                CornerRadius="4"
-                                                Padding="12,8"
-                                                Margin="0,2">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-
-                                                <TextBlock Grid.Column="0" Text="{Binding}"
-                                                           VerticalAlignment="Center"
-                                                           FontSize="13"
-                                                           Foreground="White"/>
-
-                                                <!-- ❌ BOTÃO REMOVE VERMELHO -->
-                                                <styles:SHButtonSecondary Grid.Column="1" Content="❌ Remove"
-                                                        Width="90" Height="30"
-                                                        Background="#E74877"
-                                                        Foreground="White"
-                                                        FontSize="12"
-                                                        FontWeight="SemiBold"
-                                                        Click="RemoveKeyword_Click"
-                                                        Tag="{Binding}"/>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-
-                            <!-- Adicionar Keyword -->
-                            <Border Grid.Row="2"
-
-                                    BorderBrush="#555555"
-                                    BorderThickness="1"
-                                    Padding="15"
-                                    CornerRadius="6"
-                                    Margin="0,0,0,20">
-                                <StackPanel>
-                                    <TextBlock Text="Add New Keyword"
-                                               FontWeight="Bold"
-                                               FontSize="14"
-                                               Margin="0,0,0,12"/>
-
+                    <!-- Keywords List -->
+                    <ListBox x:Name="KeywordsListBox"
+                             MinHeight="150"
+                             MaxHeight="300"
+                             Background="#252526"
+                             Padding="5"
+                             Margin="0,0,0,20">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#2D2D30"
+                                        CornerRadius="4"
+                                        Padding="12,8"
+                                        Margin="0,2">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <TextBox Grid.Column="0" x:Name="NewKeyword"
-                                                 Margin="0,0,10,0"
-                                                 Height="36"
-                                                 KeyDown="NewKeyword_KeyDown"/>
+                                        <TextBlock Grid.Column="0" Text="{Binding}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="13"
+                                                   Foreground="White"/>
 
-                                        <!-- ✅ BOTÃO +ADD VERDE -->
-                                        <styles:SHButtonPrimary Grid.Column="1" Content="➕ Add"
-                                                Width="100" Height="36"
-                                                Background="#0E7A0D"
+                                        <styles:SHButtonPrimary Grid.Column="1" Content="🗑️ Remove"
+                                                Width="80" Height="28"
+                                                Background="#C42B1C"
                                                 Foreground="White"
-                                                Click="AddKeyword_Click"/>
+                                                FontSize="11"
+                                                Click="RemoveKeyword_Click"
+                                                Tag="{Binding}"/>
                                     </Grid>
-                                </StackPanel>
-                            </Border>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
 
-                            <!-- ℹ️ INFO BOX VERDE -->
-                            <Border Grid.Row="3"
-                                    Background="#1E3A5F" BorderThickness="0" Padding="12" CornerRadius="6" Margin="0,15,0,0">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="ℹ️" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Top" Foreground="White"/>
-                                    <TextBlock TextWrapping="Wrap"
-                                               Foreground="White"
-                                               FontSize="12"
-                                               LineHeight="18">
-                                        Messages containing these keywords will be marked as URGENT.
-                                        <LineBreak/>
-                                        Urgent messages have higher priority and repeat until read.
-                                    </TextBlock>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
+                    <!-- Info -->
+                    <Border Background="#1E3A5F" Padding="12" CornerRadius="6">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="ℹ️" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Top" Foreground="White"/>
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="White"
+                                       FontSize="12"
+                                       LineHeight="18">
+                                Messages containing these keywords will be marked as URGENT.
+                                <LineBreak/>
+                                Urgent messages have higher priority and repeat until read.
+                            </TextBlock>
+                        </StackPanel>
                     </Border>
-                </Grid>
+
+                </StackPanel>
             </styles:SHTabItem>
 
             <!-- TAB 4: DISPLAY -->
             <styles:SHTabItem Header="🖥️ Display">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="20">
-                        <!-- 🖥️ TARGET DEVICE SECTION -->
-                        <Border
-                                BorderBrush="#555555"
-                                BorderThickness="1"
-                                Padding="20"
-                                CornerRadius="8"
-                                Margin="0,0,0,20">
-                            <StackPanel>
-                                <TextBlock Text="🖥️ Target Device"
-                                           FontSize="18"
-                                           FontWeight="Bold"
-                                           Foreground="#00BCD4"
-                                           Margin="0,0,0,15"/>
+                        <!-- Target Device -->
+                        <TextBlock Text="Target Device"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
 
-                                <TextBlock Text="VoCore Device:"
-                                           FontSize="13"
-                                           FontWeight="SemiBold"
-                                           Margin="0,0,0,8"/>
+                        <StackPanel Margin="0,0,0,20">
+                            <TextBlock Text="VoCore Device:"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,8"/>
 
-                                <StackPanel Orientation="Horizontal">
-                                    <ComboBox x:Name="TargetDeviceComboBox"
-                                              Width="380"
-                                              Height="36"
-                                              Background="#252526"
-                                              Foreground="White"
-                                              BorderBrush="#3E3E42"
-                                              SelectionChanged="TargetDeviceCombo_SelectionChanged">
-                                        <!-- Devices will be loaded dynamically -->
-                                    </ComboBox>
+                            <StackPanel Orientation="Horizontal">
+                                <ComboBox x:Name="TargetDeviceComboBox"
+                                          Width="380"
+                                          Height="36"
+                                          Background="#252526"
+                                          Foreground="White"
+                                          BorderBrush="#3E3E42"
+                                          SelectionChanged="TargetDeviceCombo_SelectionChanged">
+                                    <!-- Devices will be loaded dynamically -->
+                                </ComboBox>
 
-                                    <styles:SHButtonPrimary x:Name="RefreshDevicesButton" Content="🔄 Refresh"
-                                            Click="RefreshDevicesButton_Click"
-                                            Width="110" Height="36"
-                                            Margin="10,0,0,0"
-                                            Background="#007ACC"
-                                            Foreground="White"
-                                            ToolTip="Refresh VoCore device list"/>
+                                <styles:SHButtonPrimary x:Name="RefreshDevicesButton" Content="🔄 Refresh"
+                                        Click="RefreshDevicesButton_Click"
+                                        Width="110" Height="36"
+                                        Margin="10,0,0,0"
+                                        Background="#007ACC"
+                                        Foreground="White"
+                                        ToolTip="Refresh VoCore device list"/>
 
-                                    <!-- 🧪 TEST BUTTON VERDE -->
-                                    <styles:SHButtonPrimary x:Name="TestOverlayButton" Content="🧪 Test"
-                                            Click="TestOverlayButton_Click"
-                                            Width="100" Height="36"
-                                            Margin="10,0,0,0"
-                                            Background="#0E7A0D"
-                                            Foreground="White"
-                                            ToolTip="Test overlay on selected VoCore"/>
+                                <styles:SHButtonPrimary x:Name="TestOverlayButton" Content="🧪 Test"
+                                        Click="TestOverlayButton_Click"
+                                        Width="100" Height="36"
+                                        Margin="10,0,0,0"
+                                        Background="#0E7A0D"
+                                        Foreground="White"
+                                        ToolTip="Test overlay on selected VoCore"/>
 
-                                    <!-- 🔥 STATUS LABEL -->
-                                    <TextBlock x:Name="DeviceStatusLabel"
-                                               Text="Checking..."
-                                               VerticalAlignment="Center"
-                                               Margin="15,0,0,0"
-                                               FontSize="12"
-                                               FontWeight="Bold"/>
-                                </StackPanel>
-
-                                <!-- ✅ INFO BOX VERDE -->
-                                <Border Background="#1E3A5F" BorderThickness="0" Padding="12" CornerRadius="6" Margin="0,15,0,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
-                                        <TextBlock Text="Select a VoCore to display WhatsApp notifications during races."
-                                                   Foreground="White"
-                                                   FontSize="12"
-                                                   TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                </Border>
+                                <TextBlock x:Name="DeviceStatusLabel"
+                                           Text="Checking..."
+                                           VerticalAlignment="Center"
+                                           Margin="15,0,0,0"
+                                           FontSize="12"
+                                           FontWeight="Bold"/>
                             </StackPanel>
-                        </Border>
+
+                            <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,15,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
+                                    <TextBlock Text="Select a VoCore to display WhatsApp notifications during races."
+                                               Foreground="White"
+                                               FontSize="12"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
 
 
                     </StackPanel>
@@ -837,20 +819,15 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="20">
 
+                        <!-- Message Display Duration -->
+                        <TextBlock Text="Message Display Duration"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
 
-                        <!-- Queue Settings -->
-                        <Border
-                                BorderBrush="#555555"
-                                BorderThickness="1"
-                                Padding="20"
-                                CornerRadius="8"
-                                Margin="0,0,0,20">
-                            <StackPanel>
-                                <TextBlock Text="⏱️ Message Display Duration"
-                                           FontSize="18"
-                                           FontWeight="Bold"
-                                           Foreground="#00BCD4"
-                                           Margin="0,0,0,15"/>
+                        <StackPanel Margin="0,0,0,20">
 
                                 <!-- Normal duration -->
                                 <TextBlock Text="Normal message duration:"
@@ -892,35 +869,29 @@
                                                VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </Grid>
 
-                                <!-- Info -->
-                                <Border Background="#1E3A5F" BorderThickness="0" Padding="12" CornerRadius="6" Margin="0,15,0,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
-                                        <TextBlock TextWrapping="Wrap"
-                                                   Foreground="White"
-                                                   FontSize="12">
-                                            How long messages stay visible on screen.
-                                            <LineBreak/>
-                                            VIP/Urgent messages display for longer.
-                                        </TextBlock>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </Border>
+                            <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,15,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="White"
+                                               FontSize="12">
+                                        How long messages stay visible on screen.
+                                        <LineBreak/>
+                                        VIP/Urgent messages display for longer.
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
 
                         <!-- Queue Limits -->
-                        <Border
-                                BorderBrush="#555555"
-                                BorderThickness="1"
-                                Padding="20"
-                                CornerRadius="8"
-                                Margin="0,0,0,20">
-                            <StackPanel>
-                                <TextBlock Text="📊 Queue Limits"
-                                           FontSize="18"
-                                           FontWeight="Bold"
-                                           Foreground="#00BCD4"
-                                           Margin="0,0,0,15"/>
+                        <TextBlock Text="Queue Limits"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
+
+                        <StackPanel Margin="0,0,0,20">
 
                                 <!-- Max messages per contact -->
                                 <TextBlock Text="Max messages per contact:"
@@ -962,39 +933,32 @@
                                                VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </Grid>
 
-                                <!-- Info -->
-                                <Border Background="#1E3A5F"
-                                        BorderThickness="0"
-                                        Padding="12"
-                                        CornerRadius="6"
-                                        Margin="0,15,0,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
-                                        <TextBlock TextWrapping="Wrap"
-                                                   Foreground="White"
-                                                   FontSize="12">
-                                            Controls how many messages can be queued.
-                                            <LineBreak/>
-                                            Older messages are removed when limits are reached.
-                                        </TextBlock>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </Border>
+                            <Border Background="#1E3A5F"
+                                    Padding="12"
+                                    CornerRadius="6"
+                                    Margin="0,15,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="White"
+                                               FontSize="12">
+                                        Controls how many messages can be queued.
+                                        <LineBreak/>
+                                        Older messages are removed when limits are reached.
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
 
-                        <!-- VIP/Urgent Behavior -->
-                        <Border
-                                BorderBrush="#555555"
-                                BorderThickness="1"
-                                Padding="20"
-                                CornerRadius="8"
-                                Margin="0,0,0,20">
-                            <StackPanel>
-                                <TextBlock Text="⭐ VIP/Urgent Message Behavior"
-                                           FontSize="18"
-                                           FontWeight="Bold"
-                                           Foreground="#00BCD4"
-                                           Margin="0,0,0,15"/>
+                        <!-- VIP/Urgent Message Behavior -->
+                        <TextBlock Text="VIP/Urgent Message Behavior"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Foreground="#00BCD4"
+                                   Margin="0,0,0,5"/>
+                        <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
+
+                        <StackPanel Margin="0,0,0,20">
 
                                 <!-- Remove after first display -->
                                 <styles:SHToggleCheckbox x:Name="RemoveAfterFirstDisplayCheckbox"
@@ -1027,27 +991,24 @@
                                     </Grid>
                                 </StackPanel>
 
-                                <!-- Info -->
-                                <Border Background="#1E3A5F"
-                                        BorderThickness="0"
-                                        Padding="12"
-                                        CornerRadius="6"
-                                        Margin="0,15,0,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0"/>
-                                        <TextBlock TextWrapping="Wrap"
-                                                   Foreground="White"
-                                                   FontSize="12">
-                                            VIP/Urgent messages can repeat until read.
-                                            <LineBreak/>
-                                            Enable "Remove after first display" to prevent repeats.
-                                            <LineBreak/>
-                                            When repeating, the interval defines how long to show normal queue between VIP/Urgent repeats.
-                                        </TextBlock>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </Border>
+                            <Border Background="#1E3A5F"
+                                    Padding="12"
+                                    CornerRadius="6"
+                                    Margin="0,15,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="White"
+                                               FontSize="12">
+                                        VIP/Urgent messages can repeat until read.
+                                        <LineBreak/>
+                                        Enable "Remove after first display" to prevent repeats.
+                                        <LineBreak/>
+                                        When repeating, the interval defines how long to show normal queue between VIP/Urgent repeats.
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
 
                     </StackPanel>
                 </ScrollViewer>
@@ -1058,12 +1019,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="20">
                         <!-- Reply 1 -->
-                        <Border
-                                BorderBrush="#555555"
-                                BorderThickness="1"
-                                Padding="15"
-                                CornerRadius="5"
-                                Margin="0,0,0,15">
+                        <Border Padding="15" Margin="0,0,0,15">
                             <StackPanel>
                                 <!-- Título + Botão na mesma linha -->
                                 <Grid Margin="0,0,0,10">
@@ -1094,12 +1050,7 @@
                         </Border>
 
                         <!-- Reply 2 -->
-                        <Border
-                                BorderBrush="#555555"
-                                BorderThickness="1"
-                                Padding="15"
-                                CornerRadius="5"
-                                Margin="0,0,0,15">
+                        <Border Padding="15" Margin="0,0,0,15">
                             <StackPanel>
                                 <!-- Título + Botão na mesma linha -->
                                 <Grid Margin="0,0,0,10">
@@ -1130,8 +1081,7 @@
                         </Border>
 
                         <!-- Options -->
-                        <Border BorderThickness="1"
-                                Padding="15" CornerRadius="5" Margin="0,0,0,15">
+                        <Border Padding="15" Margin="0,0,0,15">
                             <StackPanel>
                                 <TextBlock Text="Options" FontSize="14" FontWeight="Bold" Margin="0,0,0,10"/>
 
@@ -1141,8 +1091,8 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Info Box Verde -->
-                        <Border Background="#1E3A5F" BorderThickness="0" Padding="12" CornerRadius="6" Margin="0,15,0,0">
+                        <!-- Info Box -->
+                        <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,15,0,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
                                 <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12">
