@@ -105,3 +105,9 @@ scripts/auth_info/
 
 # Test scripts (local development only)
 tests/
+
+# Claude Code settings
+.claude/
+
+# Lib folder (SimHub DLLs - local only)
+lib/
