@@ -133,7 +133,7 @@ Only messages from Allowed Contacts will be displayed.
 ### Step 7: Configure Keywords (Optional)
 
 1. Go to **Keywords** tab
-2. Default keywords: urgente, emergencia, hospital, ajuda
+2. Default keywords: urgent, emergency, hospital, help
 3. Add custom keywords that should trigger urgent status
 4. Messages containing these words will be marked urgent
 
@@ -153,8 +153,8 @@ Go to **Queue** tab to customize:
 ### Step 1: Configure Reply Messages
 
 1. Go to **Quick Replies** tab
-2. Edit **Reply 1** text (e.g., "Estou numa corrida, ligo depois")
-3. Edit **Reply 2** text (e.g., "Se for urgente liga sff")
+2. Edit **Reply 1** text (e.g., "I'm in a race, will call you later")
+3. Edit **Reply 2** text (e.g., "If it's urgent please call me")
 4. Enable **Show Confirmation** if you want visual feedback
 
 ### Step 2: Bind to Steering Wheel

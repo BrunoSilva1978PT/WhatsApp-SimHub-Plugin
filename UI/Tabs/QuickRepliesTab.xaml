@@ -39,7 +39,7 @@
 
                     <TextBlock Text="Reply text:" Margin="0,0,0,5"/>
                     <TextBox x:Name="Reply1TextBox"
-                             Text="Estou numa corrida, ligo depois 🏎️"
+                             Text="I'm in a race, will call you later 🏎️"
                              Margin="0,0,0,0"/>
                 </StackPanel>
             </Border>
@@ -69,7 +69,7 @@
 
                     <TextBlock Text="Reply text:" Margin="0,0,0,5"/>
                     <TextBox x:Name="Reply2TextBox"
-                             Text="Se for urgente liga sff 📞"
+                             Text="If it's urgent please call me 📞"
                              Margin="0,0,0,0"/>
                 </StackPanel>
             </Border>

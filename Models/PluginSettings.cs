@@ -33,8 +33,8 @@ namespace WhatsAppSimHubPlugin.Models
         public bool DependenciesInstalling { get; set; } = false; // True when installing dependencies in background
 
         // Quick Replies
-        public string Reply1Text { get; set; } = "Estou numa corrida, ligo depois 🏎️";
-        public string Reply2Text { get; set; } = "Se for urgente liga sff 📞";
+        public string Reply1Text { get; set; } = "I'm in a race, will call you later 🏎️";
+        public string Reply2Text { get; set; } = "If it's urgent please call me 📞";
         public bool ShowConfirmation { get; set; } = true;
 
         // Data
@@ -51,7 +51,7 @@ namespace WhatsAppSimHubPlugin.Models
             // Adicionar keywords default só se a lista estiver completamente vazia
             if (Keywords == null || Keywords.Count == 0)
             {
-                Keywords = new List<string> { "urgente", "emergência", "hospital", "ajuda" };
+                Keywords = new List<string> { "urgent", "emergency", "hospital", "help" };
             }
         }
     }

@@ -26,7 +26,7 @@ A professional WhatsApp notification plugin for SimHub that displays messages on
 
 ### Keyword System
 - **Urgent Keywords**: Automatically mark messages containing specific words as urgent
-- **Default Keywords**: urgente, emergencia, hospital, ajuda
+- **Default Keywords**: urgent, emergency, hospital, help
 - **Customizable**: Add or remove keywords as needed
 
 ### Queue Management
