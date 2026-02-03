@@ -171,7 +171,7 @@
             <!-- Manual Add -->
             <Border Grid.Row="3" Background="#2D2D30" Padding="15" CornerRadius="8" Margin="0,0,0,15">
                 <StackPanel>
-                    <TextBlock Text="➕ Add Contact"
+                    <TextBlock Text="➕ Add Contact Manually"
                               FontSize="16"
                               FontWeight="SemiBold"
                               Foreground="#D4D4D4"
@@ -183,8 +183,13 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
                         <TextBox x:Name="ManualNameTextBox"
+                                Grid.Row="0"
                                 Grid.Column="0"
                                 Text="Name"
                                 Background="#252526"
@@ -199,8 +204,9 @@
                                 HorizontalScrollBarVisibility="Disabled"/>
 
                         <TextBox x:Name="ManualNumberTextBox"
+                                Grid.Row="0"
                                 Grid.Column="1"
-                                Text="+351..."
+                                Text="+351912345678"
                                 Background="#252526"
                                 Foreground="#D4D4D4"
                                 BorderBrush="#3E3E42"
@@ -213,6 +219,7 @@
                                 HorizontalScrollBarVisibility="Disabled"/>
 
                         <styles:SHButtonPrimary x:Name="AddManualButton"
+                               Grid.Row="0"
                                Grid.Column="2"
                                Content="➕ Add"
                                Background="#0E7A0D"
@@ -220,6 +227,14 @@
                                Padding="15,6"
                                FontSize="13"
                                FontWeight="SemiBold"/>
+
+                        <!-- Format hint -->
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="1"
+                                   Text="Format: +[country code][number] (e.g. +1555123456, +44791234567)"
+                                   Foreground="#858585"
+                                   FontSize="10"
+                                   Margin="0,4,10,0"/>
                     </Grid>
                 </StackPanel>
             </Border>

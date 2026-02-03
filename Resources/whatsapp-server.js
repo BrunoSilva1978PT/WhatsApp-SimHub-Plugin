@@ -251,14 +251,28 @@ wss.on("connection", (socket) => {
         log("[CHATS] Refreshing contacts...");
         client
           .getChats()
-          .then((chats) => {
+          .then(async (chats) => {
             const validContacts = [];
             for (const chat of chats) {
               if (chat.isGroup) continue;
               const id = chat.id?.user || chat.id?._serialized;
-              const name = chat.name || "(No name)";
               if (id) {
-                validContacts.push({ name: name, number: id });
+                // Try to get contact info for better name
+                let name = chat.name;
+                try {
+                  const contact = await chat.getContact();
+                  if (contact) {
+                    // Priority: pushname > name > number
+                    name =
+                      contact.pushname ||
+                      contact.name ||
+                      contact.number ||
+                      chat.name;
+                  }
+                } catch (e) {
+                  // Keep chat.name if contact fetch fails
+                }
+                validContacts.push({ name: name || "(No name)", number: id });
               }
             }
             validContacts.sort((a, b) => a.name.localeCompare(b.name));
@@ -527,14 +541,25 @@ client.on("ready", async () => {
   // Get chat contacts
   client
     .getChats()
-    .then((chats) => {
+    .then(async (chats) => {
       const validContacts = [];
       for (const chat of chats) {
         if (chat.isGroup) continue;
         const id = chat.id?.user || chat.id?._serialized;
-        const name = chat.name || "(No name)";
         if (id) {
-          validContacts.push({ name: name, number: id });
+          // Try to get contact info for better name
+          let name = chat.name;
+          try {
+            const contact = await chat.getContact();
+            if (contact) {
+              // Priority: pushname > name > number
+              name =
+                contact.pushname || contact.name || contact.number || chat.name;
+            }
+          } catch (e) {
+            // Keep chat.name if contact fetch fails
+          }
+          validContacts.push({ name: name || "(No name)", number: id });
         }
       }
       validContacts.sort((a, b) => a.name.localeCompare(b.name));

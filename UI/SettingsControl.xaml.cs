@@ -868,13 +868,15 @@ namespace WhatsAppSimHubPlugin.UI
             try
             {
                 // Confirm with user
-                var result = System.Windows.MessageBox.Show(
-                    "This will delete your saved WhatsApp session and you will need to scan the QR code again.\n\nContinue?",
+                var confirmed = ConfirmDialog.Show(
+                    "This will delete your saved WhatsApp session and you will need to scan the QR code again.",
+                    null,
                     "Reset Session",
-                    System.Windows.MessageBoxButton.YesNo,
-                    System.Windows.MessageBoxImage.Warning);
+                    "Reset",
+                    "Cancel",
+                    true);
 
-                if (result != System.Windows.MessageBoxResult.Yes)
+                if (!confirmed)
                     return;
 
                 ConnectionTab.ResetSessionButtonCtrl.IsEnabled = false;
@@ -967,7 +969,20 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private void AddFromChatsButton_Click(object sender, RoutedEventArgs e)
         {
+            // Try to get selected item first, then try to find by text (for editable ComboBox)
             var selected = ContactsTab.ChatContactsComboBoxCtrl.SelectedItem as Contact;
+
+            if (selected == null)
+            {
+                // Try to find contact by the text in the ComboBox
+                var searchText = ContactsTab.ChatContactsComboBoxCtrl.Text?.Trim();
+                if (!string.IsNullOrEmpty(searchText))
+                {
+                    selected = _chatContacts.FirstOrDefault(c =>
+                        c.DisplayText.Equals(searchText, StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Equals(searchText, StringComparison.OrdinalIgnoreCase));
+                }
+            }
 
             if (selected == null)
             {
@@ -1069,7 +1084,20 @@ namespace WhatsAppSimHubPlugin.UI
                 return;
             }
 
+            // Try to get selected item first, then try to find by text (for editable ComboBox)
             var selected = ContactsTab.GoogleContactsComboBoxCtrl.SelectedItem as Contact;
+
+            if (selected == null)
+            {
+                // Try to find contact by the text in the ComboBox
+                var searchText = ContactsTab.GoogleContactsComboBoxCtrl.Text?.Trim();
+                if (!string.IsNullOrEmpty(searchText))
+                {
+                    selected = _googleContacts.FirstOrDefault(c =>
+                        c.DisplayText.Equals(searchText, StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Equals(searchText, StringComparison.OrdinalIgnoreCase));
+                }
+            }
 
             if (selected == null)
             {
@@ -1556,7 +1584,7 @@ namespace WhatsAppSimHubPlugin.UI
             }
 
             // Validate number
-            if (string.IsNullOrWhiteSpace(number) || number == "+351..." || !number.StartsWith("+"))
+            if (string.IsNullOrWhiteSpace(number) || number == "+351912345678" || !number.StartsWith("+"))
             {
                 ShowToast("Please enter a valid phone number.\n\nFormat: +[country code][number]\nExample: +351912345678", "⚠️", 8);
                 return;
@@ -1600,10 +1628,15 @@ namespace WhatsAppSimHubPlugin.UI
 
             if (contact == null) return;
 
-            var result = MessageBox.Show($"Remove {contact.Name} from allowed contacts?\n\nThey will no longer be able to send you messages.",
-                "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var confirmed = ConfirmDialog.Show(
+                $"Remove {contact.Name} from allowed contacts?",
+                "They will no longer be able to send you messages.",
+                "Remove Contact",
+                "Remove",
+                "Cancel",
+                true);
 
-            if (result == MessageBoxResult.Yes)
+            if (confirmed)
             {
                 _contacts.Remove(contact);
                 _plugin.SaveSettings();
@@ -1614,10 +1647,15 @@ namespace WhatsAppSimHubPlugin.UI
         {
             if (contact == null) return;
 
-            var result = MessageBox.Show($"Remove {contact.Name} from allowed contacts?\n\nThey will no longer be able to send you messages.",
-                "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var confirmed = ConfirmDialog.Show(
+                $"Remove {contact.Name} from allowed contacts?",
+                "They will no longer be able to send you messages.",
+                "Remove Contact",
+                "Remove",
+                "Cancel",
+                true);
 
-            if (result == MessageBoxResult.Yes)
+            if (confirmed)
             {
                 _contacts.Remove(contact);
                 _plugin.SaveSettings();
@@ -2615,19 +2653,18 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 var selectedVersion = item.Tag.ToString();
 
-                var result = MessageBox.Show(
-                    $"Install whatsapp-web.js {selectedVersion}?\n\n" +
-                    $"The plugin will:\n" +
-                    $"1. Disconnect from WhatsApp\n" +
-                    $"2. Stop all Node.js and Chrome processes\n" +
-                    $"3. Delete node_modules and reinstall\n" +
-                    $"4. Reconnect automatically when done\n\n" +
-                    $"This may take 1-2 minutes. Continue?",
+                var confirmed = ConfirmDialog.Show(
+                    $"Install whatsapp-web.js {selectedVersion}?",
+                    "The plugin will:\n" +
+                    "1. Disconnect from WhatsApp\n" +
+                    "2. Stop all Node.js and Chrome processes\n" +
+                    "3. Delete node_modules and reinstall\n" +
+                    "4. Reconnect automatically when done",
                     "Install Library",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
+                    "Install",
+                    "Cancel");
 
-                if (result == MessageBoxResult.Yes)
+                if (confirmed)
                 {
                     InstallLibraryInBackground("whatsapp-web.js", selectedVersion);
                 }
@@ -2643,19 +2680,18 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 var selectedVersion = item.Tag.ToString();
 
-                var result = MessageBox.Show(
-                    $"Install baileys {selectedVersion}?\n\n" +
-                    $"The plugin will:\n" +
-                    $"1. Disconnect from WhatsApp\n" +
-                    $"2. Stop all Node.js and Chrome processes\n" +
-                    $"3. Delete node_modules and reinstall\n" +
-                    $"4. Reconnect automatically when done\n\n" +
-                    $"This may take 1-2 minutes. Continue?",
+                var confirmed = ConfirmDialog.Show(
+                    $"Install baileys {selectedVersion}?",
+                    "The plugin will:\n" +
+                    "1. Disconnect from WhatsApp\n" +
+                    "2. Stop all Node.js and Chrome processes\n" +
+                    "3. Delete node_modules and reinstall\n" +
+                    "4. Reconnect automatically when done",
                     "Install Library",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
+                    "Install",
+                    "Cancel");
 
-                if (result == MessageBoxResult.Yes)
+                if (confirmed)
                 {
                     InstallLibraryInBackground("@whiskeysockets/baileys", selectedVersion);
                 }
@@ -2928,13 +2964,14 @@ namespace WhatsAppSimHubPlugin.UI
                 return;
             }
 
-            var result = MessageBox.Show(
-                $"Install whatsapp-web.js from GitHub repository?\n\nRepository: {repo}\n\nThis will:\n• Stop WhatsApp connection\n• Delete node_modules and reinstall\n• Restart connection\n\nContinue?",
+            var confirmed = ConfirmDialog.Show(
+                "Install whatsapp-web.js from GitHub repository?",
+                $"Repository: {repo}\n\nThis will:\n- Stop WhatsApp connection\n- Delete node_modules and reinstall\n- Restart connection",
                 "Install from Repository",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                "Install",
+                "Cancel");
 
-            if (result == MessageBoxResult.Yes)
+            if (confirmed)
             {
                 // Use the same install function as the Install button
                 InstallLibraryInBackground("whatsapp-web.js", repo, repo);
@@ -2978,13 +3015,14 @@ namespace WhatsAppSimHubPlugin.UI
                 return;
             }
 
-            var result = MessageBox.Show(
-                $"Install baileys from GitHub repository?\n\nRepository: {repo}\n\nThis will:\n• Stop WhatsApp connection\n• Delete node_modules and reinstall\n• Restart connection\n\nContinue?",
+            var confirmed = ConfirmDialog.Show(
+                "Install baileys from GitHub repository?",
+                $"Repository: {repo}\n\nThis will:\n- Stop WhatsApp connection\n- Delete node_modules and reinstall\n- Restart connection",
                 "Install from Repository",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                "Install",
+                "Cancel");
 
-            if (result == MessageBoxResult.Yes)
+            if (confirmed)
             {
                 // Use the same install function as the Install button
                 InstallLibraryInBackground("@whiskeysockets/baileys", repo, repo);
@@ -3153,13 +3191,14 @@ namespace WhatsAppSimHubPlugin.UI
                 return;
 
             var currentVersion = GetLocalScriptVersion("whatsapp-server.js") ?? "unknown";
-            var result = MessageBox.Show(
-                $"Update whatsapp-server.js to version {_latestWwjsScriptVersion}?\n\nCurrent: {currentVersion}\n\nContinue?",
+            var confirmed = ConfirmDialog.Show(
+                $"Update whatsapp-server.js to version {_latestWwjsScriptVersion}?",
+                $"Current version: {currentVersion}",
                 "Update Script",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                "Update",
+                "Cancel");
 
-            if (result == MessageBoxResult.Yes)
+            if (confirmed)
             {
                 await UpdateScriptFromGitHubAsync("whatsapp-server.js", _latestWwjsScriptVersion);
                 ConnectionTab.WwjsScriptUpdateButtonCtrl.Visibility = Visibility.Collapsed;
@@ -3177,13 +3216,14 @@ namespace WhatsAppSimHubPlugin.UI
                 return;
 
             var currentVersion = GetLocalScriptVersion("baileys-server.mjs") ?? "unknown";
-            var result = MessageBox.Show(
-                $"Update baileys-server.mjs to version {_latestBaileysScriptVersion}?\n\nCurrent: {currentVersion}\n\nContinue?",
+            var confirmed = ConfirmDialog.Show(
+                $"Update baileys-server.mjs to version {_latestBaileysScriptVersion}?",
+                $"Current version: {currentVersion}",
                 "Update Script",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                "Update",
+                "Cancel");
 
-            if (result == MessageBoxResult.Yes)
+            if (confirmed)
             {
                 await UpdateScriptFromGitHubAsync("baileys-server.mjs", _latestBaileysScriptVersion);
                 ConnectionTab.BaileysScriptUpdateButtonCtrl.Visibility = Visibility.Collapsed;
@@ -3201,13 +3241,14 @@ namespace WhatsAppSimHubPlugin.UI
                 return;
 
             var currentVersion = GetLocalScriptVersion("google-contacts.js") ?? "unknown";
-            var result = MessageBox.Show(
-                $"Update google-contacts.js to version {_latestGoogleScriptVersion}?\n\nCurrent: {currentVersion}\n\nContinue?",
+            var confirmed = ConfirmDialog.Show(
+                $"Update google-contacts.js to version {_latestGoogleScriptVersion}?",
+                $"Current version: {currentVersion}",
                 "Update Script",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                "Update",
+                "Cancel");
 
-            if (result == MessageBoxResult.Yes)
+            if (confirmed)
             {
                 await UpdateScriptFromGitHubAsync("google-contacts.js", _latestGoogleScriptVersion);
                 ConnectionTab.GoogleScriptUpdateButtonCtrl.Visibility = Visibility.Collapsed;
