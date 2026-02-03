@@ -874,29 +874,7 @@ namespace WhatsAppSimHubPlugin.Core
             _isConnected = false;
             _isStarting = false;
 
-            // Enviar shutdown ao Node.js de forma síncrona (com timeout curto)
-            try
-            {
-                if (_webSocket != null && _webSocket.State == WebSocketState.Open)
-                {
-                    var shutdownJson = new JObject { ["type"] = "shutdown" };
-                    var bytes = Encoding.UTF8.GetBytes(shutdownJson.ToString());
-
-                    using (var cts = new CancellationTokenSource(1000)) // 1 segundo timeout
-                    {
-                        try
-                        {
-                            _webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cts.Token).Wait();
-                        }
-                        catch { }
-                    }
-                }
-            }
-            catch (Exception)
-            {
-            }
-
-            // Fechar WebSocket
+            // Close WebSocket first
             try
             {
                 _cts?.Cancel();
@@ -905,7 +883,7 @@ namespace WhatsAppSimHubPlugin.Core
             }
             catch { }
 
-            // Matar processo Node.js imediatamente
+            // Kill Node.js process and ALL its child processes (including Chrome/Puppeteer)
             var processToCleanup = _nodeProcess;
             _nodeProcess = null;
 
@@ -915,8 +893,10 @@ namespace WhatsAppSimHubPlugin.Core
                 {
                     if (!processToCleanup.HasExited)
                     {
-                        processToCleanup.Kill();
-                        processToCleanup.WaitForExit(2000);
+                        int nodePid = processToCleanup.Id;
+
+                        // Kill entire process tree (Node + Chrome + any children)
+                        KillProcessTree(nodePid);
                     }
                 }
                 catch { }
@@ -925,6 +905,32 @@ namespace WhatsAppSimHubPlugin.Core
                     try { processToCleanup.Dispose(); } catch { }
                 }
             }
+        }
+
+        /// <summary>
+        /// Kill a process and all its child processes recursively using taskkill /T
+        /// </summary>
+        private void KillProcessTree(int pid)
+        {
+            try
+            {
+                // Use taskkill with /T flag to kill entire process tree
+                var killProcess = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "taskkill",
+                        Arguments = $"/PID {pid} /T /F",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    }
+                };
+                killProcess.Start();
+                killProcess.WaitForExit(5000); // Wait up to 5 seconds
+            }
+            catch { }
         }
 
         /// <summary>

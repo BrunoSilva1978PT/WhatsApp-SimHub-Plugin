@@ -151,9 +151,24 @@ wss.on("connection", (socket) => {
 
       if (data.type === "shutdown") {
         log("[WA] Shutdown initiated...");
-        client.destroy().then(() => {
+        // Set a timeout to force exit if destroy takes too long
+        const forceExitTimeout = setTimeout(() => {
+          log("[WA] Force exit after timeout");
           process.exit(0);
-        });
+        }, 3000);
+
+        client
+          .destroy()
+          .then(() => {
+            clearTimeout(forceExitTimeout);
+            log("[WA] Client destroyed successfully");
+            process.exit(0);
+          })
+          .catch((err) => {
+            clearTimeout(forceExitTimeout);
+            log("[WA] Error destroying client: " + err.message);
+            process.exit(0);
+          });
       } else if (data.type === "sendReply") {
         try {
           const result = await client.pupPage.evaluate(

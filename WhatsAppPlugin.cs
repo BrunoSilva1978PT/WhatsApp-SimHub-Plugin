@@ -1593,10 +1593,10 @@ namespace WhatsAppSimHubPlugin
             // Stop reconnection timer
             StopReconnectTimer();
 
-            // Clean disconnect
+            // Kill Node.js and all child processes (Chrome/Puppeteer)
             if (_nodeManager != null)
             {
-                WriteLog("Disconnecting Node.js...");
+                WriteLog("Killing Node.js process tree...");
                 _nodeManager.Stop();
                 _nodeManager.Dispose();
             }
