@@ -27,6 +27,7 @@ const appData =
 const pluginDir = path.join(appData, "SimHub", "WhatsAppPlugin");
 const authPath = path.join(pluginDir, "data_baileys", "auth_info");
 const logPath = path.join(pluginDir, "logs", "baileys.log");
+const debugConfigPath = path.join(pluginDir, "config", "debug.json");
 
 // Create directories
 try {
@@ -35,10 +36,27 @@ try {
 } catch (e) {}
 
 // ============================================================================
+// DEBUG CONFIG
+// ============================================================================
+
+function isDebugEnabled() {
+  try {
+    if (fs.existsSync(debugConfigPath)) {
+      const config = JSON.parse(fs.readFileSync(debugConfigPath, "utf8"));
+      return config.enabled === true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+// ============================================================================
 // LOGGING
 // ============================================================================
 
 function log(msg) {
+  // Only log if debug is enabled
+  if (!isDebugEnabled()) return;
+
   const line = `[${new Date().toISOString().substring(11, 23)}] ${msg}`;
   try {
     console.log(line);

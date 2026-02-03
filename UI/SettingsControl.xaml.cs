@@ -119,6 +119,8 @@ namespace WhatsAppSimHubPlugin.UI
 
             // Backend mode
             ConnectionTab.BackendModeComboCtrl.SelectionChanged += BackendModeCombo_SelectionChanged;
+            ConnectionTab.DebugLoggingCheckBoxCtrl.Checked += DebugLoggingCheckBox_Changed;
+            ConnectionTab.DebugLoggingCheckBoxCtrl.Unchecked += DebugLoggingCheckBox_Changed;
 
             // WhatsApp-Web.js controls
             ConnectionTab.WhatsAppWebJsCheckButtonCtrl.Click += WhatsAppWebJsCheckButton_Click;
@@ -425,6 +427,9 @@ namespace WhatsAppSimHubPlugin.UI
                         break;
                     }
                 }
+
+                // 🔧 Carregar Debug Logging state
+                ConnectionTab.DebugLoggingCheckBoxCtrl.IsChecked = LoadDebugLoggingState();
 
                 // 🔧 Carregar Target Device (se salvo)
                 if (!string.IsNullOrEmpty(_settings.TargetDevice))
@@ -973,7 +978,7 @@ namespace WhatsAppSimHubPlugin.UI
 
             ContactsTab.ChatContactsComboBoxCtrl.SelectedIndex = -1;
 
-            ShowToast($"{newContact.Name} adicionado aos contactos permitidos!", "✅");
+            ShowToast($"{newContact.Name} added to allowed contacts!", "✅");
         }
 
         /// <summary>
@@ -1317,24 +1322,78 @@ namespace WhatsAppSimHubPlugin.UI
             try
             {
                 // Mostrar mensagem que vai fazer reconnect
-                ShowToast($"A mudar para {selected.Content}...", "🔄", 3);
+                ShowToast($"Switching to {selected.Content}...", "🔄", 3);
 
                 // Fazer switch do backend (para, aguarda, cria novo, inicia)
                 await _plugin.SwitchBackend(newMode);
 
-                ShowToast($"{selected.Content} conectado com sucesso!", "✅", 5);
+                ShowToast($"{selected.Content} connected successfully!", "✅", 5);
             }
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    $"Erro ao mudar backend: {ex.Message}",
-                    "Erro",
+                    $"Error switching backend: {ex.Message}",
+                    "Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error
                 );
             }
         }
 
+        /// <summary>
+        /// Debug Logging checkbox changed
+        /// </summary>
+        private void DebugLoggingCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            bool enabled = ConnectionTab.DebugLoggingCheckBoxCtrl.IsChecked == true;
+            SaveDebugLoggingState(enabled);
+            ShowToast(enabled ? "Debug logging enabled" : "Debug logging disabled", "🔧", 3);
+        }
+
+        /// <summary>
+        /// Get the debug.json file path
+        /// </summary>
+        private string GetDebugConfigPath()
+        {
+            var pluginPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "SimHub", "WhatsAppPlugin", "config", "debug.json");
+            return pluginPath;
+        }
+
+        /// <summary>
+        /// Load debug logging state from config file
+        /// </summary>
+        private bool LoadDebugLoggingState()
+        {
+            try
+            {
+                var path = GetDebugConfigPath();
+                if (File.Exists(path))
+                {
+                    var json = File.ReadAllText(path);
+                    var obj = JObject.Parse(json);
+                    return obj["enabled"]?.ToObject<bool>() ?? false;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>
+        /// Save debug logging state to config file
+        /// </summary>
+        private void SaveDebugLoggingState(bool enabled)
+        {
+            try
+            {
+                var path = GetDebugConfigPath();
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                var json = new JObject { ["enabled"] = enabled }.ToString();
+                File.WriteAllText(path, json);
+            }
+            catch { }
+        }
 
         /// <summary>
         /// Checkbox VIP changed
@@ -1799,30 +1858,45 @@ namespace WhatsAppSimHubPlugin.UI
                     var currentVersion = _settings.BaileysVersion;
 
                     // Guardar item selecionado atual
-                    var currentlySelected = ConnectionTab.BaileysVersionComboCtrl.SelectedItem as ComboBoxItem;
-                    var existingItems = ConnectionTab.BaileysVersionComboCtrl.Items.Cast<ComboBoxItem>().ToList();
+                    var currentlySelectedTag = (ConnectionTab.BaileysVersionComboCtrl.SelectedItem as ComboBoxItem)?.Tag?.ToString();
 
-                    // Adicionar versões v7.x do npm (últimas 10) que ainda não existem
+                    // Limpar e reconstruir dropdown com versões ordenadas
+                    ConnectionTab.BaileysVersionComboCtrl.Items.Clear();
+
+                    // 1. Adicionar @latest primeiro
+                    var latestItem = new ComboBoxItem
+                    {
+                        Content = "@latest (latest version)",
+                        Tag = "npm:@whiskeysockets/baileys@latest"
+                    };
+                    ConnectionTab.BaileysVersionComboCtrl.Items.Add(latestItem);
+
+                    // 2. Adicionar versões v7.x do npm (últimas 10)
                     foreach (var version in versions.Take(10))
                     {
-                        // Verificar se já existe no dropdown
-                        var exists = existingItems.Any(item => item.Tag?.ToString() == version);
-
-                        if (!exists)
+                        var item = new ComboBoxItem
                         {
-                            var item = new ComboBoxItem
-                            {
-                                Content = version + " (v7)",
-                                Tag = version
-                            };
-                            ConnectionTab.BaileysVersionComboCtrl.Items.Add(item);
+                            Content = version,
+                            Tag = version
+                        };
+                        ConnectionTab.BaileysVersionComboCtrl.Items.Add(item);
+                    }
+
+                    // 3. Restaurar seleção
+                    foreach (ComboBoxItem item in ConnectionTab.BaileysVersionComboCtrl.Items)
+                    {
+                        if (item.Tag?.ToString() == currentlySelectedTag ||
+                            (currentlySelectedTag?.Contains("@latest") == true && item.Tag?.ToString()?.Contains("@latest") == true))
+                        {
+                            ConnectionTab.BaileysVersionComboCtrl.SelectedItem = item;
+                            break;
                         }
                     }
 
-                    // Restaurar seleção
-                    if (currentlySelected != null)
+                    // Se nada foi selecionado, selecionar @latest
+                    if (ConnectionTab.BaileysVersionComboCtrl.SelectedItem == null)
                     {
-                        ConnectionTab.BaileysVersionComboCtrl.SelectedItem = currentlySelected;
+                        ConnectionTab.BaileysVersionComboCtrl.SelectedIndex = 0;
                     }
 
                     // Verificar se há update disponível

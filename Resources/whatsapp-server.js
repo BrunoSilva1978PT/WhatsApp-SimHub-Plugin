@@ -13,14 +13,10 @@ const { execSync } = require("child_process");
 
 const appData =
   process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
-const dataPath = path.join(appData, "SimHub", "WhatsAppPlugin", "data");
-const logPath = path.join(
-  appData,
-  "SimHub",
-  "WhatsAppPlugin",
-  "logs",
-  "node.log",
-);
+const pluginDir = path.join(appData, "SimHub", "WhatsAppPlugin");
+const dataPath = path.join(pluginDir, "data");
+const logPath = path.join(pluginDir, "logs", "node.log");
+const debugConfigPath = path.join(pluginDir, "config", "debug.json");
 
 try {
   const logDir = path.dirname(logPath);
@@ -28,7 +24,20 @@ try {
   fs.writeFileSync(logPath, "");
 } catch (e) {}
 
+function isDebugEnabled() {
+  try {
+    if (fs.existsSync(debugConfigPath)) {
+      const config = JSON.parse(fs.readFileSync(debugConfigPath, "utf8"));
+      return config.enabled === true;
+    }
+  } catch (e) {}
+  return false;
+}
+
 function log(msg) {
+  // Only log if debug is enabled
+  if (!isDebugEnabled()) return;
+
   const line = "[" + new Date().toISOString().substring(11, 23) + "] " + msg;
   try {
     console.log(line);

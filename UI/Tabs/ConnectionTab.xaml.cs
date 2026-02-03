@@ -24,6 +24,7 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
 
         // Backend Mode
         public ComboBox BackendModeComboCtrl => BackendModeCombo;
+        public CheckBox DebugLoggingCheckBoxCtrl => DebugLoggingCheckBox;
 
         // WhatsApp-Web.js
         public TextBlock WhatsAppWebJsUpdateBadgeCtrl => WhatsAppWebJsUpdateBadge;

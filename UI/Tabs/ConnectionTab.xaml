@@ -77,11 +77,19 @@
                     Choose which WhatsApp backend to use. Changes will take effect after restarting the connection.
                 </TextBlock>
 
-                <ComboBox x:Name="BackendModeCombo"
-                          Width="300" HorizontalAlignment="Left">
-                    <ComboBoxItem Content="WhatsApp-Web.js (Recommended)" Tag="whatsapp-web.js"/>
-                    <ComboBoxItem Content="Baileys (Lightweight)" Tag="baileys"/>
-                </ComboBox>
+                <StackPanel Orientation="Horizontal">
+                    <ComboBox x:Name="BackendModeCombo"
+                              Width="300">
+                        <ComboBoxItem Content="WhatsApp-Web.js (Recommended)" Tag="whatsapp-web.js"/>
+                        <ComboBoxItem Content="Baileys (Lightweight)" Tag="baileys"/>
+                    </ComboBox>
+
+                    <CheckBox x:Name="DebugLoggingCheckBox"
+                              Content="Debug Logging"
+                              VerticalAlignment="Center"
+                              Margin="20,0,0,0"
+                              ToolTip="Enable detailed logging for troubleshooting. Logs are saved in the plugin's logs folder."/>
+                </StackPanel>
             </StackPanel>
 
             <!-- Backend Versions -->

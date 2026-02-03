@@ -406,9 +406,11 @@ namespace WhatsAppSimHubPlugin
 
         public void WriteLog(string message)
         {
+            // Only log if debug is enabled
+            if (!IsDebugLoggingEnabled()) return;
+
             try
             {
-                // UM SÓ FICHEIRO: plugin.log (minimalista)
                 var logPath = Path.Combine(_pluginPath, "logs", "plugin.log");
                 var logDir = Path.GetDirectoryName(logPath);
 
@@ -417,13 +419,31 @@ namespace WhatsAppSimHubPlugin
                     Directory.CreateDirectory(logDir);
                 }
 
-                // Formato minimalista: [HH:mm:ss] mensagem
                 File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {message}\n");
             }
             catch
             {
-                // Ignorar erros de log
+                // Ignore log errors
             }
+        }
+
+        /// <summary>
+        /// Check if debug logging is enabled via config/debug.json
+        /// </summary>
+        private bool IsDebugLoggingEnabled()
+        {
+            try
+            {
+                var debugPath = Path.Combine(_pluginPath, "config", "debug.json");
+                if (File.Exists(debugPath))
+                {
+                    var json = File.ReadAllText(debugPath);
+                    var obj = JObject.Parse(json);
+                    return obj["enabled"]?.ToObject<bool>() ?? false;
+                }
+            }
+            catch { }
+            return false;
         }
 
         private void RegisterProperties()
