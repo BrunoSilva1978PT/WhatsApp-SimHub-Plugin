@@ -35,8 +35,8 @@
                                    Text="5s" FontWeight="Bold"
                                    VerticalAlignment="Center" HorizontalAlignment="Center"/>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="5,0,0,0">
-                            <styles:SHButtonPrimary x:Name="NormalDurationPlus" Content="+" Width="28" Height="28" Padding="0" Margin="0,0,3,0" Click="NormalDurationPlus_Click"/>
-                            <styles:SHButtonPrimary x:Name="NormalDurationMinus" Content="-" Width="28" Height="28" Padding="0" Click="NormalDurationMinus_Click"/>
+                            <styles:SHButtonPrimary x:Name="NormalDurationPlus" Content="+" Width="28" Height="28" Padding="0" Margin="0,0,3,0" FontSize="16" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="NormalDurationPlus_Click"/>
+                            <styles:SHButtonPrimary x:Name="NormalDurationMinus" Content="-" Width="28" Height="28" Padding="0" FontSize="16" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="NormalDurationMinus_Click"/>
                         </StackPanel>
                     </Grid>
 
@@ -59,8 +59,8 @@
                                    Text="10s" FontWeight="Bold"
                                    VerticalAlignment="Center" HorizontalAlignment="Center"/>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="5,0,0,0">
-                            <styles:SHButtonPrimary x:Name="UrgentDurationPlus" Content="+" Width="28" Height="28" Padding="0" Margin="0,0,3,0" Click="UrgentDurationPlus_Click"/>
-                            <styles:SHButtonPrimary x:Name="UrgentDurationMinus" Content="-" Width="28" Height="28" Padding="0" Click="UrgentDurationMinus_Click"/>
+                            <styles:SHButtonPrimary x:Name="UrgentDurationPlus" Content="+" Width="28" Height="28" Padding="0" Margin="0,0,3,0" FontSize="16" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="UrgentDurationPlus_Click"/>
+                            <styles:SHButtonPrimary x:Name="UrgentDurationMinus" Content="-" Width="28" Height="28" Padding="0" FontSize="16" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="UrgentDurationMinus_Click"/>
                         </StackPanel>
                     </Grid>
 
@@ -107,8 +107,8 @@
                                    Text="5" FontWeight="Bold"
                                    VerticalAlignment="Center" HorizontalAlignment="Center"/>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="5,0,0,0">
-                            <styles:SHButtonPrimary x:Name="MaxMessagesPerContactPlus" Content="+" Width="28" Height="28" Padding="0" Margin="0,0,3,0" Click="MaxMessagesPerContactPlus_Click"/>
-                            <styles:SHButtonPrimary x:Name="MaxMessagesPerContactMinus" Content="-" Width="28" Height="28" Padding="0" Click="MaxMessagesPerContactMinus_Click"/>
+                            <styles:SHButtonPrimary x:Name="MaxMessagesPerContactPlus" Content="+" Width="28" Height="28" Padding="0" Margin="0,0,3,0" FontSize="16" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="MaxMessagesPerContactPlus_Click"/>
+                            <styles:SHButtonPrimary x:Name="MaxMessagesPerContactMinus" Content="-" Width="28" Height="28" Padding="0" FontSize="16" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="MaxMessagesPerContactMinus_Click"/>
                         </StackPanel>
                     </Grid>
 
@@ -131,8 +131,8 @@
                                    Text="10" FontWeight="Bold"
                                    VerticalAlignment="Center" HorizontalAlignment="Center"/>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="5,0,0,0">
-                            <styles:SHButtonPrimary x:Name="MaxQueueSizePlus" Content="+" Width="28" Height="28" Padding="0" Margin="0,0,3,0" Click="MaxQueueSizePlus_Click"/>
-                            <styles:SHButtonPrimary x:Name="MaxQueueSizeMinus" Content="-" Width="28" Height="28" Padding="0" Click="MaxQueueSizeMinus_Click"/>
+                            <styles:SHButtonPrimary x:Name="MaxQueueSizePlus" Content="+" Width="28" Height="28" Padding="0" Margin="0,0,3,0" FontSize="16" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="MaxQueueSizePlus_Click"/>
+                            <styles:SHButtonPrimary x:Name="MaxQueueSizeMinus" Content="-" Width="28" Height="28" Padding="0" FontSize="16" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="MaxQueueSizeMinus_Click"/>
                         </StackPanel>
                     </Grid>
 
@@ -190,8 +190,8 @@
                                        Text="3 min" FontWeight="Bold"
                                        VerticalAlignment="Center" HorizontalAlignment="Center"/>
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="5,0,0,0">
-                                <styles:SHButtonPrimary x:Name="ReminderIntervalPlus" Content="+" Width="28" Height="28" Padding="0" Margin="0,0,3,0" Click="ReminderIntervalPlus_Click"/>
-                                <styles:SHButtonPrimary x:Name="ReminderIntervalMinus" Content="-" Width="28" Height="28" Padding="0" Click="ReminderIntervalMinus_Click"/>
+                                <styles:SHButtonPrimary x:Name="ReminderIntervalPlus" Content="+" Width="28" Height="28" Padding="0" Margin="0,0,3,0" FontSize="16" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="ReminderIntervalPlus_Click"/>
+                                <styles:SHButtonPrimary x:Name="ReminderIntervalMinus" Content="-" Width="28" Height="28" Padding="0" FontSize="16" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="ReminderIntervalMinus_Click"/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>

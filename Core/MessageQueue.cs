@@ -394,39 +394,9 @@ namespace WhatsAppSimHubPlugin.Core
             return _vipUrgentQueue.Count + _normalQueue.Count;
         }
 
-        public int GetVipUrgentQueueSize()
-        {
-            return _vipUrgentQueue.Count;
-        }
-
-        public int GetNormalQueueSize()
-        {
-            return _normalQueue.Count;
-        }
-
         public List<QueuedMessage> GetAllMessages()
         {
             return _vipUrgentQueue.Concat(_normalQueue).ToList();
-        }
-
-        public QueuedMessage PeekNextMessage()
-        {
-            if (_currentDisplayGroup != null && _currentDisplayGroup.Count > 0)
-            {
-                return _currentDisplayGroup[0];
-            }
-
-            if (_vipUrgentQueue.Count > 0)
-            {
-                return _vipUrgentQueue[0];
-            }
-
-            if (_normalQueue.Count > 0)
-            {
-                return _normalQueue[0];
-            }
-
-            return null;
         }
 
         public void PauseQueue()

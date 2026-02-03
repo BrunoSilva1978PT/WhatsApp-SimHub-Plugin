@@ -53,7 +53,7 @@
                 Padding="15,10"
                 HorizontalAlignment="Right"
                 VerticalAlignment="Top"
-                Margin="0,-22,40,0"
+                Margin="0,37,400,0"
                 Visibility="Collapsed"
                 MinWidth="200"
                 MaxWidth="400">

@@ -26,14 +26,17 @@
 
                 <StackPanel Orientation="Horizontal">
                     <styles:SHButtonSecondary x:Name="DisconnectButton" Content="Disconnect"
-                            Width="100" Margin="0,0,10,0" IsEnabled="False"
-                            Background="#E74877" Foreground="White"/>
+                            Width="100" Height="30" Margin="0,0,10,0" IsEnabled="False"
+                            Background="#E74877" Foreground="White"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
                     <styles:SHButtonPrimary x:Name="ReconnectButton" Content="Connect"
-                            Width="100" Margin="0,0,10,0"
-                            Background="#0E7A0D" Foreground="White"/>
+                            Width="100" Height="30" Margin="0,0,10,0"
+                            Background="#0E7A0D" Foreground="White"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
                     <styles:SHButtonSecondary x:Name="ResetSessionButton" Content="Reset Session"
-                            Width="110"
-                            Background="#FF9800" Foreground="White"/>
+                            Width="110" Height="30"
+                            Background="#FF9800" Foreground="White"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
                 </StackPanel>
             </StackPanel>
 

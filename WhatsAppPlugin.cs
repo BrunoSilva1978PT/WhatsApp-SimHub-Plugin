@@ -293,6 +293,15 @@ namespace WhatsAppSimHubPlugin
         private int _overlayTotalMessages = 0;
         private string[] _overlayMessages = new string[10]; // Array de 10 mensagens
 
+        /// <summary>
+        /// Clear all overlay messages
+        /// </summary>
+        private void ClearAllOverlayMessages()
+        {
+            for (int i = 0; i < _overlayMessages.Length; i++)
+                _overlayMessages[i] = "";
+        }
+
         public void Init(PluginManager pluginManager)
         {
             PluginManager = pluginManager;
@@ -650,8 +659,7 @@ namespace WhatsAppSimHubPlugin
             _overlaySender = "";
             _overlayTypeMessage = "";
             _overlayTotalMessages = 0;
-            for (int i = 0; i < _overlayMessages.Length; i++)
-                _overlayMessages[i] = "";
+            ClearAllOverlayMessages();
             WriteLog("[OVERLAY] Properties cleared");
         }
 
@@ -664,8 +672,7 @@ namespace WhatsAppSimHubPlugin
             _overlaySender = "No connection to WhatsApp";
             _overlayTypeMessage = "";
             _overlayTotalMessages = 1; // Manter 1 para o fundo continuar visível
-            for (int i = 0; i < _overlayMessages.Length; i++)
-                _overlayMessages[i] = "";
+            ClearAllOverlayMessages();
             WriteLog("[OVERLAY] Showing 'No connection' message");
         }
 
@@ -834,8 +841,7 @@ namespace WhatsAppSimHubPlugin
             // Garantir que overlay está limpo
             _showMessage = false;
             _overlaySender = "";
-            for (int i = 0; i < _overlayMessages.Length; i++)
-                _overlayMessages[i] = "";
+            ClearAllOverlayMessages();
 
             // Retomar queues (caso estivessem pausadas)
             _messageQueue?.ResumeQueue();
@@ -1337,8 +1343,7 @@ namespace WhatsAppSimHubPlugin
             // Limpar overlay
             _showMessage = false;
             _overlaySender = "";
-            for (int i = 0; i < _overlayMessages.Length; i++)
-                _overlayMessages[i] = "";
+            ClearAllOverlayMessages();
 
             _nodeManager?.Stop();
         }
@@ -1355,8 +1360,7 @@ namespace WhatsAppSimHubPlugin
             // Garantir que overlay está limpo
             _showMessage = false;
             _overlaySender = "";
-            for (int i = 0; i < _overlayMessages.Length; i++)
-                _overlayMessages[i] = "";
+            ClearAllOverlayMessages();
 
             try
             {

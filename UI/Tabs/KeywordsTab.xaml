@@ -34,7 +34,8 @@
                         Content="➕ Add"
                         Width="100" Height="36"
                         Background="#0E7A0D"
-                        Foreground="White"/>
+                        Foreground="White"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
             </Grid>
         </StackPanel>
 

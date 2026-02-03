@@ -34,6 +34,7 @@
                             Margin="10,0,0,0"
                             Background="#007ACC"
                             Foreground="White"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                             ToolTip="Refresh VoCore device list"/>
 
                     <styles:SHButtonPrimary x:Name="TestOverlayButton" Content="🧪 Test"
@@ -41,6 +42,7 @@
                             Margin="10,0,0,0"
                             Background="#0E7A0D"
                             Foreground="White"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                             ToolTip="Test overlay on selected VoCore"/>
 
                     <TextBlock x:Name="DeviceStatusLabel"
