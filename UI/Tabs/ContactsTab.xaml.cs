@@ -74,6 +74,8 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         {
             if (sender is Button button)
             {
+                // Remove first to prevent multiple subscriptions when rows are recycled/virtualized
+                button.Click -= RemoveContactButton_Click;
                 button.Click += RemoveContactButton_Click;
             }
         }
