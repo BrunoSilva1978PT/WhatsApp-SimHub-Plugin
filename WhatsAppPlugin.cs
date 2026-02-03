@@ -287,6 +287,7 @@ namespace WhatsAppSimHubPlugin
         private const int RECONNECT_INTERVAL_MS = 15000; // 15 seconds between attempts
         private System.Timers.Timer _reconnectTimer;
         private bool _isWhatsAppConnected = false; // True when backend confirms WhatsApp connection
+        private bool _isWaitingForQrCode = false; // True when waiting for user to scan QR code
 
         // ===== INTERNAL STATE (NOT EXPOSED TO SIMHUB) =====
         private List<QueuedMessage> _currentMessageGroup = null;
@@ -874,6 +875,8 @@ namespace WhatsAppSimHubPlugin
         private void NodeManager_OnQrCode(object sender, string qrCode)
         {
             WriteLog("QR Code received - user needs to scan");
+            _isWaitingForQrCode = true;
+            StopReconnectTimer(); // Don't try to reconnect while waiting for QR scan
             _settingsControl?.UpdateQRCode(qrCode);
             _settingsControl?.UpdateConnectionStatus("QR");
             ShowQrCodeMessage();
@@ -884,6 +887,7 @@ namespace WhatsAppSimHubPlugin
             _connectionStatus = "Connected";
             _connectedNumber = e.number;
             _isWhatsAppConnected = true;
+            _isWaitingForQrCode = false;
             _userRequestedDisconnect = false;
             _settingsControl?.UpdateConnectionStatus("Connected", e.number);
 
@@ -1036,6 +1040,13 @@ namespace WhatsAppSimHubPlugin
 
             // Mark WhatsApp as disconnected
             _isWhatsAppConnected = false;
+
+            // If waiting for QR code scan, don't auto-reconnect
+            if (_isWaitingForQrCode)
+            {
+                WriteLog("Waiting for QR code scan - not starting reconnection timer");
+                return;
+            }
 
             // If user clicked Disconnect button, don't auto-reconnect
             if (_userRequestedDisconnect)
