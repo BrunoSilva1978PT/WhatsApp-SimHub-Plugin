@@ -20,6 +20,10 @@ namespace WhatsAppSimHubPlugin
     [PluginName("WhatsApp Plugin")]
     public class WhatsAppPlugin : IPlugin, IWPFSettingsV2, IDataPlugin
     {
+        // Plugin version - update this when releasing new versions
+        public const string PLUGIN_VERSION = "1.0.0";
+        private const string GITHUB_REPO = "BrunoSilva1978PT/WhatsApp-SimHub-Plugin";
+
         public PluginManager PluginManager { get; set; }
         public ImageSource PictureIcon => CreateWhatsAppIcon();
         public string LeftMenuTitle => "WhatsApp Plugin";
@@ -1527,6 +1531,271 @@ namespace WhatsAppSimHubPlugin
         {
             WriteLog($"WhatsApp check result: {result.number} - exists: {result.exists}, error: {result.error}");
             _settingsControl?.HandleCheckWhatsAppResult(result.number, result.exists, result.error);
+        }
+
+        #endregion
+
+        #region Plugin Auto-Update
+
+        private string _latestVersion = null;
+        private string _downloadUrl = null;
+        private bool _isDownloading = false;
+
+        /// <summary>
+        /// Check GitHub for new plugin version
+        /// </summary>
+        public async Task CheckForPluginUpdateAsync()
+        {
+            try
+            {
+                WriteLog("Checking for plugin updates...");
+                _settingsControl?.UpdatePluginUpdateStatus("Checking...", "#858585");
+
+                using (var client = new System.Net.Http.HttpClient())
+                {
+                    client.DefaultRequestHeaders.Add("User-Agent", "WhatsAppSimHubPlugin");
+                    client.Timeout = TimeSpan.FromSeconds(10);
+
+                    var response = await client.GetStringAsync(
+                        $"https://api.github.com/repos/{GITHUB_REPO}/releases/latest");
+
+                    var json = JObject.Parse(response);
+                    var tagName = json["tag_name"]?.ToString();
+                    var assets = json["assets"] as JArray;
+
+                    if (string.IsNullOrEmpty(tagName))
+                    {
+                        WriteLog("No release tag found");
+                        _settingsControl?.UpdatePluginUpdateStatus("✓ Up to date", "#0E7A0D");
+                        return;
+                    }
+
+                    // Clean version (remove 'v' prefix if present)
+                    _latestVersion = tagName.TrimStart('v', 'V');
+
+                    // Find DLL asset
+                    _downloadUrl = null;
+                    if (assets != null)
+                    {
+                        foreach (var asset in assets)
+                        {
+                            var name = asset["name"]?.ToString();
+                            if (name != null && name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                            {
+                                _downloadUrl = asset["browser_download_url"]?.ToString();
+                                break;
+                            }
+                        }
+                    }
+
+                    // Compare versions
+                    if (IsNewerVersion(_latestVersion, PLUGIN_VERSION))
+                    {
+                        WriteLog($"New version available: {_latestVersion} (current: {PLUGIN_VERSION})");
+                        _settingsControl?.ShowPluginUpdateAvailable(_latestVersion);
+                    }
+                    else
+                    {
+                        WriteLog($"Plugin is up to date ({PLUGIN_VERSION})");
+                        _settingsControl?.UpdatePluginUpdateStatus("✓ Up to date", "#0E7A0D");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Error checking for updates: {ex.Message}");
+                _settingsControl?.UpdatePluginUpdateStatus("✓ Up to date", "#0E7A0D");
+            }
+        }
+
+        /// <summary>
+        /// Compare two version strings (e.g., "1.1.0" > "1.0.0")
+        /// </summary>
+        private bool IsNewerVersion(string newVersion, string currentVersion)
+        {
+            try
+            {
+                var newParts = newVersion.Split('.').Select(int.Parse).ToArray();
+                var currentParts = currentVersion.Split('.').Select(int.Parse).ToArray();
+
+                for (int i = 0; i < Math.Max(newParts.Length, currentParts.Length); i++)
+                {
+                    int newPart = i < newParts.Length ? newParts[i] : 0;
+                    int currentPart = i < currentParts.Length ? currentParts[i] : 0;
+
+                    if (newPart > currentPart) return true;
+                    if (newPart < currentPart) return false;
+                }
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Download the new plugin DLL from GitHub
+        /// </summary>
+        public async Task DownloadPluginUpdateAsync()
+        {
+            if (_isDownloading || string.IsNullOrEmpty(_downloadUrl))
+                return;
+
+            _isDownloading = true;
+
+            try
+            {
+                WriteLog($"Downloading plugin update from: {_downloadUrl}");
+                _settingsControl?.UpdatePluginUpdateStatus("Downloading...", "#007ACC");
+
+                var updatesPath = Path.Combine(_pluginPath, "updates");
+                if (!Directory.Exists(updatesPath))
+                    Directory.CreateDirectory(updatesPath);
+
+                var dllPath = Path.Combine(updatesPath, "WhatsAppSimHubPlugin.dll");
+
+                using (var client = new System.Net.Http.HttpClient())
+                {
+                    client.DefaultRequestHeaders.Add("User-Agent", "WhatsAppSimHubPlugin");
+
+                    var response = await client.GetAsync(_downloadUrl, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
+                    response.EnsureSuccessStatusCode();
+
+                    var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+                    var downloadedBytes = 0L;
+
+                    using (var stream = await response.Content.ReadAsStreamAsync())
+                    using (var fileStream = new FileStream(dllPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                    {
+                        var buffer = new byte[8192];
+                        int bytesRead;
+
+                        while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                        {
+                            await fileStream.WriteAsync(buffer, 0, bytesRead);
+                            downloadedBytes += bytesRead;
+
+                            if (totalBytes > 0)
+                            {
+                                var progress = (int)((downloadedBytes * 100) / totalBytes);
+                                _settingsControl?.UpdatePluginUpdateStatus($"Downloading... {progress}%", "#007ACC");
+                            }
+                        }
+                    }
+                }
+
+                WriteLog("Plugin update downloaded successfully");
+                _settingsControl?.ShowPluginUpdateReady(_latestVersion);
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Error downloading update: {ex.Message}");
+                _settingsControl?.UpdatePluginUpdateStatus("Download failed", "#C42B1C");
+            }
+            finally
+            {
+                _isDownloading = false;
+            }
+        }
+
+        /// <summary>
+        /// Install the downloaded update (creates batch file and closes SimHub)
+        /// </summary>
+        public void InstallPluginUpdate()
+        {
+            try
+            {
+                var updatesPath = Path.Combine(_pluginPath, "updates");
+                var newDllPath = Path.Combine(updatesPath, "WhatsAppSimHubPlugin.dll");
+
+                if (!File.Exists(newDllPath))
+                {
+                    WriteLog("No update file found to install");
+                    return;
+                }
+
+                // Get SimHub paths
+                var simhubPath = Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly()?.Location)
+                    ?? @"C:\Program Files (x86)\SimHub";
+                var targetDllPath = Path.Combine(simhubPath, "WhatsAppSimHubPlugin.dll");
+                var simhubExe = Path.Combine(simhubPath, "SimHubWPF.exe");
+
+                // Create batch file for update
+                var batPath = Path.Combine(updatesPath, "update.bat");
+                var batContent = $@"@echo off
+echo Updating WhatsApp Plugin...
+echo Waiting for SimHub to close...
+timeout /t 5 /nobreak > nul
+
+echo Removing old plugin...
+del ""{targetDllPath}"" 2>nul
+
+echo Installing new version...
+copy ""{newDllPath}"" ""{targetDllPath}""
+
+if exist ""{targetDllPath}"" (
+    echo Update successful!
+    del ""{newDllPath}"" 2>nul
+    echo Starting SimHub...
+    start """" ""{simhubExe}""
+) else (
+    echo Update failed! Please copy manually.
+    pause
+)
+
+del ""%~f0""
+";
+
+                File.WriteAllText(batPath, batContent);
+                WriteLog($"Update batch file created: {batPath}");
+
+                // Start the batch file hidden
+                var process = new System.Diagnostics.Process
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = batPath,
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                    }
+                };
+                process.Start();
+
+                WriteLog("Update process started, closing SimHub...");
+
+                // Close SimHub
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    Application.Current.Shutdown();
+                });
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Error installing update: {ex.Message}");
+                _settingsControl?.ShowToast($"Error installing update: {ex.Message}", "❌", 10);
+            }
+        }
+
+        /// <summary>
+        /// Check if there's a pending update that failed to install
+        /// </summary>
+        private void CheckPendingUpdate()
+        {
+            try
+            {
+                var updatesPath = Path.Combine(_pluginPath, "updates");
+                var pendingDll = Path.Combine(updatesPath, "WhatsAppSimHubPlugin.dll");
+
+                if (File.Exists(pendingDll))
+                {
+                    WriteLog("Found pending update, cleaning up...");
+                    // Clean up - the batch file should have handled it
+                    try { File.Delete(pendingDll); } catch { }
+                }
+            }
+            catch { }
         }
 
         #endregion

@@ -11,8 +11,71 @@
 
 
 
-    <Grid Margin="10" >
-        <styles:SHTabControl>
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header with Version and Update Info -->
+        <Border Grid.Row="0" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Version Info (Right aligned) -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <!-- Current Version -->
+                    <TextBlock x:Name="CurrentVersionText"
+                               Text="1.0.0"
+                               Foreground="#858585"
+                               FontSize="13"
+                               VerticalAlignment="Center"
+                               Margin="0,0,5,0"/>
+
+                    <!-- Update Available Arrow and New Version -->
+                    <TextBlock x:Name="UpdateArrowText"
+                               Text="→"
+                               Foreground="#00BCD4"
+                               FontSize="13"
+                               VerticalAlignment="Center"
+                               Margin="0,0,5,0"
+                               Visibility="Collapsed"/>
+
+                    <TextBlock x:Name="NewVersionText"
+                               Text="1.1.0"
+                               Foreground="#00BCD4"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"
+                               Visibility="Collapsed"/>
+
+                    <!-- Status Text (Up to date / available / Downloading / ready) -->
+                    <TextBlock x:Name="UpdateStatusText"
+                               Text="✓ Up to date"
+                               Foreground="#0E7A0D"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0"/>
+
+                    <!-- Download/Install Button -->
+                    <styles:SHButtonPrimary x:Name="UpdateButton"
+                               Content="Download"
+                               Background="#007ACC"
+                               Foreground="White"
+                               Padding="12,4"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Visibility="Collapsed"
+                               ToolTip="Download new version"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <styles:SHTabControl Grid.Row="1">
             <!-- TAB 1: CONNECTION -->
             <styles:SHTabItem Header="🔌 Connection">
                 <tabs:ConnectionTab x:Name="ConnectionTab"/>
@@ -45,7 +108,7 @@
         </styles:SHTabControl>
 
         <!-- Toast Notification - Top right corner, aligned with tabs -->
-        <Border x:Name="ToastNotification"
+        <Border Grid.Row="1" x:Name="ToastNotification"
                 Background="#2D2D30"
                 BorderBrush="#007ACC"
                 BorderThickness="1"

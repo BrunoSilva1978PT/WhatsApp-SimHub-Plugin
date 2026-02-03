@@ -93,6 +93,15 @@ namespace WhatsAppSimHubPlugin.UI
             _deviceRefreshTimer.Tick += (s, e) => LoadAvailableDevicesAsync();
             _deviceRefreshTimer.Start();
 
+            // Wire up plugin update button
+            UpdateButton.Click += UpdateButton_Click;
+
+            // Set current version text
+            CurrentVersionText.Text = WhatsAppPlugin.PLUGIN_VERSION;
+
+            // Check for plugin updates on startup
+            _ = _plugin.CheckForPluginUpdateAsync();
+
             // Note: Connection monitoring and auto-reconnect is handled by WhatsAppPlugin
         }
 
@@ -3443,10 +3452,87 @@ namespace WhatsAppSimHubPlugin.UI
 
         #endregion
 
+        #region Plugin Auto-Update UI
+
+        private bool _updateDownloaded = false;
+
+        /// <summary>
+        /// Handle Update button click (Download or Install)
+        /// </summary>
+        private async void UpdateButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_updateDownloaded)
+            {
+                // Install the update
+                _plugin.InstallPluginUpdate();
+            }
+            else
+            {
+                // Download the update
+                await _plugin.DownloadPluginUpdateAsync();
+            }
+        }
+
+        /// <summary>
+        /// Update the plugin update status text
+        /// </summary>
+        public void UpdatePluginUpdateStatus(string status, string color)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                UpdateStatusText.Text = status;
+                UpdateStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+            });
+        }
+
+        /// <summary>
+        /// Show that a new version is available
+        /// </summary>
+        public void ShowPluginUpdateAvailable(string newVersion)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _updateDownloaded = false;
+
+                UpdateArrowText.Visibility = Visibility.Visible;
+                NewVersionText.Text = newVersion;
+                NewVersionText.Visibility = Visibility.Visible;
+                UpdateStatusText.Text = "available";
+                UpdateStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#00BCD4"));
+
+                UpdateButton.Content = "Download";
+                UpdateButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#007ACC"));
+                UpdateButton.Visibility = Visibility.Visible;
+            });
+        }
+
+        /// <summary>
+        /// Show that the update is ready to install
+        /// </summary>
+        public void ShowPluginUpdateReady(string newVersion)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _updateDownloaded = true;
+
+                UpdateArrowText.Visibility = Visibility.Visible;
+                NewVersionText.Text = newVersion;
+                NewVersionText.Visibility = Visibility.Visible;
+                UpdateStatusText.Text = "ready";
+                UpdateStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0E7A0D"));
+
+                UpdateButton.Content = "Install";
+                UpdateButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0E7A0D"));
+                UpdateButton.Visibility = Visibility.Visible;
+            });
+        }
+
+        #endregion
+
         /// <summary>
         /// Mostra notificação toast que desaparece após 10 segundos
         /// </summary>
-        private void ShowToast(string message, string icon = "ℹ️", int durationSeconds = 10)
+        public void ShowToast(string message, string icon = "ℹ️", int durationSeconds = 10)
         {
             Dispatcher.Invoke(() =>
             {
