@@ -87,7 +87,7 @@
     <Compile Include="Core\MessageQueue.cs" />
     <Compile Include="Core\WebSocketManager.cs" />
     <Compile Include="Core\OverlayRenderer.cs" />
-    <Compile Include="Core\DashboardGenerator.cs" />
+
     <Compile Include="Core\DashboardInstaller.cs" />
     <Compile Include="Core\DashboardMerger.cs" />
     <Compile Include="Core\PluginState.cs" />

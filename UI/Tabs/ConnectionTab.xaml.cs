@@ -1,4 +1,5 @@
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Shapes;
 
 namespace WhatsAppSimHubPlugin.UI.Tabs
@@ -24,10 +25,9 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
 
         // Backend Mode
         public ComboBox BackendModeComboCtrl => BackendModeCombo;
-        public CheckBox DebugLoggingCheckBoxCtrl => DebugLoggingCheckBox;
+        public ToggleButton DebugLoggingCheckBoxCtrl => DebugLoggingCheckBox;
 
         // WhatsApp-Web.js
-        public TextBlock WhatsAppWebJsUpdateBadgeCtrl => WhatsAppWebJsUpdateBadge;
         public ComboBox WhatsAppWebJsVersionComboCtrl => WhatsAppWebJsVersionCombo;
         public Button WhatsAppWebJsInstallButtonCtrl => WhatsAppWebJsInstallButton;
         public Button WhatsAppWebJsCheckButtonCtrl => WhatsAppWebJsCheckButton;
@@ -38,7 +38,6 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public Button WhatsAppWebJsApplyRepoButtonCtrl => WhatsAppWebJsApplyRepoButton;
 
         // Baileys
-        public TextBlock BaileysUpdateBadgeCtrl => BaileysUpdateBadge;
         public ComboBox BaileysVersionComboCtrl => BaileysVersionCombo;
         public Button BaileysInstallButtonCtrl => BaileysInstallButton;
         public Button BaileysCheckButtonCtrl => BaileysCheckButton;
@@ -49,8 +48,10 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public Button BaileysApplyRepoButtonCtrl => BaileysApplyRepoButton;
 
         // Scripts
-        public TextBlock ScriptsUpdateBadgeCtrl => ScriptsUpdateBadge;
-        public TextBlock ScriptsVersionTextCtrl => ScriptsVersionText;
+        public TextBlock WwjsScriptVersionTextCtrl => WwjsScriptVersionText;
+        public Button WwjsScriptUpdateButtonCtrl => WwjsScriptUpdateButton;
+        public TextBlock BaileysScriptVersionTextCtrl => BaileysScriptVersionText;
+        public Button BaileysScriptUpdateButtonCtrl => BaileysScriptUpdateButton;
         public Button ScriptsCheckButtonCtrl => ScriptsCheckButton;
 
         // Dependencies

@@ -23,19 +23,27 @@ namespace WhatsAppSimHubPlugin.Core
 
         /// <summary>
         /// Instala (extrai) o dashboard automaticamente
-        /// SEMPRE reinstala para garantir que está atualizado!
+        /// Só instala se a pasta WhatsAppPlugin NÃO existir em DashTemplates
+        /// Isto permite ao utilizador fazer updates manuais sem perder alterações
         /// </summary>
         public bool InstallDashboard()
         {
             try
             {
-                _log?.Invoke("📦 Installing/Updating WhatsApp dashboard...");
+                // Verificar se dashboard já existe - se sim, não reinstalar
+                if (IsDashboardInstalled())
+                {
+                    _log?.Invoke("Dashboard already exists - skipping installation (allows manual updates)");
+                    return true;
+                }
+
+                _log?.Invoke("Dashboard not found - installing from resources...");
 
                 // Extrair dashboard do recurso embebido para ficheiro temporário
                 string tempDashFile = ExtractDashboardToTemp();
                 if (string.IsNullOrEmpty(tempDashFile))
                 {
-                    _log?.Invoke("❌ Failed to extract dashboard from resources");
+                    _log?.Invoke("Failed to extract dashboard from resources");
                     return false;
                 }
 
@@ -52,7 +60,7 @@ namespace WhatsAppSimHubPlugin.Core
                     }
                     catch { }
 
-                    _log?.Invoke($"✅ WhatsApp dashboard installed successfully!");
+                    _log?.Invoke($"WhatsApp dashboard installed successfully!");
                     return true;
                 }
 
@@ -74,7 +82,7 @@ namespace WhatsAppSimHubPlugin.Core
             }
             catch (Exception ex)
             {
-                _log?.Invoke($"❌ Failed to install dashboard: {ex.Message}");
+                _log?.Invoke($"Failed to install dashboard: {ex.Message}");
                 return false;
             }
         }
@@ -236,13 +244,8 @@ namespace WhatsAppSimHubPlugin.Core
                         stream.CopyTo(fileStream);
                     }
 
-                    // Verificar se pasta já existe
+                    // Verificar pasta destino (não deve existir, já verificámos em InstallDashboard)
                     string targetFolder = Path.Combine(dashboardsPath, DASHBOARD_NAME);
-                    if (Directory.Exists(targetFolder))
-                    {
-                        _log?.Invoke($"🗑️ Removing old dashboard folder: {targetFolder}");
-                        Directory.Delete(targetFolder, true);
-                    }
 
                     // EXTRAIR diretamente para DashTemplates
                     // (O ZIP já contém a pasta WhatsAppPlugin dentro)

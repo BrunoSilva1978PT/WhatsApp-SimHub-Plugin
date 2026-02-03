@@ -84,7 +84,7 @@
                         <ComboBoxItem Content="Baileys (Lightweight)" Tag="baileys"/>
                     </ComboBox>
 
-                    <CheckBox x:Name="DebugLoggingCheckBox"
+                    <styles:SHToggleCheckbox x:Name="DebugLoggingCheckBox"
                               Content="Debug Logging"
                               VerticalAlignment="Center"
                               Margin="20,0,0,0"
@@ -112,17 +112,7 @@
                         </Grid.RowDefinitions>
 
                         <!-- Header row -->
-                        <Grid Grid.Row="0" Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="whatsapp-web.js" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="WhatsAppWebJsUpdateBadge" Grid.Column="1" Text="NEW UPDATE"
-                                       Foreground="#25D366" FontWeight="Bold" FontSize="11"
-                                       VerticalAlignment="Center" Visibility="Collapsed"
-                                       Cursor="Hand"/>
-                        </Grid>
+                        <TextBlock Text="whatsapp-web.js" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,10"/>
 
                         <!-- Version and check row -->
                         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
@@ -144,10 +134,14 @@
                                 <RadioButton x:Name="WhatsAppWebJsManualRadio" Content="Manual"
                                              GroupName="WhatsAppWebJsSource"/>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" x:Name="WhatsAppWebJsManualPanel" Visibility="Collapsed">
-                                <TextBlock Text="Repository:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox x:Name="WhatsAppWebJsRepoTextBox" Width="280" Height="28"/>
-                                <styles:SHButtonPrimary x:Name="WhatsAppWebJsApplyRepoButton" Content="Apply" Margin="10,0,0,0" Padding="10,5"/>
+                            <StackPanel x:Name="WhatsAppWebJsManualPanel" Visibility="Collapsed">
+                                <TextBlock Text="Format: github:user/repo#branch (e.g.: github:pedroslopez/whatsapp-web.js#main)"
+                                           Foreground="#888" FontSize="11" Margin="0,0,0,5"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Repository:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBox x:Name="WhatsAppWebJsRepoTextBox" Width="280" Height="28"/>
+                                    <styles:SHButtonPrimary x:Name="WhatsAppWebJsApplyRepoButton" Content="Apply" Margin="10,0,0,0" Padding="10,5"/>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
                     </Grid>
@@ -163,17 +157,7 @@
                         </Grid.RowDefinitions>
 
                         <!-- Header row -->
-                        <Grid Grid.Row="0" Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="baileys" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="BaileysUpdateBadge" Grid.Column="1" Text="NEW UPDATE"
-                                       Foreground="#25D366" FontWeight="Bold" FontSize="11"
-                                       VerticalAlignment="Center" Visibility="Collapsed"
-                                       Cursor="Hand"/>
-                        </Grid>
+                        <TextBlock Text="baileys" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,10"/>
 
                         <!-- Version and check row -->
                         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
@@ -195,10 +179,14 @@
                                 <RadioButton x:Name="BaileysManualRadio" Content="Manual"
                                              GroupName="BaileysSource"/>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" x:Name="BaileysManualPanel" Visibility="Collapsed">
-                                <TextBlock Text="Repository:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox x:Name="BaileysRepoTextBox" Width="280" Height="28"/>
-                                <styles:SHButtonPrimary x:Name="BaileysApplyRepoButton" Content="Apply" Margin="10,0,0,0" Padding="10,5"/>
+                            <StackPanel x:Name="BaileysManualPanel" Visibility="Collapsed">
+                                <TextBlock Text="Format: github:user/repo#branch (e.g.: github:WhiskeySockets/Baileys#main)"
+                                           Foreground="#888" FontSize="11" Margin="0,0,0,5"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Repository:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBox x:Name="BaileysRepoTextBox" Width="280" Height="28"/>
+                                    <styles:SHButtonPrimary x:Name="BaileysApplyRepoButton" Content="Apply" Margin="10,0,0,0" Padding="10,5"/>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
                     </Grid>
@@ -210,31 +198,43 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <!-- Header -->
-                        <Grid Grid.Row="0" Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Scripts" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="ScriptsUpdateBadge" Grid.Column="1" Text="NEW UPDATE"
-                                       Foreground="#25D366" FontWeight="Bold" FontSize="11"
-                                       VerticalAlignment="Center" Visibility="Collapsed"
-                                       Cursor="Hand"/>
-                        </Grid>
+                        <TextBlock Text="Scripts" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,10"/>
 
-                        <!-- Version row -->
-                        <StackPanel Grid.Row="1" Orientation="Horizontal">
-                            <TextBlock Text="Version:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <!-- whatsapp-server.js row -->
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="whatsapp-server.js:" VerticalAlignment="Center" Width="140"/>
                             <Border Background="#252526" BorderBrush="#3E3E42" BorderThickness="1"
-                                    Width="150" Height="28" VerticalAlignment="Center">
-                                <TextBlock x:Name="ScriptsVersionText" Text=""
-                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                    Width="80" Height="28" VerticalAlignment="Center">
+                                <TextBlock x:Name="WwjsScriptVersionText" Text=""
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
                             </Border>
+                            <styles:SHButtonPrimary x:Name="WwjsScriptUpdateButton" Content="New Update"
+                                    Margin="10,0,0,0" Padding="10,5" Visibility="Collapsed"
+                                    Background="#0E7A0D" Foreground="White"/>
+                        </StackPanel>
+
+                        <!-- baileys-server.mjs row -->
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="baileys-server.mjs:" VerticalAlignment="Center" Width="140"/>
+                            <Border Background="#252526" BorderBrush="#3E3E42" BorderThickness="1"
+                                    Width="80" Height="28" VerticalAlignment="Center">
+                                <TextBlock x:Name="BaileysScriptVersionText" Text=""
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            </Border>
+                            <styles:SHButtonPrimary x:Name="BaileysScriptUpdateButton" Content="New Update"
+                                    Margin="10,0,0,0" Padding="10,5" Visibility="Collapsed"
+                                    Background="#0E7A0D" Foreground="White"/>
+                        </StackPanel>
+
+                        <!-- Check for updates button -->
+                        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="140,0,0,0">
                             <styles:SHButtonPrimary x:Name="ScriptsCheckButton" Content="Check for updates"
-                                    Margin="10,0,0,0" Padding="10,5"/>
+                                    Padding="10,5"/>
                         </StackPanel>
                     </Grid>
                 </Border>

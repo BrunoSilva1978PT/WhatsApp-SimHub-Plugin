@@ -22,6 +22,8 @@ namespace WhatsAppSimHubPlugin.Core
         private CancellationTokenSource _cts;
         private bool _isConnected = false;
         private int _selectedPort = 3000; // Porta dinâmica comunicada pelo Node.js
+        private readonly SemaphoreSlim _startLock = new SemaphoreSlim(1, 1); // Prevent concurrent starts
+        private bool _isStarting = false; // Flag to prevent multiple starts
 
         public event EventHandler<string> QrCodeReceived;
         public event EventHandler<(string number, string name)> Ready;
@@ -178,18 +180,28 @@ namespace WhatsAppSimHubPlugin.Core
 
         public async Task StartAsync()
         {
-            if (_isConnected) return;
-            if (_isInstalling) return;
-
-            // Se já há um processo Node a correr, não iniciar outro
-            if (IsNodeProcessAlive)
+            // Use semaphore to prevent concurrent starts
+            if (!await _startLock.WaitAsync(0).ConfigureAwait(false))
             {
-                StatusChanged?.Invoke(this, "Node.js already running");
+                StatusChanged?.Invoke(this, "Start already in progress - ignoring duplicate request");
                 return;
             }
 
             try
             {
+                if (_isConnected) return;
+                if (_isInstalling) return;
+                if (_isStarting) return;
+
+                // Se já há um processo Node a correr, não iniciar outro
+                if (IsNodeProcessAlive)
+                {
+                    StatusChanged?.Invoke(this, "Node.js already running");
+                    return;
+                }
+
+                _isStarting = true;
+
                 // Verificar se precisa instalar pacotes
                 bool needsInstall = await CheckIfNpmInstallNeeded().ConfigureAwait(false);
 
@@ -209,6 +221,11 @@ namespace WhatsAppSimHubPlugin.Core
             {
                 StatusChanged?.Invoke(this, $"Error: {ex.Message}");
                 throw;
+            }
+            finally
+            {
+                _isStarting = false;
+                _startLock.Release();
             }
         }
 
@@ -801,6 +818,7 @@ namespace WhatsAppSimHubPlugin.Core
         public void Stop()
         {
             _isConnected = false;
+            _isStarting = false;
 
             // Enviar shutdown ao Node.js de forma síncrona (com timeout curto)
             try

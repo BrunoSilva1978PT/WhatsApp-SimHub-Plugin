@@ -10,14 +10,12 @@ namespace WhatsAppSimHubPlugin.Core
     public class OverlayRenderer : IDisposable
     {
         private readonly PluginSettings _settings;
-        private readonly DashboardGenerator _dashboardGenerator;
         private object _vocoreDevice;
         private object _vocoreSettings;
 
         public OverlayRenderer(PluginSettings settings)
         {
             _settings = settings;
-            _dashboardGenerator = new DashboardGenerator();
         }
 
         /// <summary>
@@ -221,7 +219,6 @@ namespace WhatsAppSimHubPlugin.Core
 
         public void Dispose()
         {
-            _dashboardGenerator?.RemoveWhatsAppOverlay();
         }
     }
 }

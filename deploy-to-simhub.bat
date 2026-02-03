@@ -8,7 +8,7 @@ echo ========================================
 
 REM Detectar PC e definir path do projeto
 REM Por defeito usa drive E:\
-set "PROJECT_PATH=E:\Programaçao\GitHub\WhatsApp-SimHub-Plugin"
+set "PROJECT_PATH=E:\Programação\GitHub\whatsapp-plugin"
 
 REM Se for PC-TIAGO, sobrescreve para drive D:\
 if "%COMPUTERNAME%"=="PC-TIAGO" (

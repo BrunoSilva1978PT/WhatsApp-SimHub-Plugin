@@ -11,7 +11,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using WhatsAppSimHubPlugin.Models;
 using WhatsAppSimHubPlugin.Core;
-using System.Timers;
+
 
 namespace WhatsAppSimHubPlugin
 {
@@ -32,7 +32,7 @@ namespace WhatsAppSimHubPlugin
         private object _vocoreSettings; // Settings do VoCore
         private DateTime _lastDashboardCheck = DateTime.MinValue; // 🔥 Throttle verificação dashboard
         private bool _isTestingMessage = false; // 🔥 Flag para bloquear queues durante teste
-        private Timer _dashboardCheckTimer; // 🔥 Timer para verificar dashboard de 30 em 30s
+
         private DashboardInstaller _dashboardInstaller; // 🔥 Installer para reinstalar dashboard
         private DashboardMerger _dashboardMerger; // 🔥 Merger para juntar dashboards
 
@@ -279,6 +279,7 @@ namespace WhatsAppSimHubPlugin
         private int _connectionRetryCount = 0;
         private const int MAX_RETRY_ATTEMPTS = 3;
         private const int RETRY_DELAY_MS = 5000; // 5 segundos entre tentativas
+        private bool _isRetrying = false; // Prevents multiple concurrent retries
 
         // ===== ESTADO INTERNO (NÃO EXPOR AO SIMHUB) =====
         private List<QueuedMessage> _currentMessageGroup = null;
@@ -320,6 +321,9 @@ namespace WhatsAppSimHubPlugin
             _settingsFile = Path.Combine(_pluginPath, "config", "settings.json");
             _contactsFile = Path.Combine(_pluginPath, "config", "contacts.json");
             _keywordsFile = Path.Combine(_pluginPath, "config", "keywords.json");
+
+            // Ensure debug.json exists (default: disabled)
+            EnsureDebugConfigExists();
 
             // Carregar configurações
             LoadSettings();
@@ -376,12 +380,7 @@ namespace WhatsAppSimHubPlugin
             bool dashExists = _dashboardInstaller.IsDashboardInstalled();
             WriteLog($"Dashboard accessible: {dashExists}");
 
-            // 🔥 INICIAR TIMER: Verificar dashboard de 5 em 5s
-            _dashboardCheckTimer = new Timer(5000); // 5 segundos
-            _dashboardCheckTimer.Elapsed += DashboardCheckTimer_Elapsed;
-            _dashboardCheckTimer.AutoReset = true;
-            _dashboardCheckTimer.Start();
-            WriteLog("✅ Dashboard auto-check timer started (5s interval)");
+
 
             // 🎮 IDataPlugin vai chamar DataUpdate() automaticamente a 60 FPS!
             // Não precisa de timer manual para botões!
@@ -428,21 +427,71 @@ namespace WhatsAppSimHubPlugin
         }
 
         /// <summary>
+        /// Invalidate the debug logging cache so it re-reads from file
+        /// </summary>
+        public void InvalidateDebugLoggingCache()
+        {
+            _debugLoggingCache = null;
+            _debugLoggingCacheTime = DateTime.MinValue;
+        }
+
+        /// <summary>
+        /// Ensure debug.json exists with default value (disabled)
+        /// </summary>
+        private void EnsureDebugConfigExists()
+        {
+            try
+            {
+                var debugPath = Path.Combine(_pluginPath, "config", "debug.json");
+                if (!File.Exists(debugPath))
+                {
+                    var configDir = Path.GetDirectoryName(debugPath);
+                    if (!Directory.Exists(configDir))
+                    {
+                        Directory.CreateDirectory(configDir);
+                    }
+                    // Create with debug disabled by default
+                    File.WriteAllText(debugPath, "{\n  \"enabled\": false\n}");
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
         /// Check if debug logging is enabled via config/debug.json
         /// </summary>
+        private bool? _debugLoggingCache = null;
+        private DateTime _debugLoggingCacheTime = DateTime.MinValue;
+
         private bool IsDebugLoggingEnabled()
         {
             try
             {
+                // Cache for 5 seconds to avoid reading file on every log call
+                if (_debugLoggingCache.HasValue && (DateTime.Now - _debugLoggingCacheTime).TotalSeconds < 5)
+                {
+                    return _debugLoggingCache.Value;
+                }
+
                 var debugPath = Path.Combine(_pluginPath, "config", "debug.json");
                 if (File.Exists(debugPath))
                 {
                     var json = File.ReadAllText(debugPath);
                     var obj = JObject.Parse(json);
-                    return obj["enabled"]?.ToObject<bool>() ?? false;
+                    _debugLoggingCache = obj["enabled"]?.ToObject<bool>() ?? false;
+                    _debugLoggingCacheTime = DateTime.Now;
+                    return _debugLoggingCache.Value;
                 }
+
+                // File doesn't exist = debug disabled
+                _debugLoggingCache = false;
+                _debugLoggingCacheTime = DateTime.Now;
             }
-            catch { }
+            catch
+            {
+                _debugLoggingCache = false;
+                _debugLoggingCacheTime = DateTime.Now;
+            }
             return false;
         }
 
@@ -929,9 +978,17 @@ namespace WhatsAppSimHubPlugin
                 WriteLog("User requested disconnect - not retrying");
                 _connectionStatus = "Disconnected";
                 _settingsControl?.UpdateConnectionStatus("Disconnected");
+                _isRetrying = false;
 
                 // Limpar propriedades do overlay
                 ClearOverlayProperties();
+                return;
+            }
+
+            // Prevent multiple concurrent retries
+            if (_isRetrying)
+            {
+                WriteLog("Retry already in progress - ignoring duplicate error event");
                 return;
             }
 
@@ -941,30 +998,34 @@ namespace WhatsAppSimHubPlugin
 
             if (_connectionRetryCount <= MAX_RETRY_ATTEMPTS)
             {
+                _isRetrying = true;
                 _connectionStatus = $"Reconnecting ({_connectionRetryCount}/{MAX_RETRY_ATTEMPTS})...";
                 _settingsControl?.UpdateConnectionStatus($"Reconnecting ({_connectionRetryCount}/{MAX_RETRY_ATTEMPTS})...");
 
                 // Pausar queues durante retry
                 _messageQueue?.PauseQueue();
-                WriteLog("Queue paused during reconnection attempt");
+                WriteLog($"Queue paused - waiting {RETRY_DELAY_MS}ms before retry...");
 
                 // Tentar reconectar após delay
                 _ = Task.Run(async () =>
                 {
-                    await Task.Delay(RETRY_DELAY_MS);
-
-                    // Verificar novamente se user não pediu disconnect entretanto
-                    if (_userRequestedDisconnect)
-                    {
-                        WriteLog("User requested disconnect during retry delay - aborting");
-                        return;
-                    }
-
                     try
                     {
-                        WriteLog($"Retry attempt {_connectionRetryCount}...");
+                        // Wait the full delay before retrying
+                        await Task.Delay(RETRY_DELAY_MS);
+
+                        // Verificar novamente se user não pediu disconnect entretanto
+                        if (_userRequestedDisconnect)
+                        {
+                            WriteLog("User requested disconnect during retry delay - aborting");
+                            _isRetrying = false;
+                            return;
+                        }
+
+                        WriteLog($"Retry attempt {_connectionRetryCount} starting now...");
                         _nodeManager?.Stop();
-                        await Task.Delay(500);
+                        await Task.Delay(1000); // Wait for process to fully stop
+
                         await _nodeManager.StartAsync();
                     }
                     catch (Exception ex)
@@ -972,14 +1033,19 @@ namespace WhatsAppSimHubPlugin
                         WriteLog($"Retry {_connectionRetryCount} failed: {ex.Message}");
                         // O próximo erro vai disparar NodeManager_OnError novamente
                     }
+                    finally
+                    {
+                        _isRetrying = false;
+                    }
                 });
             }
             else
             {
                 // Falhou todas as tentativas
-                WriteLog($"❌ All {MAX_RETRY_ATTEMPTS} reconnection attempts failed");
+                WriteLog($"All {MAX_RETRY_ATTEMPTS} reconnection attempts failed");
                 _connectionStatus = "Connection Failed";
                 _settingsControl?.UpdateConnectionStatus("Connection Failed");
+                _isRetrying = false;
 
                 // Pausar queues
                 _messageQueue?.PauseQueue();
@@ -1182,13 +1248,6 @@ namespace WhatsAppSimHubPlugin
         {
             WriteLog("=== WhatsApp Plugin Shutting Down ===");
 
-            // Stop dashboard check timer
-            if (_dashboardCheckTimer != null)
-            {
-                _dashboardCheckTimer.Stop();
-                _dashboardCheckTimer.Dispose();
-            }
-
             SaveSettings();
 
             // Clean disconnect - same as clicking Disconnect button
@@ -1269,6 +1328,7 @@ namespace WhatsAppSimHubPlugin
             // Marcar que foi o user que pediu disconnect (não tentar reconectar)
             _userRequestedDisconnect = true;
             _connectionRetryCount = 0;
+            _isRetrying = false;
 
             // Limpar ambas as queues
             _messageQueue?.ClearQueue();
@@ -1290,6 +1350,7 @@ namespace WhatsAppSimHubPlugin
             // Reset flags - user quer conectar
             _userRequestedDisconnect = false;
             _connectionRetryCount = 0;
+            _isRetrying = false;
 
             // Garantir que overlay está limpo
             _showMessage = false;
@@ -1704,51 +1765,7 @@ namespace WhatsAppSimHubPlugin
             }
         }
 
-        /// <summary>
-        /// Timer: Verifica de 30 em 30s se dashboard existe e reinstala se necessário
-        /// Corre em background para não bloquear o SimHub/VoCore
-        /// </summary>
-        private void DashboardCheckTimer_Elapsed(object sender, ElapsedEventArgs e)
-        {
-            // Executar em background thread para não bloquear o timer thread
-            _ = Task.Run(() =>
-            {
-                try
-                {
-                    // Verificar se dashboard ainda existe
-                    if (_dashboardInstaller == null) return;
 
-                    bool exists = _dashboardInstaller.IsDashboardInstalled();
-
-                    if (!exists)
-                    {
-                        // Dashboard foi apagado! Reinstalar automaticamente
-                        WriteLog("⚠️ Dashboard not found! Auto-reinstalling...");
-
-                        bool reinstalled = _dashboardInstaller.InstallDashboard();
-
-                        if (reinstalled)
-                        {
-                            WriteLog("✅ Dashboard auto-reinstalled successfully!");
-                        }
-                        else
-                        {
-                            WriteLog("❌ Failed to auto-reinstall dashboard");
-                        }
-                    }
-
-                    // ⭐ VERIFICAR SE OVERLAY ESTÁ ATIVO (a cada 30s)
-                    if (_vocoreDevice != null && _vocoreSettings != null)
-                    {
-                        EnsureOverlayActive();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    WriteLog($"❌ DashboardCheckTimer error: {ex.Message}");
-                }
-            });
-        }
 
         /// <summary>
         /// 🎮 Método chamado automaticamente pelo SimHub a 60 FPS!
