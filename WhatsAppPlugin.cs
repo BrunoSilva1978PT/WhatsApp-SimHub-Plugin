@@ -56,6 +56,12 @@ namespace WhatsAppSimHubPlugin
         // Property to check if Node.js script is running
         public bool IsScriptRunning => _nodeManager?.IsConnected ?? false;
 
+        // Property to check full connection status (Node.js + WebSocket + WhatsApp)
+        public bool IsFullyConnected => IsScriptRunning && _isWhatsAppConnected;
+
+        // Property to check WhatsApp connection status
+        public bool IsWhatsAppConnected => _isWhatsAppConnected;
+
         // Check if Node.js is installed (cached to avoid blocking)
         private bool? _nodeJsInstalledCache = null;
         private DateTime _nodeJsCacheTime = DateTime.MinValue;
@@ -280,6 +286,7 @@ namespace WhatsAppSimHubPlugin
         private const int MAX_RETRY_ATTEMPTS = 3;
         private const int RETRY_DELAY_MS = 5000; // 5 seconds between attempts
         private bool _isRetrying = false; // Prevents multiple concurrent retries
+        private bool _isWhatsAppConnected = false; // True when backend confirms WhatsApp connection (ready event)
 
         // ===== INTERNAL STATE (NOT EXPOSED TO SIMHUB) =====
         private List<QueuedMessage> _currentMessageGroup = null;
@@ -858,10 +865,13 @@ namespace WhatsAppSimHubPlugin
         {
             _connectionStatus = "Connected";
             _connectedNumber = e.number;
+            _isWhatsAppConnected = true; // Mark WhatsApp as connected
+            _userRequestedDisconnect = false; // Clear disconnect flag on successful connection
             _settingsControl?.UpdateConnectionStatus("Connected", e.number);
 
             // Reset retry counter on successful connection
             _connectionRetryCount = 0;
+            _isRetrying = false;
 
             // Garantir que overlay está limpo
             _showMessage = false;
@@ -1004,17 +1014,18 @@ namespace WhatsAppSimHubPlugin
 
         private void NodeManager_OnError(object sender, EventArgs e)
         {
-            WriteLog($"Node.js reported error or disconnected");
+            WriteLog($"🔴 Connection lost - WhatsApp disconnected or backend error");
 
-            // Se user pediu disconnect, não tentar reconectar
+            // Mark WhatsApp as disconnected
+            _isWhatsAppConnected = false;
+
+            // If user clicked Disconnect button, don't auto-reconnect
             if (_userRequestedDisconnect)
             {
                 WriteLog("User requested disconnect - not retrying");
                 _connectionStatus = "Disconnected";
                 _settingsControl?.UpdateConnectionStatus("Disconnected");
                 _isRetrying = false;
-
-                // Limpar propriedades do overlay
                 ClearOverlayProperties();
                 return;
             }
@@ -1026,29 +1037,30 @@ namespace WhatsAppSimHubPlugin
                 return;
             }
 
-            // Tentar reconectar até 3 vezes
+            // Pause message queue during reconnection attempts
+            _messageQueue?.PauseQueue();
+            WriteLog("Queue paused for reconnection");
+
+            // Start auto-reconnect process
+            _isRetrying = true;
             _connectionRetryCount++;
-            WriteLog($"Connection attempt {_connectionRetryCount}/{MAX_RETRY_ATTEMPTS}");
 
             if (_connectionRetryCount <= MAX_RETRY_ATTEMPTS)
             {
-                _isRetrying = true;
+                WriteLog($"🔄 Auto-reconnect attempt {_connectionRetryCount}/{MAX_RETRY_ATTEMPTS}");
                 _connectionStatus = $"Reconnecting ({_connectionRetryCount}/{MAX_RETRY_ATTEMPTS})...";
                 _settingsControl?.UpdateConnectionStatus($"Reconnecting ({_connectionRetryCount}/{MAX_RETRY_ATTEMPTS})...");
 
-                // Pausar queues durante retry
-                _messageQueue?.PauseQueue();
-                WriteLog($"Queue paused - waiting {RETRY_DELAY_MS}ms before retry...");
-
-                // Tentar reconectar após delay
+                // Attempt reconnection in background
                 _ = Task.Run(async () =>
                 {
                     try
                     {
-                        // Wait the full delay before retrying
+                        // Wait before retrying
+                        WriteLog($"Waiting {RETRY_DELAY_MS}ms before retry...");
                         await Task.Delay(RETRY_DELAY_MS);
 
-                        // Verificar novamente se user não pediu disconnect entretanto
+                        // Check if user disconnected during wait
                         if (_userRequestedDisconnect)
                         {
                             WriteLog("User requested disconnect during retry delay - aborting");
@@ -1056,35 +1068,32 @@ namespace WhatsAppSimHubPlugin
                             return;
                         }
 
-                        WriteLog($"Retry attempt {_connectionRetryCount} starting now...");
+                        // Stop current connection and restart
+                        WriteLog($"Stopping current connection...");
                         _nodeManager?.Stop();
-                        await Task.Delay(1000); // Wait for process to fully stop
+                        await Task.Delay(1000);
 
+                        WriteLog($"Starting reconnection attempt {_connectionRetryCount}...");
                         await _nodeManager.StartAsync();
+                        // If successful, NodeManager_OnReady will be called and reset counters
                     }
                     catch (Exception ex)
                     {
-                        WriteLog($"Retry {_connectionRetryCount} failed: {ex.Message}");
-                        // O próximo erro vai disparar NodeManager_OnError novamente
-                    }
-                    finally
-                    {
+                        WriteLog($"❌ Retry {_connectionRetryCount} failed: {ex.Message}");
                         _isRetrying = false;
+                        // Next error will trigger NodeManager_OnError again
                     }
                 });
             }
             else
             {
-                // Falhou todas as tentativas
-                WriteLog($"All {MAX_RETRY_ATTEMPTS} reconnection attempts failed");
-                _connectionStatus = "Connection Failed";
-                _settingsControl?.UpdateConnectionStatus("Connection Failed");
+                // All retry attempts failed
+                WriteLog($"❌ All {MAX_RETRY_ATTEMPTS} reconnection attempts failed");
+                _connectionStatus = "Connection Error";
+                _settingsControl?.UpdateConnectionStatus("Connection Error");
                 _isRetrying = false;
 
-                // Pausar queues
-                _messageQueue?.PauseQueue();
-
-                // Mostrar mensagem fixa no ecrã
+                // Show error message on screen
                 ShowNoConnectionMessage();
             }
         }

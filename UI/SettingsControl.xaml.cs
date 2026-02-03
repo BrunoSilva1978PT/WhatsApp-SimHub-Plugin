@@ -49,7 +49,7 @@ namespace WhatsAppSimHubPlugin.UI
         private DispatcherTimer _connectionStatusTimer; // 🔥 Timer para detectar crashes
         private bool _isLoadingDevices = false; // 🔥 Flag para evitar trigger durante loading
         private HashSet<string> _knownDeviceIds = new HashSet<string>(); // 🔥 Devices conhecidos
-        private bool _lastConnectionState = false; // 🔥 Para detectar crashes
+
         private bool _userDisconnected = false; // 🔥 Flag para disconnect intencional
         private ObservableCollection<Contact> _chatContacts; // 📱 Contactos das conversas ativas
 
@@ -550,11 +550,10 @@ namespace WhatsAppSimHubPlugin.UI
 
         private void CheckScriptStatusPeriodic()
         {
-            // 🔥 TIMER SIMPLIFICADO:
-            // Apenas verifica se Node.js está instalado!
-            // TODOS os outros estados são controlados por eventos/botões!
+            // This timer only checks if Node.js is installed
+            // All connection state management is handled by WhatsAppPlugin via events
 
-            // Se user desconectou, respeitar estado "Disconnected"
+            // If user manually disconnected, don't interfere
             if (_userDisconnected)
             {
                 return;
@@ -562,32 +561,14 @@ namespace WhatsAppSimHubPlugin.UI
 
             var currentStatus = ConnectionTab.StatusTextCtrl.Text.ToLower();
 
-            // Se já mostra erro de Node.js, não verificar de novo
+            // If already showing Node.js error, don't check again
             if (currentStatus.Contains("node.js"))
             {
                 return;
             }
 
-            // Estados válidos que o timer NÃO deve tocar:
-            // - "connected" → Tudo bem!
-            // - "connecting" → Processo em curso
-            // - "qr" → Aguardando scan
-            // - "disconnected" → Estado normal desligado
-
-            // Timer deixa TUDO em paz! Eventos controlam os estados!
-            // Única exceção: verificar se Node.js crashou APÓS estar conectado
-
-            bool currentState = _plugin.IsScriptRunning;
-
-            // Se estava conectado E agora script não está a correr → Crash!
-            if (_lastConnectionState && !currentState && currentStatus == "connected")
-            {
-                // Script crashou após estar conectado
-                UpdateConnectionStatus("Disconnected");
-                _userDisconnected = true; // Marcar como desconectado
-            }
-
-            _lastConnectionState = currentState;
+            // Don't interfere with active states (connecting, reconnecting, qr, etc.)
+            // The WhatsAppPlugin handles all reconnection logic via NodeManager_OnError
         }
 
         #region Connection Tab
@@ -610,6 +591,9 @@ namespace WhatsAppSimHubPlugin.UI
                         ConnectionTab.ReconnectButtonCtrl.Opacity = 0.5;
 
                         ConnectionTab.ConnectedNumberTextCtrl.Text = number != null ? $"Connected as: +{number}" : "Connected";
+
+                        // Reset user disconnect flag on successful connection
+                        _userDisconnected = false;
 
                         // ✅ ESCONDER QR CODE quando conecta
                         ConnectionTab.QRCodeImageCtrl.Visibility = Visibility.Collapsed;
@@ -652,7 +636,6 @@ namespace WhatsAppSimHubPlugin.UI
                         break;
 
                     case "disconnected":
-                    case "error":
                         ConnectionTab.StatusIndicatorCtrl.Fill = new SolidColorBrush(Color.FromRgb(231, 72, 119)); // Red
 
                         // Disconnect disabled, Reconnect enabled
@@ -662,6 +645,35 @@ namespace WhatsAppSimHubPlugin.UI
                         ConnectionTab.ReconnectButtonCtrl.Opacity = 1.0;
 
                         ConnectionTab.ConnectedNumberTextCtrl.Text = "No connection";
+                        break;
+
+                    case "connection error":
+                    case "error":
+                        ConnectionTab.StatusIndicatorCtrl.Fill = new SolidColorBrush(Color.FromRgb(231, 72, 119)); // Red
+
+                        // Disconnect disabled, Reconnect enabled
+                        ConnectionTab.DisconnectButtonCtrl.IsEnabled = false;
+                        ConnectionTab.DisconnectButtonCtrl.Opacity = 0.5;
+                        ConnectionTab.ReconnectButtonCtrl.IsEnabled = true;
+                        ConnectionTab.ReconnectButtonCtrl.Opacity = 1.0;
+
+                        ConnectionTab.ConnectedNumberTextCtrl.Text = "Connection failed - click Reconnect to try again";
+                        break;
+
+                    default:
+                        // Handle reconnecting states (e.g., "Reconnecting (1/3)...")
+                        if (status.ToLower().StartsWith("reconnecting"))
+                        {
+                            ConnectionTab.StatusIndicatorCtrl.Fill = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
+
+                            // Both buttons available during reconnect
+                            ConnectionTab.DisconnectButtonCtrl.IsEnabled = true;
+                            ConnectionTab.DisconnectButtonCtrl.Opacity = 1.0;
+                            ConnectionTab.ReconnectButtonCtrl.IsEnabled = false;
+                            ConnectionTab.ReconnectButtonCtrl.Opacity = 0.5;
+
+                            ConnectionTab.ConnectedNumberTextCtrl.Text = "Auto-reconnecting...";
+                        }
                         break;
                 }
             });
