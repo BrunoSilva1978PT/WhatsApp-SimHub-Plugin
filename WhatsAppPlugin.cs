@@ -1182,128 +1182,27 @@ namespace WhatsAppSimHubPlugin
         {
             WriteLog("=== WhatsApp Plugin Shutting Down ===");
 
-            // Parar timer de verificação do dashboard
+            // Stop dashboard check timer
             if (_dashboardCheckTimer != null)
             {
                 _dashboardCheckTimer.Stop();
                 _dashboardCheckTimer.Dispose();
-                WriteLog("Dashboard check timer stopped");
             }
 
             SaveSettings();
 
-            // 🔥 PARAR NODE.JS
+            // Clean disconnect - same as clicking Disconnect button
+            // This sends shutdown command to Node.js and waits for clean exit
             if (_nodeManager != null)
             {
-                WriteLog("Stopping Node.js process...");
+                WriteLog("Disconnecting Node.js...");
                 _nodeManager.Stop();
                 _nodeManager.Dispose();
-                WriteLog("Node.js process stopped");
             }
-
-            // Give time for Node.js to cleanup Chrome/CefSharp properly (async para não bloquear SimHub)
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(2000).ConfigureAwait(false);
-                // Cleanup continues in background
-            });
 
             _messageQueue?.Dispose();
 
-            // 🔥 MATAR APENAS PROCESSOS CEFSHARP ÓRFÃOS (não Chrome do usuário)
-            try
-            {
-                WriteLog("Cleaning up orphaned CefSharp processes...");
-                var cefProcesses = System.Diagnostics.Process.GetProcessesByName("CefSharp.BrowserSubprocess");
-                int killedCount = 0;
-
-                foreach (var proc in cefProcesses)
-                {
-                    try
-                    {
-                        WriteLog($"  Killing CefSharp subprocess {proc.Id}");
-                        proc.Kill();
-                        killedCount++;
-                    }
-                    catch (Exception ex)
-                    {
-                        WriteLog($"  Could not kill CefSharp process {proc.Id}: {ex.Message}");
-                    }
-                }
-
-                if (killedCount > 0)
-                    WriteLog($"✅ Cleaned up {killedCount} CefSharp process(es)");
-                else
-                    WriteLog("No orphaned CefSharp processes found");
-            }
-            catch (Exception ex)
-            {
-                WriteLog($"⚠️ Error killing Chrome processes: {ex.Message}");
-            }
-
-            // 🔥 MATAR TODOS OS PROCESSOS NODE.JS DO PLUGIN
-            try
-            {
-                WriteLog("Killing all Node.js processes from WhatsApp plugin...");
-                var nodeProcesses = System.Diagnostics.Process.GetProcessesByName("node");
-                int killedCount = 0;
-
-                foreach (var proc in nodeProcesses)
-                {
-                    try
-                    {
-                        var cmdLine = GetProcessCommandLine(proc);
-                        // Verificar se é script do plugin (whatsapp-server.js OU baileys-server.mjs)
-                        if (cmdLine != null &&
-                            (cmdLine.IndexOf("whatsapp-server.js", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                             cmdLine.IndexOf("baileys-server.mjs", StringComparison.OrdinalIgnoreCase) >= 0))
-                        {
-                            WriteLog($"  Killing Node.js process {proc.Id}");
-                            proc.Kill();
-                            try { proc.WaitForExit(1000); } catch { }
-                            killedCount++;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        WriteLog($"  Could not kill Node.js process {proc.Id}: {ex.Message}");
-                    }
-                }
-
-                if (killedCount > 0)
-                    WriteLog($"✅ Killed {killedCount} Node.js process(es)");
-                else
-                    WriteLog("No WhatsApp plugin Node.js processes found");
-            }
-            catch (Exception ex)
-            {
-                WriteLog($"⚠️ Error killing Node.js processes: {ex.Message}");
-            }
-
             WriteLog("Plugin shutdown complete");
-        }
-
-        /// <summary>
-        /// Helper para pegar command line de um processo
-        /// </summary>
-        private string GetProcessCommandLine(System.Diagnostics.Process process)
-        {
-            try
-            {
-                using (var searcher = new System.Management.ManagementObjectSearcher(
-                    $"SELECT CommandLine FROM Win32_Process WHERE ProcessId = {process.Id}"))
-                {
-                    foreach (System.Management.ManagementObject obj in searcher.Get())
-                    {
-                        return obj["CommandLine"]?.ToString();
-                    }
-                }
-            }
-            catch
-            {
-                // Se falhar, retornar null
-            }
-            return null;
         }
 
         private void LoadSettings()
