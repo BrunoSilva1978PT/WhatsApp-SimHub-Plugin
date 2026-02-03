@@ -12,6 +12,9 @@ namespace WhatsAppSimHubPlugin.Core
     {
         private const string DASHBOARD_FILENAME = "WhatsAppPlugin.simhubdash";
         private const string DASHBOARD_NAME = "WhatsAppPlugin";
+
+        private const string OVERLAY_DASHBOARD_FILENAME = "Simhub WhatsApp Plugin Overlay.simhubdash";
+        private const string OVERLAY_DASHBOARD_NAME = "Simhub WhatsApp Plugin Overlay";
         private readonly Action<string> _log;
         private readonly object _pluginManager;
 
@@ -355,5 +358,93 @@ namespace WhatsAppSimHubPlugin.Core
         /// Nome do dashboard (sem extensão)
         /// </summary>
         public static string DashboardName => Path.GetFileNameWithoutExtension(DASHBOARD_FILENAME);
+
+        /// <summary>
+        /// Instala o dashboard overlay (para VR, etc.) se não existir
+        /// </summary>
+        public bool InstallOverlayDashboard()
+        {
+            try
+            {
+                // Verificar se já existe
+                if (IsOverlayDashboardInstalled())
+                {
+                    _log?.Invoke("Overlay dashboard already exists - skipping installation");
+                    return true;
+                }
+
+                _log?.Invoke("Overlay dashboard not found - installing from resources...");
+
+                string dashboardsPath = GetDashboardsPath();
+                if (string.IsNullOrEmpty(dashboardsPath))
+                    return false;
+
+                var assembly = Assembly.GetExecutingAssembly();
+                var resourceName = $"WhatsAppSimHubPlugin.Resources.{OVERLAY_DASHBOARD_FILENAME.Replace(" ", " ")}";
+
+                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                {
+                    if (stream == null)
+                    {
+                        _log?.Invoke($"❌ Overlay dashboard resource not found: {resourceName}");
+                        return false;
+                    }
+
+                    // Criar ficheiro temporário
+                    string tempZipFile = Path.Combine(Path.GetTempPath(), OVERLAY_DASHBOARD_FILENAME);
+
+                    using (FileStream fileStream = File.Create(tempZipFile))
+                    {
+                        stream.CopyTo(fileStream);
+                    }
+
+                    // Extrair para DashTemplates
+                    _log?.Invoke($"📦 Extracting overlay dashboard to: {dashboardsPath}");
+                    ZipFile.ExtractToDirectory(tempZipFile, dashboardsPath);
+
+                    // Limpar ficheiro temporário
+                    try { File.Delete(tempZipFile); } catch { }
+
+                    // Verificar se pasta foi criada
+                    string targetFolder = Path.Combine(dashboardsPath, OVERLAY_DASHBOARD_NAME);
+                    if (Directory.Exists(targetFolder))
+                    {
+                        _log?.Invoke($"✅ Overlay dashboard installed successfully!");
+                        return true;
+                    }
+                    else
+                    {
+                        _log?.Invoke($"❌ Overlay dashboard folder not found after extraction");
+                        return false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _log?.Invoke($"❌ Failed to install overlay dashboard: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Verifica se o overlay dashboard está instalado
+        /// </summary>
+        public bool IsOverlayDashboardInstalled()
+        {
+            try
+            {
+                string dashboardsPath = GetDashboardsPath();
+                if (!string.IsNullOrEmpty(dashboardsPath))
+                {
+                    string targetFolder = Path.Combine(dashboardsPath, OVERLAY_DASHBOARD_NAME);
+                    return Directory.Exists(targetFolder);
+                }
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }

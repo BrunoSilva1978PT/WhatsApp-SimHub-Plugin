@@ -84,16 +84,13 @@ namespace WhatsAppSimHubPlugin.UI
             // ✅ Criar ControlsEditor dinamicamente via reflexão
             CreateControlsEditors();
 
-            // 🔍 EXPLORAR API DO SIMHUB PLUGINMANAGER
-            ExploreSimHubAPI();
-
             InitializeData();
             LoadSettings();
 
             // 🔥 Iniciar timer de auto-refresh (a cada 5 segundos)
             _deviceRefreshTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(5)
+                Interval = TimeSpan.FromSeconds(15)
             };
             _deviceRefreshTimer.Tick += (s, e) => LoadAvailableDevicesAsync();
             _deviceRefreshTimer.Start();
@@ -101,7 +98,7 @@ namespace WhatsAppSimHubPlugin.UI
             // 🔥 Timer SIMPLIFICADO - apenas detectar crashes APÓS conectar
             _connectionStatusTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(5) // A cada 5 segundos
+                Interval = TimeSpan.FromSeconds(15)
             };
             _connectionStatusTimer.Tick += (s, e) => CheckScriptStatusPeriodic();
             _connectionStatusTimer.Start();
@@ -725,10 +722,9 @@ namespace WhatsAppSimHubPlugin.UI
 
                 _plugin.SaveSettings();
             }
-            catch (Exception ex)
+            catch
             {
-                // Silent fail
-                System.Diagnostics.Debug.WriteLine($"SaveDisplaySettingsInternal error: {ex.Message}");
+                // Silent fail - no action needed
             }
         }
 
@@ -1510,73 +1506,6 @@ namespace WhatsAppSimHubPlugin.UI
                 File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {message}\n");
             }
             catch { }
-        }
-
-        private void ExploreSimHubAPI()
-        {
-            try
-            {
-                if (_plugin?.PluginManager == null)
-                {
-                    System.Diagnostics.Debug.WriteLine("[API EXPLORER] PluginManager is null");
-                    return;
-                }
-
-                System.Diagnostics.Debug.WriteLine("╔══════════════════════════════════════════╗");
-                System.Diagnostics.Debug.WriteLine("║   🔍 SIMHUB PLUGINMANAGER API EXPLORER   ║");
-                System.Diagnostics.Debug.WriteLine("╚══════════════════════════════════════════╝");
-
-                var type = _plugin.PluginManager.GetType();
-                var methods = type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-
-                System.Diagnostics.Debug.WriteLine("\n📋 MÉTODOS RELACIONADOS COM INPUT/BUTTON/CONTROL:");
-                System.Diagnostics.Debug.WriteLine("════════════════════════════════════════════════\n");
-
-                int count = 0;
-                foreach (var method in methods)
-                {
-                    var name = method.Name.ToLower();
-                    if (name.Contains("input") || name.Contains("button") ||
-                        name.Contains("control") || name.Contains("picker") ||
-                        name.Contains("bind") || name.Contains("configure") ||
-                        name.Contains("select") || name.Contains("choose") ||
-                        name.Contains("action"))
-                    {
-                        count++;
-                        System.Diagnostics.Debug.WriteLine($"✅ {count}. {method.Name}");
-
-                        var parameters = method.GetParameters();
-                        if (parameters.Length > 0)
-                        {
-                            System.Diagnostics.Debug.WriteLine("   Parâmetros:");
-                            foreach (var param in parameters)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"     • {param.ParameterType.Name} {param.Name}");
-                            }
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine("   (Sem parâmetros)");
-                        }
-
-                        System.Diagnostics.Debug.WriteLine($"   Retorno: {method.ReturnType.Name}");
-                        System.Diagnostics.Debug.WriteLine("");
-                    }
-                }
-
-                if (count == 0)
-                {
-                    System.Diagnostics.Debug.WriteLine("❌ Nenhum método encontrado com esses padrões.");
-                }
-
-                System.Diagnostics.Debug.WriteLine("\n════════════════════════════════════════════════");
-                System.Diagnostics.Debug.WriteLine($"Total de métodos encontrados: {count}");
-                System.Diagnostics.Debug.WriteLine("════════════════════════════════════════════════\n");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[API EXPLORER ERROR] {ex.Message}");
-            }
         }
 
         /// <summary>

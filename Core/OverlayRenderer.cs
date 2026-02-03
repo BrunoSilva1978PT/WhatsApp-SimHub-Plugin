@@ -36,9 +36,9 @@ namespace WhatsAppSimHubPlugin.Core
 
                 return _vocoreSettings != null;
             }
-            catch (Exception ex)
+            catch
             {
-                System.Diagnostics.Debug.WriteLine($"OverlayRenderer.AttachToDevice failed: {ex.Message}");
+                // AttachToDevice failed - return false silently
                 return false;
             }
         }

@@ -14,9 +14,11 @@ A professional WhatsApp notification plugin for SimHub that displays messages on
 - **Intelligent Message Queue**: Smart prioritization system (Urgent+VIP > Urgent > VIP > Normal)
 - **Message Grouping**: Automatic grouping of multiple messages from the same contact
 - **VoCore Overlay Integration**: Transparent message display on external VoCore devices
+- **VR & Screen Overlay Support**: Separate overlay dashboard for VR headsets or monitor overlays
 - **Quick Replies**: Respond to messages using steering wheel buttons during races
 - **Priority Badges**: Visual indicators for VIP and Urgent messages
 - **Re-notification System**: Important messages repeat until acknowledged
+- **Pending Messages Indicator**: Shows "+X" when more messages are queued from same contact
 
 ### Contact Management
 - **Allowed Contacts**: Only display messages from approved contacts
@@ -128,6 +130,19 @@ git clone https://github.com/BrunoSilva1978PT/WhatsApp-SimHub-Plugin.git
 | Target Device | Select VoCore display for overlay |
 | Refresh | Rescan for connected devices |
 | Test | Send test message to verify overlay |
+
+### VR & Screen Overlay Support
+
+The plugin automatically installs a separate overlay dashboard called **"Simhub WhatsApp Plugin Overlay"** that can be used:
+
+- **In VR headsets** - Display WhatsApp notifications inside your VR environment
+- **As a screen overlay** - Show notifications on top of your game on a monitor
+
+**Setup:**
+1. Go to **SimHub → Dash Studio → Overlay settings**
+2. Add **"Simhub WhatsApp Plugin Overlay"** as an overlay
+3. Configure position, size and opacity as needed
+4. The overlay will automatically show/hide when messages arrive
 
 ### Queue Tab
 

@@ -385,6 +385,9 @@ namespace WhatsAppSimHubPlugin
                 WriteLog("⚠️ Dashboard installation failed or dashboard already exists");
             }
 
+            // Instalar overlay dashboard (para VR, etc.) se não existir
+            _dashboardInstaller.InstallOverlayDashboard();
+
             // Verificar se dashboard está acessível
             bool dashExists = _dashboardInstaller.IsDashboardInstalled();
             WriteLog($"Dashboard accessible: {dashExists}");
@@ -709,8 +712,15 @@ namespace WhatsAppSimHubPlugin
             // 🔓 RESET: Nova mensagem = permite novo envio
             _replySentForCurrentMessage = false;
 
-            // Header - Sender (só o nome, sem contador)
-            _overlaySender = first.From;
+            // Header - Sender (com +X se há mais mensagens na queue por mostrar)
+            int showingNow = messages.Count;
+            int totalInQueue = _messageQueue.GetContactMessageCount(first.Number);
+            int pending = totalInQueue - showingNow;
+
+            if (pending > 0)
+                _overlaySender = $"{first.From} +{pending}";
+            else
+                _overlaySender = first.From;
 
             // Header - Type (URGENT > VIP > "")
             if (messages.Any(m => m.IsUrgent))
@@ -771,8 +781,15 @@ namespace WhatsAppSimHubPlugin
                 .Take(10)
                 .ToList();
 
-            // Header - Sender
-            _overlaySender = message.From;
+            // Header - Sender (com +X se há mais mensagens na queue por mostrar)
+            int showingNow = groupedMessages.Count;
+            int totalInQueue = _messageQueue.GetContactMessageCount(message.Number);
+            int pending = totalInQueue - showingNow;
+
+            if (pending > 0)
+                _overlaySender = $"{message.From} +{pending}";
+            else
+                _overlaySender = message.From;
 
             // Header - Type (URGENT > VIP > "")
             if (message.IsUrgent)

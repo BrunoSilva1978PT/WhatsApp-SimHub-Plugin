@@ -103,9 +103,15 @@ namespace WhatsAppSimHubPlugin.Core
 
                 if (contactMessagesCount <= _settings.MaxGroupSize)
                 {
+                    // Ainda cabe no grupo - refresh completo
                     _displayTimer.Stop();
                     RefreshCurrentDisplay();
                     StartDisplayTimer();
+                }
+                else
+                {
+                    // Já atingiu limite - só atualizar o display para mostrar +X
+                    OnGroupDisplay?.Invoke(_currentDisplayGroup);
                 }
             }
         }
@@ -397,6 +403,16 @@ namespace WhatsAppSimHubPlugin.Core
         public List<QueuedMessage> GetAllMessages()
         {
             return _vipUrgentQueue.Concat(_normalQueue).ToList();
+        }
+
+        /// <summary>
+        /// Get total message count for a contact across both queues
+        /// </summary>
+        public int GetContactMessageCount(string contactNumber)
+        {
+            int vipCount = _vipUrgentQueue.Count(m => m.Number == contactNumber);
+            int normalCount = _normalQueue.Count(m => m.Number == contactNumber);
+            return vipCount + normalCount;
         }
 
         public void PauseQueue()

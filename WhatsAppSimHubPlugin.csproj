@@ -53,11 +53,11 @@
       <Private>False</Private>
     </Reference>
 
-    <!-- SimHubWPF.exe - Contém os controlos de UI como InputSelectionDialog -->
-    <Reference Include="SimHubWPF">
+    <!-- SimHubWPF.exe - REMOVIDO: Não usado e pode causar problemas com CefSharp -->
+    <!-- <Reference Include="SimHubWPF">
       <HintPath>$(SimHubPath)SimHubWPF.exe</HintPath>
       <Private>False</Private>
-    </Reference>
+    </Reference> -->
 
     <!-- System References -->
     <Reference Include="System" />
@@ -126,6 +126,7 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Resources\icon.png" />
     <EmbeddedResource Include="Resources\WhatsAppPlugin.simhubdash" />
+    <EmbeddedResource Include="Resources\Simhub WhatsApp Plugin Overlay.simhubdash" />
     <EmbeddedResource Include="Resources\whatsapp-server.js" />
     <EmbeddedResource Include="Resources\baileys-server.mjs" />
     <EmbeddedResource Include="Resources\package.json" />
