@@ -95,10 +95,12 @@ scripts/node/
 scripts/auth_info/
 
 # Documentation files (internal guides - not for GitHub)
-# Exclude all .md files except README.md
+# Exclude all .md files except main docs
 *.md
 !README.md
-!lib/README.md
+!INSTALLATION.md
+!CHANGELOG.md
+!LICENSE.md
 
 # Local build scripts (machine-specific paths)
 *.bat
