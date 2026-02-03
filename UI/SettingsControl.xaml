@@ -28,6 +28,11 @@
                 <!-- Version Info (Right aligned) -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <!-- Current Version -->
+                    <TextBlock Text="Version:"
+                               Foreground="#858585"
+                               FontSize="13"
+                               VerticalAlignment="Center"
+                               Margin="0,0,5,0"/>
                     <TextBlock x:Name="CurrentVersionText"
                                Text="1.0.0"
                                Foreground="#858585"
