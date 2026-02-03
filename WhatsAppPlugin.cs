@@ -1721,6 +1721,11 @@ namespace WhatsAppSimHubPlugin
                 var targetDllPath = Path.Combine(simhubPath, "WhatsAppSimHubPlugin.dll");
                 var simhubExe = Path.Combine(simhubPath, "SimHubWPF.exe");
 
+                // Path to node scripts
+                var nodeScriptsPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "SimHub", "WhatsAppPlugin", "node");
+
                 // Create batch file for update
                 var batPath = Path.Combine(updatesPath, "update.bat");
                 var batContent = $@"@echo off
@@ -1730,6 +1735,11 @@ timeout /t 5 /nobreak > nul
 
 echo Removing old plugin...
 del ""{targetDllPath}"" 2>nul
+
+echo Removing old scripts (will be recreated from new DLL)...
+del ""{nodeScriptsPath}\whatsapp-server.js"" 2>nul
+del ""{nodeScriptsPath}\baileys-server.mjs"" 2>nul
+del ""{nodeScriptsPath}\google-contacts.js"" 2>nul
 
 echo Installing new version...
 copy ""{newDllPath}"" ""{targetDllPath}""
