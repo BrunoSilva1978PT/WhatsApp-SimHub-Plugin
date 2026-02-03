@@ -377,6 +377,9 @@ namespace WhatsAppSimHubPlugin
             _nodeManager.GoogleContactsDone += NodeManager_OnGoogleContactsDone;
             _nodeManager.GoogleError += NodeManager_OnGoogleError;
 
+            // WhatsApp number verification
+            _nodeManager.CheckWhatsAppResult += NodeManager_OnCheckWhatsAppResult;
+
             // Initialize overlay renderer
             _overlayRenderer = new OverlayRenderer(_settings);
 
@@ -1467,8 +1470,37 @@ namespace WhatsAppSimHubPlugin
             }
             catch (Exception ex)
             {
-                WriteLog($"❌ Error disconnecting from Google: {ex.Message}");
+                WriteLog($"Error disconnecting from Google: {ex.Message}");
             }
+        }
+
+        #endregion
+
+        #region WhatsApp Number Verification
+
+        /// <summary>
+        /// Check if a phone number has WhatsApp
+        /// </summary>
+        public async void CheckWhatsAppNumber(string number)
+        {
+            WriteLog($"Checking if {number} has WhatsApp...");
+            try
+            {
+                if (_nodeManager != null)
+                {
+                    await _nodeManager.SendJsonAsync(new { type = "checkWhatsApp", number = number });
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Error checking WhatsApp number: {ex.Message}");
+            }
+        }
+
+        private void NodeManager_OnCheckWhatsAppResult(object sender, (string number, bool exists, string error) result)
+        {
+            WriteLog($"WhatsApp check result: {result.number} - exists: {result.exists}, error: {result.error}");
+            _settingsControl?.HandleCheckWhatsAppResult(result.number, result.exists, result.error);
         }
 
         #endregion
@@ -1702,9 +1734,10 @@ namespace WhatsAppSimHubPlugin
                     _nodeManager.GoogleAuthUrlReceived -= NodeManager_OnGoogleAuthUrlReceived;
                     _nodeManager.GoogleContactsDone -= NodeManager_OnGoogleContactsDone;
                     _nodeManager.GoogleError -= NodeManager_OnGoogleError;
+                    _nodeManager.CheckWhatsAppResult -= NodeManager_OnCheckWhatsAppResult;
                 }
 
-                // 4. Criar novo nodeManager com o backend escolhido
+                // 4. Create new nodeManager with chosen backend
                 WriteLog($"Creating new WebSocketManager with backend: {newBackend}");
                 _nodeManager = new WebSocketManager(_pluginPath, newBackend);
                 _nodeManager.OnQrCode += NodeManager_OnQrCode;
@@ -1719,8 +1752,9 @@ namespace WhatsAppSimHubPlugin
                 _nodeManager.GoogleAuthUrlReceived += NodeManager_OnGoogleAuthUrlReceived;
                 _nodeManager.GoogleContactsDone += NodeManager_OnGoogleContactsDone;
                 _nodeManager.GoogleError += NodeManager_OnGoogleError;
+                _nodeManager.CheckWhatsAppResult += NodeManager_OnCheckWhatsAppResult;
 
-                // 5. Iniciar o novo backend
+                // 5. Start the new backend
                 WriteLog($"Starting {newBackend} backend...");
                 await _nodeManager.StartAsync();
 

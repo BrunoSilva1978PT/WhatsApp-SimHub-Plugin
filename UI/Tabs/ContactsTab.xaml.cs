@@ -11,27 +11,40 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         // Event that parent can subscribe to for Remove button clicks
         public event EventHandler<Contact> RemoveContactRequested;
 
-        // Event for Google Contacts search/filter
+        // Events for search/filter in ComboBoxes
         public event EventHandler<string> GoogleContactsSearchChanged;
+        public event EventHandler<string> ChatContactsSearchChanged;
 
         public ContactsTab()
         {
             InitializeComponent();
 
-            // Wire up text changed event for Google Contacts search
+            // Wire up text changed events for search filtering
             GoogleContactsComboBox.AddHandler(
                 System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent,
                 new TextChangedEventHandler(GoogleContactsComboBox_TextChanged));
+
+            ChatContactsComboBox.AddHandler(
+                System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent,
+                new TextChangedEventHandler(ChatContactsComboBox_TextChanged));
         }
 
         private void GoogleContactsComboBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            // Get the text from the editable textbox part of the ComboBox
             var comboBox = sender as ComboBox;
             if (comboBox == null) return;
 
             var text = comboBox.Text ?? string.Empty;
             GoogleContactsSearchChanged?.Invoke(this, text);
+        }
+
+        private void ChatContactsComboBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var comboBox = sender as ComboBox;
+            if (comboBox == null) return;
+
+            var text = comboBox.Text ?? string.Empty;
+            ChatContactsSearchChanged?.Invoke(this, text);
         }
 
         // Chat Contacts

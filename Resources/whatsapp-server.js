@@ -271,6 +271,50 @@ wss.on("connection", (socket) => {
           .catch((error) => {
             send({ type: "chatContactsError", error: error.message });
           });
+      } else if (data.type === "checkWhatsApp") {
+        // Check if a phone number has WhatsApp
+        const phoneNumber = data.number;
+        if (!phoneNumber) {
+          send({
+            type: "checkWhatsAppResult",
+            exists: false,
+            error: "No number provided",
+          });
+          return;
+        }
+
+        if (!isReady) {
+          send({
+            type: "checkWhatsAppResult",
+            exists: false,
+            error: "Not connected to WhatsApp",
+          });
+          return;
+        }
+
+        // Format number (remove + and spaces, add @c.us)
+        const cleanNumber = phoneNumber.replace(/[\s\+\-]/g, "");
+        const numberId = cleanNumber + "@c.us";
+
+        log("[CHECK] Checking if " + cleanNumber + " has WhatsApp...");
+        client
+          .isRegisteredUser(numberId)
+          .then((exists) => {
+            log("[CHECK] " + cleanNumber + " has WhatsApp: " + exists);
+            send({
+              type: "checkWhatsAppResult",
+              number: phoneNumber,
+              exists: exists,
+            });
+          })
+          .catch((error) => {
+            log("[CHECK] Error: " + error.message);
+            send({
+              type: "checkWhatsAppResult",
+              exists: false,
+              error: error.message,
+            });
+          });
       }
     } catch (err) {
       log("[WS] Error: " + err.message);

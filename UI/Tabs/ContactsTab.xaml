@@ -41,13 +41,17 @@
                         <ComboBox x:Name="ChatContactsComboBox"
                                  Grid.Column="0"
                                  IsEnabled="False"
+                                 IsEditable="True"
+                                 IsTextSearchEnabled="False"
+                                 StaysOpenOnEdit="True"
                                  DisplayMemberPath="DisplayText"
                                  Background="#252526"
                                  Foreground="#D4D4D4"
                                  BorderBrush="#3E3E42"
                                  Height="32"
                                  Margin="0,0,10,0"
-                                 FontSize="13"/>
+                                 FontSize="13"
+                                 ToolTip="Type to search contacts"/>
 
                         <styles:SHButtonPrimary x:Name="RefreshChatsButton"
                                Grid.Column="1"

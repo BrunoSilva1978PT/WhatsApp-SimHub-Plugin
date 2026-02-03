@@ -265,6 +265,53 @@ wss.on("connection", (socket) => {
             sendToPlugin({ type: "googleError", error: error.message });
           }
           break;
+
+        case "checkWhatsApp":
+          // Check if a phone number has WhatsApp
+          try {
+            const phoneNumber = data.number;
+            if (!phoneNumber) {
+              sendToPlugin({
+                type: "checkWhatsAppResult",
+                exists: false,
+                error: "No number provided",
+              });
+              break;
+            }
+
+            if (!whatsappSocket) {
+              sendToPlugin({
+                type: "checkWhatsAppResult",
+                exists: false,
+                error: "Not connected to WhatsApp",
+              });
+              break;
+            }
+
+            // Format number (remove + and spaces)
+            const cleanNumber = phoneNumber.replace(/[\s\+\-]/g, "");
+            const jid = cleanNumber + "@s.whatsapp.net";
+
+            log(`[CHECK] Checking if ${cleanNumber} has WhatsApp...`);
+            const [result] = await whatsappSocket.onWhatsApp(jid);
+
+            const exists = result?.exists || false;
+            log(`[CHECK] ${cleanNumber} has WhatsApp: ${exists}`);
+
+            sendToPlugin({
+              type: "checkWhatsAppResult",
+              number: phoneNumber,
+              exists: exists,
+            });
+          } catch (error) {
+            log(`[CHECK] Error: ${error.message}`);
+            sendToPlugin({
+              type: "checkWhatsAppResult",
+              exists: false,
+              error: error.message,
+            });
+          }
+          break;
       }
     } catch (err) {
       log(`[WS] Message error: ${err.message}`);

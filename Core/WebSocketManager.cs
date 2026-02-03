@@ -39,8 +39,9 @@ namespace WhatsAppSimHubPlugin.Core
         public event EventHandler<string> GoogleAuthUrlReceived;
         public event EventHandler GoogleContactsDone;  // Signal that contacts file was updated
         public event EventHandler<string> GoogleError;
+        public event EventHandler<(string number, bool exists, string error)> CheckWhatsAppResult;
 
-        // Propriedade pública para verificar conexão
+        // Public property to check connection
         public bool IsConnected => _isConnected && IsNodeProcessAlive;
 
         // Flag para tracking de instalação em progresso
@@ -791,6 +792,13 @@ namespace WhatsAppSimHubPlugin.Core
                             GoogleContactsDone?.Invoke(this, EventArgs.Empty);
                         else if (type == "googleError")
                             GoogleError?.Invoke(this, json["error"]?.ToString() ?? "Unknown error");
+                        else if (type == "checkWhatsAppResult")
+                        {
+                            var number = json["number"]?.ToString() ?? "";
+                            var exists = json["exists"]?.ToObject<bool>() ?? false;
+                            var error = json["error"]?.ToString();
+                            CheckWhatsAppResult?.Invoke(this, (number, exists, error));
+                        }
                     }
                     catch (OperationCanceledException)
                     {

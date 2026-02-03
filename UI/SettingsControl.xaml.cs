@@ -148,6 +148,7 @@ namespace WhatsAppSimHubPlugin.UI
             ContactsTab.GoogleRefreshButtonCtrl.Click += GoogleRefreshButton_Click;
             ContactsTab.GoogleAddButtonCtrl.Click += GoogleAddButton_Click;
             ContactsTab.GoogleContactsSearchChanged += GoogleContactsComboBox_SearchChanged;
+            ContactsTab.ChatContactsSearchChanged += ChatContactsComboBox_SearchChanged;
 
             // Manual add
             ContactsTab.AddManualButtonCtrl.Click += AddManualButton_Click;
@@ -1058,10 +1059,16 @@ namespace WhatsAppSimHubPlugin.UI
         }
 
         /// <summary>
-        /// Handle Google Add button click
+        /// Handle Google Add button click - verifies WhatsApp before adding
         /// </summary>
         private void GoogleAddButton_Click(object sender, RoutedEventArgs e)
         {
+            if (_isCheckingWhatsApp)
+            {
+                ShowToast("Please wait, checking WhatsApp...", "⏳", 3);
+                return;
+            }
+
             var selected = ContactsTab.GoogleContactsComboBoxCtrl.SelectedItem as Contact;
 
             if (selected == null)
@@ -1081,19 +1088,21 @@ namespace WhatsAppSimHubPlugin.UI
                 return;
             }
 
-            // Add new contact
-            var newContact = new Contact
+            // Prepare contact to add after verification
+            _pendingContactToAdd = new Contact
             {
                 Name = selected.Name,
                 Number = selected.Number,
                 IsVip = false
             };
 
-            _contacts.Add(newContact);
+            // Show checking state
+            _isCheckingWhatsApp = true;
+            ContactsTab.GoogleAddButtonCtrl.IsEnabled = false;
+            ContactsTab.GoogleAddButtonCtrl.Content = "Checking...";
 
-            ContactsTab.GoogleContactsComboBoxCtrl.SelectedIndex = -1;
-
-            ShowToast($"{newContact.Name} added to allowed contacts!", "✅");
+            // Verify if number has WhatsApp
+            _plugin.CheckWhatsAppNumber(selected.Number);
         }
 
         /// <summary>
@@ -1169,6 +1178,54 @@ namespace WhatsAppSimHubPlugin.UI
             _plugin.GoogleGetStatus();
         }
 
+        // Pending contact to add after WhatsApp verification
+        private Contact _pendingContactToAdd = null;
+        private bool _isCheckingWhatsApp = false;
+
+        /// <summary>
+        /// Handle WhatsApp number verification result
+        /// </summary>
+        public void HandleCheckWhatsAppResult(string number, bool exists, string error)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _isCheckingWhatsApp = false;
+
+                // Re-enable buttons
+                ContactsTab.GoogleAddButtonCtrl.IsEnabled = true;
+                ContactsTab.GoogleAddButtonCtrl.Content = "➕ Add";
+                ContactsTab.AddManualButtonCtrl.IsEnabled = true;
+                ContactsTab.AddManualButtonCtrl.Content = "➕ Add";
+
+                if (!string.IsNullOrEmpty(error))
+                {
+                    ShowToast($"Error checking WhatsApp: {error}", "❌", 5);
+                    _pendingContactToAdd = null;
+                    return;
+                }
+
+                if (!exists)
+                {
+                    ShowToast($"This number does not have WhatsApp", "❌", 5);
+                    _pendingContactToAdd = null;
+                    return;
+                }
+
+                // Number has WhatsApp - add the contact
+                if (_pendingContactToAdd != null)
+                {
+                    _contacts.Add(_pendingContactToAdd);
+                    ShowToast($"{_pendingContactToAdd.Name} added to allowed contacts!", "✅", 5);
+                    _pendingContactToAdd = null;
+
+                    // Clear selections
+                    ContactsTab.GoogleContactsComboBoxCtrl.SelectedIndex = -1;
+                    ContactsTab.ManualNameTextBoxCtrl.Text = "Name";
+                    ContactsTab.ManualNumberTextBoxCtrl.Text = "+351...";
+                }
+            });
+        }
+
         /// <summary>
         /// Handle Google Contacts search/filter text changed
         /// </summary>
@@ -1199,6 +1256,39 @@ namespace WhatsAppSimHubPlugin.UI
             if (!ContactsTab.GoogleContactsComboBoxCtrl.IsDropDownOpen && filtered.Count > 0)
             {
                 ContactsTab.GoogleContactsComboBoxCtrl.IsDropDownOpen = true;
+            }
+        }
+
+        /// <summary>
+        /// Handle Chat Contacts search/filter text changed
+        /// </summary>
+        private void ChatContactsComboBox_SearchChanged(object sender, string searchText)
+        {
+            if (_chatContacts == null || _chatContacts.Count == 0)
+                return;
+
+            // If search text is empty, show all contacts
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                ContactsTab.ChatContactsComboBoxCtrl.ItemsSource = _chatContacts;
+                return;
+            }
+
+            // Filter contacts by name or number (case-insensitive)
+            var searchLower = searchText.ToLowerInvariant();
+            var filtered = _chatContacts
+                .Where(c =>
+                    (c.Name != null && c.Name.ToLowerInvariant().Contains(searchLower)) ||
+                    (c.Number != null && c.Number.Contains(searchText)))
+                .ToList();
+
+            // Update ItemsSource with filtered results
+            ContactsTab.ChatContactsComboBoxCtrl.ItemsSource = filtered;
+
+            // Keep dropdown open while typing
+            if (!ContactsTab.ChatContactsComboBoxCtrl.IsDropDownOpen && filtered.Count > 0)
+            {
+                ContactsTab.ChatContactsComboBoxCtrl.IsDropDownOpen = true;
             }
         }
 
@@ -1445,27 +1535,34 @@ namespace WhatsAppSimHubPlugin.UI
 
 
         /// <summary>
-        /// Adicionar contacto manualmente
+        /// Add contact manually - verifies WhatsApp before adding
         /// </summary>
         private void AddManualButton_Click(object sender, RoutedEventArgs e)
         {
+            if (_isCheckingWhatsApp)
+            {
+                ShowToast("Please wait, checking WhatsApp...", "⏳", 3);
+                return;
+            }
+
             string name = ContactsTab.ManualNameTextBoxCtrl.Text.Trim();
             string number = ContactsTab.ManualNumberTextBoxCtrl.Text.Trim();
 
-            // Validar
+            // Validate name
             if (string.IsNullOrWhiteSpace(name) || name == "Name")
             {
                 ShowToast("Please enter a name.", "⚠️", 5);
                 return;
             }
 
+            // Validate number
             if (string.IsNullOrWhiteSpace(number) || number == "+351..." || !number.StartsWith("+"))
             {
                 ShowToast("Please enter a valid phone number.\n\nFormat: +[country code][number]\nExample: +351912345678", "⚠️", 8);
                 return;
             }
 
-            // Verificar duplicado
+            // Check if already exists
             var existing = _contacts.FirstOrDefault(c =>
                 c.Number.Replace("+", "").Replace(" ", "").Replace("-", "") ==
                 number.Replace("+", "").Replace(" ", "").Replace("-", ""));
@@ -1476,22 +1573,21 @@ namespace WhatsAppSimHubPlugin.UI
                 return;
             }
 
-            // Adicionar
-            var contact = new Contact
+            // Prepare contact to add after verification
+            _pendingContactToAdd = new Contact
             {
                 Name = name,
                 Number = number,
-                IsVip = false  // Por defeito não é VIP
+                IsVip = false
             };
 
-            _contacts.Add(contact);
-            _plugin.SaveSettings();
+            // Show checking state
+            _isCheckingWhatsApp = true;
+            ContactsTab.AddManualButtonCtrl.IsEnabled = false;
+            ContactsTab.AddManualButtonCtrl.Content = "Checking...";
 
-            // Limpar
-            ContactsTab.ManualNameTextBoxCtrl.Text = "Name";
-            ContactsTab.ManualNumberTextBoxCtrl.Text = "+351...";
-
-            ShowToast($"{contact.Name} added to allowed contacts!", "✅", 5);
+            // Verify if number has WhatsApp
+            _plugin.CheckWhatsAppNumber(number);
         }
 
         /// <summary>
