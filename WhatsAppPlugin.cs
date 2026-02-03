@@ -685,16 +685,29 @@ namespace WhatsAppSimHubPlugin
         }
 
         /// <summary>
-        /// Mostra mensagem "No connection" no overlay
+        /// Show "No connection" message on overlay
         /// </summary>
         private void ShowNoConnectionMessage()
         {
             _showMessage = true;
             _overlaySender = "No connection to WhatsApp";
             _overlayTypeMessage = "";
-            _overlayTotalMessages = 1; // Manter 1 para o fundo continuar visível
+            _overlayTotalMessages = 1;
             ClearAllOverlayMessages();
             WriteLog("[OVERLAY] Showing 'No connection' message");
+        }
+
+        /// <summary>
+        /// Show "Scan QR Code" message on overlay
+        /// </summary>
+        private void ShowQrCodeMessage()
+        {
+            _showMessage = true;
+            _overlaySender = "Scan QR Code in SimHub";
+            _overlayTypeMessage = "";
+            _overlayTotalMessages = 1;
+            ClearAllOverlayMessages();
+            WriteLog("[OVERLAY] Showing 'Scan QR Code' message");
         }
 
         /// <summary>
@@ -860,8 +873,10 @@ namespace WhatsAppSimHubPlugin
 
         private void NodeManager_OnQrCode(object sender, string qrCode)
         {
+            WriteLog("QR Code received - user needs to scan");
             _settingsControl?.UpdateQRCode(qrCode);
             _settingsControl?.UpdateConnectionStatus("QR");
+            ShowQrCodeMessage();
         }
 
         private void NodeManager_OnReady(object sender, (string number, string name) e)
