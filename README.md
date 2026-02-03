@@ -19,12 +19,18 @@ A professional WhatsApp notification plugin for SimHub that displays messages on
 - **Priority Badges**: Visual indicators for VIP and Urgent messages
 - **Re-notification System**: Important messages repeat until acknowledged
 - **Pending Messages Indicator**: Shows "+X" when more messages are queued from same contact
+- **Auto-Update System**: Automatic update detection from GitHub releases with one-click install
+- **Auto-Reconnect**: Automatic reconnection with 15-second retry interval (up to 5 attempts)
+- **QR Code Overlay Notification**: Shows "Scan QR Code in SimHub" on VoCore/overlay when authentication needed
 
 ### Contact Management
 - **Allowed Contacts**: Only display messages from approved contacts
 - **VIP Contacts**: Mark important contacts for priority treatment
 - **Import from Chats**: Load contacts directly from your WhatsApp conversations
-- **Manual Entry**: Add contacts by name and international phone number
+- **Google Contacts Integration**: Import contacts directly from your Google account
+- **WhatsApp Verification**: Automatically verifies if a phone number has WhatsApp before adding
+- **Search & Filter**: Type to search/filter in contact dropdowns
+- **Manual Entry**: Add contacts by name and international phone number (format: +[country code][number])
 
 ### Keyword System
 - **Urgent Keywords**: Automatically mark messages containing specific words as urgent
@@ -111,8 +117,10 @@ git clone https://github.com/BrunoSilva1978PT/WhatsApp-SimHub-Plugin.git
 
 | Feature | Description |
 |---------|-------------|
-| Load Recent Chats | Import contacts from your WhatsApp conversations |
-| Manual Add | Add contact by name and phone number |
+| Add from Active Chats | Import contacts from your WhatsApp conversations (with search/filter) |
+| Google Contacts | Connect to Google account and import contacts directly |
+| Manual Add | Add contact by name and phone number (format: +351912345678) |
+| WhatsApp Verification | Automatically checks if number has WhatsApp before adding |
 | VIP Toggle | Mark contacts as VIP for priority treatment |
 | Delete | Remove contacts from allowed list |
 
@@ -257,6 +265,20 @@ Bind these actions to steering wheel buttons:
 | `%AppData%\SimHub\WhatsAppPlugin\logs\` | Debug logs (when enabled) |
 
 ## Changelog
+
+### Version 1.0.1
+- **Auto-Update System**: Plugin now checks GitHub releases for updates automatically
+  - Shows version in header (visible on all tabs)
+  - One-click download and install
+  - Automatic SimHub restart after update
+- **Google Contacts Integration**: Import contacts directly from Google account
+- **WhatsApp Number Verification**: Verifies if phone number has WhatsApp before adding contact
+- **Search & Filter**: Type to search in Active Chats and Google Contacts dropdowns
+- **Auto-Reconnect System**: Automatic reconnection with 15-second intervals (up to 5 attempts)
+- **QR Code Overlay Notification**: Shows "Scan QR Code in SimHub" on VoCore/overlay when authentication needed
+- **Custom Confirm Dialogs**: Dark-themed confirmation dialogs matching SimHub UI
+- **Improved Shutdown**: Clean process termination prevents SimHub from hanging on close
+- **Contact Names Fix**: WhatsApp-Web.js now properly displays contact names from phone agenda
 
 ### Version 1.0.0
 - Initial release
