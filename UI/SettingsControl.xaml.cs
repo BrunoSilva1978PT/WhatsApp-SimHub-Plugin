@@ -866,7 +866,8 @@ namespace WhatsAppSimHubPlugin.UI
                 string authPath;
                 if (_settings.BackendMode == "baileys")
                 {
-                    authPath = Path.Combine(pluginPath, "data_baileys", "auth_info");
+                    // Para Baileys, apagar toda a pasta data_baileys (contém auth_info e store)
+                    authPath = Path.Combine(pluginPath, "data_baileys");
                 }
                 else
                 {
@@ -885,6 +886,10 @@ namespace WhatsAppSimHubPlugin.UI
                         _plugin.WriteLog($"Failed to delete {authPath}: {ex.Message}");
                     }
                 }
+
+                // Hide QR code if visible
+                ConnectionTab.QRCodeImageCtrl.Visibility = Visibility.Collapsed;
+                ConnectionTab.QRCodeInstructionsCtrl.Visibility = Visibility.Collapsed;
 
                 ShowToast("Session reset! Click Connect to scan QR code.", "✅", 5);
                 UpdateConnectionStatus("Disconnected");
@@ -1718,7 +1723,7 @@ namespace WhatsAppSimHubPlugin.UI
                     var currentlySelected = ConnectionTab.WhatsAppWebJsVersionComboCtrl.SelectedItem as ComboBoxItem;
                     var existingItems = ConnectionTab.WhatsAppWebJsVersionComboCtrl.Items.Cast<ComboBoxItem>().ToList();
 
-                    // Adicionar versões stable do npm (últimas 10) que ainda não existem
+                    // Adicionar versões do npm (últimas 10 v7.x) que ainda não existem
                     foreach (var version in versions.Take(10))
                     {
                         // Verificar se já existe no dropdown
@@ -1783,7 +1788,10 @@ namespace WhatsAppSimHubPlugin.UI
 
             try
             {
-                var versions = await FetchNpmVersionsAsync("@whiskeysockets/baileys");
+                var allVersions = await FetchNpmVersionsAsync("@whiskeysockets/baileys");
+
+                // Filter only v7.x versions (script requires Baileys v7)
+                var versions = allVersions.Where(v => v.StartsWith("7.")).ToList();
 
                 if (versions.Count > 0)
                 {
@@ -1794,7 +1802,7 @@ namespace WhatsAppSimHubPlugin.UI
                     var currentlySelected = ConnectionTab.BaileysVersionComboCtrl.SelectedItem as ComboBoxItem;
                     var existingItems = ConnectionTab.BaileysVersionComboCtrl.Items.Cast<ComboBoxItem>().ToList();
 
-                    // Adicionar versões stable do npm (últimas 10) que ainda não existem
+                    // Adicionar versões v7.x do npm (últimas 10) que ainda não existem
                     foreach (var version in versions.Take(10))
                     {
                         // Verificar se já existe no dropdown
@@ -1804,7 +1812,7 @@ namespace WhatsAppSimHubPlugin.UI
                         {
                             var item = new ComboBoxItem
                             {
-                                Content = version,
+                                Content = version + " (v7)",
                                 Tag = version
                             };
                             ConnectionTab.BaileysVersionComboCtrl.Items.Add(item);
@@ -1865,13 +1873,22 @@ namespace WhatsAppSimHubPlugin.UI
                 var versionsObj = json["versions"] as JObject;
                 if (versionsObj != null)
                 {
-                    // Get all versions and sort descending
+                    // Get all stable versions and sort descending (fetch more for filtering later)
                     versions = versionsObj.Properties()
                         .Select(p => p.Name)
-                        .Where(v => !v.Contains("-")) // Exclude pre-release versions
-                        .OrderByDescending(v => new Version(
-                            Regex.Replace(v, @"[^\d.]", "").TrimEnd('.')))
-                        .Take(10)
+                        .Where(v => !v.Contains("-")) // Exclude pre-release versions (alpha, beta, rc)
+                        .OrderByDescending(v =>
+                        {
+                            try
+                            {
+                                return new Version(Regex.Replace(v, @"[^\d.]", "").TrimEnd('.'));
+                            }
+                            catch
+                            {
+                                return new Version("0.0.0");
+                            }
+                        })
+                        .Take(50) // Fetch more to allow filtering
                         .ToList();
                 }
             }
@@ -2069,8 +2086,9 @@ namespace WhatsAppSimHubPlugin.UI
                 SetDependenciesInstalling(true, $"Installing {packageName} {version}...");
                 ShowToast($"Installing {packageName} {version}...", "🔄", 60);
 
-                // Step 1: Disconnect WhatsApp
+                // Step 1: Disconnect WhatsApp and update UI status
                 _plugin.DisconnectWhatsApp();
+                UpdateConnectionStatus("Disconnected");
                 await Task.Delay(1000);
 
                 // Step 3: Update package.json
@@ -2616,6 +2634,18 @@ namespace WhatsAppSimHubPlugin.UI
             });
         }
 
+        /// <summary>
+        /// Refresh scripts version displayed in UI
+        /// </summary>
+        public void RefreshScriptsVersion()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                var scriptsVersion = GetLocalScriptVersion();
+                ConnectionTab.ScriptsVersionTextCtrl.Text = scriptsVersion ?? "Not installed";
+            });
+        }
+
         public void SetDependenciesInstalling(bool isInstalling, string progressMessage = "")
         {
             Dispatcher.Invoke(() =>
@@ -2630,6 +2660,7 @@ namespace WhatsAppSimHubPlugin.UI
                     // Disable connection buttons during installation
                     ConnectionTab.DisconnectButtonCtrl.IsEnabled = false;
                     ConnectionTab.ReconnectButtonCtrl.IsEnabled = false;
+                    ConnectionTab.ResetSessionButtonCtrl.IsEnabled = false;
                 }
                 else
                 {
@@ -2641,6 +2672,7 @@ namespace WhatsAppSimHubPlugin.UI
                     bool isConnected = ConnectionTab.StatusTextCtrl.Text == "Connected";
                     ConnectionTab.DisconnectButtonCtrl.IsEnabled = isConnected;
                     ConnectionTab.ReconnectButtonCtrl.IsEnabled = true;
+                    ConnectionTab.ResetSessionButtonCtrl.IsEnabled = true;
                 }
             });
         }

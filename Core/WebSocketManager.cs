@@ -33,11 +33,27 @@ namespace WhatsAppSimHubPlugin.Core
         public event EventHandler<bool> InstallationCompleted;  // 🔧 Instalação terminou (true=sucesso)
 
         // Propriedade pública para verificar conexão
-        public bool IsConnected => _isConnected;
+        public bool IsConnected => _isConnected && IsNodeProcessAlive;
 
         // Flag para tracking de instalação em progresso
         private bool _isInstalling = false;
         public bool IsInstalling => _isInstalling;
+
+        // Check if Node.js process is still alive
+        public bool IsNodeProcessAlive
+        {
+            get
+            {
+                try
+                {
+                    return _nodeProcess != null && !_nodeProcess.HasExited;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
 
         // Propriedades para subscrição de eventos (compatibilidade)
         public event EventHandler<string> OnQrCode
@@ -122,47 +138,53 @@ namespace WhatsAppSimHubPlugin.Core
         {
             var assembly = Assembly.GetExecutingAssembly();
 
-            // Copy whatsapp-server.js only if it doesn't exist
+            // Copy whatsapp-server.js if not exists or version changed
             var whatsappScriptPath = Path.Combine(_pluginPath, "node", "whatsapp-server.js");
-            if (!File.Exists(whatsappScriptPath))
+            CopyScriptIfNeeded(assembly, "WhatsAppSimHubPlugin.Resources.whatsapp-server.js", whatsappScriptPath);
+
+            // Copy baileys-server.mjs if not exists or version changed
+            var baileysScriptPath = Path.Combine(_pluginPath, "node", "baileys-server.mjs");
+            CopyScriptIfNeeded(assembly, "WhatsAppSimHubPlugin.Resources.baileys-server.mjs", baileysScriptPath);
+        }
+
+        /// <summary>
+        /// Copy script from embedded resources only if it doesn't exist.
+        /// Script updates are handled via UI "Check Updates" button which fetches from GitHub.
+        /// </summary>
+        private void CopyScriptIfNeeded(Assembly assembly, string resourceName, string targetPath)
+        {
+            try
             {
-                var whatsappResourceName = "WhatsAppSimHubPlugin.Resources.whatsapp-server.js";
-                using (Stream stream = assembly.GetManifestResourceStream(whatsappResourceName))
+                // Only copy if file doesn't exist
+                if (File.Exists(targetPath))
                 {
-                    if (stream != null)
+                    return;
+                }
+
+                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                {
+                    if (stream == null) return;
+                    using (StreamReader reader = new StreamReader(stream))
                     {
-                        using (StreamReader reader = new StreamReader(stream))
-                        {
-                            File.WriteAllText(whatsappScriptPath, reader.ReadToEnd());
-                        }
+                        File.WriteAllText(targetPath, reader.ReadToEnd());
                     }
                 }
             }
-
-            // Copy baileys-server.mjs only if it doesn't exist
-            var baileysScriptPath = Path.Combine(_pluginPath, "node", "baileys-server.mjs");
-            if (!File.Exists(baileysScriptPath))
+            catch (Exception)
             {
-                var baileysResourceName = "WhatsAppSimHubPlugin.Resources.baileys-server.mjs";
-                using (Stream stream = assembly.GetManifestResourceStream(baileysResourceName))
-                {
-                    if (stream != null)
-                    {
-                        using (StreamReader reader = new StreamReader(stream))
-                        {
-                            File.WriteAllText(baileysScriptPath, reader.ReadToEnd());
-                        }
-                    }
-                }
+                // Ignore script copy errors
             }
         }
 
         public async Task StartAsync()
         {
             if (_isConnected) return;
-            if (_isInstalling)
+            if (_isInstalling) return;
+
+            // Se já há um processo Node a correr, não iniciar outro
+            if (IsNodeProcessAlive)
             {
-                StatusChanged?.Invoke(this, "Debug: Installation already in progress, skipping StartAsync");
+                StatusChanged?.Invoke(this, "Node.js already running");
                 return;
             }
 
@@ -202,8 +224,6 @@ namespace WhatsAppSimHubPlugin.Core
                 var packageJsonPath = Path.Combine(_pluginPath, "node", "package.json");
                 var packageLockPath = Path.Combine(_pluginPath, "node", "package-lock.json");
 
-                StatusChanged?.Invoke(this, "Debug: Checking npm packages");
-
                 // Verificar se package.json mudou desde último install
                 if (File.Exists(packageJsonPath) && File.Exists(packageLockPath))
                 {
@@ -212,7 +232,6 @@ namespace WhatsAppSimHubPlugin.Core
 
                     if (packageJsonTime > packageLockTime)
                     {
-                        StatusChanged?.Invoke(this, "Debug: package.json changed - reinstalling needed");
                         return true;
                     }
                 }
@@ -222,7 +241,6 @@ namespace WhatsAppSimHubPlugin.Core
                     var whatsappPath = Path.Combine(nodeModulesPath, "whatsapp-web.js");
                     if (Directory.Exists(whatsappPath))
                     {
-                        StatusChanged?.Invoke(this, "Debug: Packages already installed");
                         return false;
                     }
                 }
@@ -286,12 +304,8 @@ namespace WhatsAppSimHubPlugin.Core
         /// </summary>
         private async Task<bool> RunNpmInstallAsync()
         {
-            StatusChanged?.Invoke(this, "Debug: Finding npm");
             var npm = FindNpm();
-            StatusChanged?.Invoke(this, $"Debug: npm path = {npm}");
-
             var workDir = Path.Combine(_pluginPath, "node");
-            StatusChanged?.Invoke(this, $"Debug: work dir = {workDir}");
 
             var process = new Process
             {
@@ -325,11 +339,9 @@ namespace WhatsAppSimHubPlugin.Core
                 if (!string.IsNullOrEmpty(e.Data))
                 {
                     errorBuilder.AppendLine(e.Data);
-                    StatusChanged?.Invoke(this, $"npm error: {e.Data}");
                 }
             };
 
-            StatusChanged?.Invoke(this, "Debug: Starting npm install");
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
@@ -350,7 +362,6 @@ namespace WhatsAppSimHubPlugin.Core
             }
 
             var error = errorBuilder.ToString();
-            StatusChanged?.Invoke(this, $"Debug: npm exit code = {process.ExitCode}");
 
             // Verificar se falhou por falta de Git
             if (process.ExitCode != 0 || error.Contains("spawn git") || error.Contains("ENOENT"))
@@ -408,17 +419,8 @@ namespace WhatsAppSimHubPlugin.Core
                 EnableRaisingEvents = true
             };
 
-            retryProcess.OutputDataReceived += (s, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                    StatusChanged?.Invoke(this, $"npm: {e.Data}");
-            };
-
-            retryProcess.ErrorDataReceived += (s, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                    StatusChanged?.Invoke(this, $"npm error: {e.Data}");
-            };
+            retryProcess.OutputDataReceived += (s, e) => { };
+            retryProcess.ErrorDataReceived += (s, e) => { };
 
             retryProcess.Start();
             retryProcess.BeginOutputReadLine();
@@ -465,7 +467,7 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// 🔥 Mata processos Node.js antigos que estão a usar whatsapp-server.js
+        /// 🔥 Mata processos Node.js antigos do plugin (whatsapp-server.js ou baileys-server.mjs)
         /// Isto resolve o problema de EADDRINUSE quando SimHub reinicia!
         /// Toda a operação corre em background para não bloquear SimHub
         /// </summary>
@@ -476,11 +478,7 @@ namespace WhatsAppSimHubPlugin.Core
             {
                 try
                 {
-                    StatusChanged?.Invoke(this, "Debug: Killing old Node.js processes...");
-
-                    // Procurar todos os processos node.exe (operação potencialmente lenta)
                     var nodeProcesses = Process.GetProcessesByName("node");
-
                     int killedCount = 0;
                     var killTasks = new List<Task>();
 
@@ -488,43 +486,33 @@ namespace WhatsAppSimHubPlugin.Core
                     {
                         try
                         {
-                            // Verificar se é o nosso processo (whatsapp-server.js)
-                            // GetProcessCommandLine usa WMI que pode ser lento, mas estamos em background
                             string commandLine = GetProcessCommandLine(process);
 
+                            // Verificar se é script do plugin (whatsapp-server.js OU baileys-server.mjs)
                             if (!string.IsNullOrEmpty(commandLine) &&
-                                commandLine.Contains("whatsapp-server.js"))
+                                (commandLine.Contains("whatsapp-server.js") || commandLine.Contains("baileys-server.mjs")))
                             {
-                                // Skip se for o processo actual
+                                // Não matar o processo atual
                                 if (_nodeProcess != null && process.Id == _nodeProcess.Id)
                                 {
                                     continue;
                                 }
 
-                                StatusChanged?.Invoke(this, $"Debug: Killing Node.js process {process.Id}");
-
                                 process.Kill();
-                                // Aguardar processo terminar
                                 var procToWait = process;
                                 killTasks.Add(Task.Run(() =>
                                 {
-                                    try
-                                    {
-                                        procToWait.WaitForExit(1000);
-                                    }
-                                    catch { }
+                                    try { procToWait.WaitForExit(1000); } catch { }
                                 }));
                                 killedCount++;
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception)
                         {
                             // Ignorar erros ao matar processos individuais
-                            StatusChanged?.Invoke(this, $"Debug: Could not kill process: {ex.Message}");
                         }
                     }
 
-                    // Aguardar todos os kills completarem
                     if (killTasks.Count > 0)
                     {
                         await Task.WhenAll(killTasks).ConfigureAwait(false);
@@ -532,19 +520,12 @@ namespace WhatsAppSimHubPlugin.Core
 
                     if (killedCount > 0)
                     {
-                        StatusChanged?.Invoke(this, $"Debug: Killed {killedCount} old Node.js process(es)");
-
-                        // Dar tempo para o SO libertar a porta
                         await Task.Delay(500).ConfigureAwait(false);
                     }
-                    else
-                    {
-                        StatusChanged?.Invoke(this, "Debug: No old Node.js processes found");
-                    }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    StatusChanged?.Invoke(this, $"Debug: Error killing old processes: {ex.Message}");
+                    // Ignore errors killing old processes
                 }
             }).ConfigureAwait(false);
         }
@@ -585,18 +566,11 @@ namespace WhatsAppSimHubPlugin.Core
 
         private async Task StartNodeProcess()
         {
-            StatusChanged?.Invoke(this, "Debug: StartNodeProcess called");
-
-            // 🔥 MATAR PROCESSOS NODE.JS ANTIGOS!
             await KillOldNodeProcessesAsync().ConfigureAwait(false);
 
-            // Escolher script baseado no backend mode
             var scriptName = _backendMode == "baileys" ? "baileys-server.mjs" : "whatsapp-server.js";
             var scriptPath = Path.Combine(_pluginPath, "node", scriptName);
-            StatusChanged?.Invoke(this, $"Debug: Starting {_backendMode} backend");
-            StatusChanged?.Invoke(this, $"Debug: script path = {scriptPath}");
 
-            // ⭐ VERIFICAR SE SCRIPT EXISTE
             if (!File.Exists(scriptPath))
             {
                 var error = $"Script not found: {scriptPath}";
@@ -604,9 +578,6 @@ namespace WhatsAppSimHubPlugin.Core
                 throw new FileNotFoundException(error);
             }
 
-            StatusChanged?.Invoke(this, "Debug: Script file exists");
-
-            // ⭐ NOTIFICAR QUE ESTÁ A INICIAR NODE
             StatusChanged?.Invoke(this, "Starting");
 
             _nodeProcess = new Process
@@ -619,34 +590,36 @@ namespace WhatsAppSimHubPlugin.Core
                     CreateNoWindow = true,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true
-                }
+                },
+                EnableRaisingEvents = true
             };
 
-            // ⭐ CAPTURAR STDERR PARA DEBUG
+            // Handle process exit
+            _nodeProcess.Exited += (sender, args) =>
+            {
+                _isConnected = false;
+                StatusChanged?.Invoke(this, "Disconnected");
+                Disconnected?.Invoke(this, EventArgs.Empty);
+            };
+
+            // Capture stderr
             _nodeProcess.ErrorDataReceived += (sender, e) =>
             {
                 if (!string.IsNullOrEmpty(e.Data))
                 {
-                    System.Diagnostics.Debug.WriteLine($"[NODE ERROR] {e.Data}");
                     StatusChanged?.Invoke(this, $"NodeError: {e.Data}");
                 }
             };
 
-            StatusChanged?.Invoke(this, "Debug: Starting node process");
             _nodeProcess.Start();
             _nodeProcess.BeginErrorReadLine();
 
-            // ⭐ LER PORTA DO STDOUT (primeira linha é "PORT:XXXX")
-            // Usar leitura síncrona numa Task para evitar conflito com BeginOutputReadLine
-            StatusChanged?.Invoke(this, "Debug: Waiting for port from Node.js...");
             _selectedPort = await Task.Run(() => ReadPortFromNodeSync()).ConfigureAwait(false);
-            StatusChanged?.Invoke(this, $"Debug: Node.js selected port {_selectedPort}");
 
             // Continuar a ler stdout numa Task separada (não usar BeginOutputReadLine)
             _ = Task.Run(() => ReadNodeOutputContinuously());
 
-            StatusChanged?.Invoke(this, "Debug: Node process started, waiting 2s for WebSocket server");
-            await Task.Delay(2000).ConfigureAwait(false); // ⭐ 2s para WebSocket server iniciar
+            await Task.Delay(2000).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -668,12 +641,10 @@ namespace WhatsAppSimHubPlugin.Core
                     }
                 }
 
-                StatusChanged?.Invoke(this, $"Warning: Could not parse port from '{portLine}', using default 3000");
                 return 3000;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                StatusChanged?.Invoke(this, $"Warning: Error reading port: {ex.Message}, using default 3000");
                 return 3000;
             }
         }
@@ -688,8 +659,7 @@ namespace WhatsAppSimHubPlugin.Core
                 string line;
                 while ((line = _nodeProcess?.StandardOutput?.ReadLine()) != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[NODE OUTPUT] {line}");
-                    StatusChanged?.Invoke(this, $"NodeOutput: {line}");
+                    // Silently consume output
                 }
             }
             catch (Exception)
@@ -700,23 +670,16 @@ namespace WhatsAppSimHubPlugin.Core
 
         private async Task ConnectWebSocket()
         {
-            StatusChanged?.Invoke(this, "Debug: ConnectWebSocket called");
-
-            // ⭐ RETRY 3x COM DELAY
             for (int i = 0; i < 3; i++)
             {
                 try
                 {
-                    // ⭐ CRIAR NOVO WebSocket EM CADA TENTATIVA!
                     _webSocket?.Dispose();
                     _cts?.Dispose();
 
                     _webSocket = new ClientWebSocket();
                     _cts = new CancellationTokenSource();
 
-                    StatusChanged?.Invoke(this, $"Debug: Connecting attempt {i + 1}/3");
-
-                    // Timeout de 10 segundos para conexão WebSocket
                     using (var connectCts = new CancellationTokenSource(10000))
                     {
                         await _webSocket.ConnectAsync(new Uri($"ws://127.0.0.1:{_selectedPort}"), connectCts.Token).ConfigureAwait(false);
@@ -726,14 +689,11 @@ namespace WhatsAppSimHubPlugin.Core
                     StatusChanged?.Invoke(this, "Connected");
                     _ = Task.Run(() => ReceiveMessages());
 
-                    // Enviar comando "connect" para Baileys iniciar conexão
                     await SendCommandAsync("connect").ConfigureAwait(false);
                     return;
                 }
                 catch (OperationCanceledException)
                 {
-                    StatusChanged?.Invoke(this, $"Debug: Attempt {i + 1} timed out");
-
                     if (i == 2)
                     {
                         StatusChanged?.Invoke(this, "Error: Connection timed out after 3 attempts");
@@ -743,14 +703,12 @@ namespace WhatsAppSimHubPlugin.Core
                 }
                 catch (Exception ex)
                 {
-                    StatusChanged?.Invoke(this, $"Debug: Attempt {i + 1} failed: {ex.Message}");
-
-                    if (i == 2) // última tentativa
+                    if (i == 2)
                     {
                         StatusChanged?.Invoke(this, $"Error: Unable to connect - {ex.Message}");
                         throw;
                     }
-                    await Task.Delay(2000).ConfigureAwait(false); // esperar 2s entre tentativas
+                    await Task.Delay(2000).ConfigureAwait(false);
                 }
             }
         }
@@ -759,36 +717,55 @@ namespace WhatsAppSimHubPlugin.Core
         {
             var buffer = new byte[8192];
 
-            while (_webSocket.State == WebSocketState.Open)
+            try
             {
-                try
+                while (_webSocket != null && _webSocket.State == WebSocketState.Open)
                 {
-                    var result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-
-                    if (result.MessageType == WebSocketMessageType.Close)
+                    try
                     {
-                        await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+                        var result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
+
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+                            break;
+                        }
+
+                        var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        var json = JObject.Parse(message);
+                        var type = json["type"]?.ToString();
+
+                        if (type == "qr")
+                            QrCodeReceived?.Invoke(this, json["qr"].ToString());
+                        else if (type == "ready")
+                            Ready?.Invoke(this, (json["number"].ToString(), json["name"].ToString()));
+                        else if (type == "message")
+                            MessageReceived?.Invoke(this, json["message"] as JObject);
+                        else if (type == "chatContactsList")
+                            ChatContactsListReceived?.Invoke(this, json["contacts"] as JArray);
+                        else if (type == "chatContactsError")
+                            ChatContactsError?.Invoke(this, json["error"]?.ToString() ?? "Unknown error");
+                        else if (type == "disconnected")
+                            Disconnected?.Invoke(this, EventArgs.Empty);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Normal cancellation, exit loop
                         break;
                     }
-
-                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    var json = JObject.Parse(message);
-                    var type = json["type"]?.ToString();
-
-                    if (type == "qr")
-                        QrCodeReceived?.Invoke(this, json["qr"].ToString());
-                    else if (type == "ready")
-                        Ready?.Invoke(this, (json["number"].ToString(), json["name"].ToString()));
-                    else if (type == "message")
-                        MessageReceived?.Invoke(this, json["message"] as JObject);
-                    else if (type == "chatContactsList")
-                        ChatContactsListReceived?.Invoke(this, json["contacts"] as JArray);
-                    else if (type == "chatContactsError")
-                        ChatContactsError?.Invoke(this, json["error"]?.ToString() ?? "Unknown error");
-                    else if (type == "disconnected")
-                        Disconnected?.Invoke(this, EventArgs.Empty);
+                    catch (WebSocketException)
+                    {
+                        // WebSocket error (connection lost), exit loop
+                        break;
+                    }
                 }
-                catch { }
+            }
+            finally
+            {
+                // Connection lost - update state and notify
+                _isConnected = false;
+                StatusChanged?.Invoke(this, "Disconnected");
+                Disconnected?.Invoke(this, EventArgs.Empty);
             }
         }
 
@@ -823,83 +800,58 @@ namespace WhatsAppSimHubPlugin.Core
 
         public void Stop()
         {
-            StatusChanged?.Invoke(this, "Debug: Stop() called.");
             _isConnected = false;
 
+            // Enviar shutdown ao Node.js de forma síncrona (com timeout curto)
             try
             {
-                // 1. Try to send graceful shutdown command (fire-and-forget para não bloquear SimHub)
                 if (_webSocket != null && _webSocket.State == WebSocketState.Open)
                 {
-                    StatusChanged?.Invoke(this, "Debug: Sending 'shutdown' command to Node.js script.");
-                    _ = Task.Run(async () =>
+                    var shutdownJson = new JObject { ["type"] = "shutdown" };
+                    var bytes = Encoding.UTF8.GetBytes(shutdownJson.ToString());
+
+                    using (var cts = new CancellationTokenSource(1000)) // 1 segundo timeout
                     {
                         try
                         {
-                            await SendCommandAsync("shutdown").ConfigureAwait(false);
+                            _webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cts.Token).Wait();
                         }
-                        catch { /* Ignore shutdown errors */ }
-                    });
+                        catch { }
+                    }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                StatusChanged?.Invoke(this, $"Debug: Error sending shutdown command: {ex.Message}");
             }
 
-            // 2. Cancel any ongoing WebSocket operations
+            // Fechar WebSocket
             try
             {
                 _cts?.Cancel();
                 _webSocket?.Dispose();
+                _webSocket = null;
             }
             catch { }
 
-
-            // 3. Wait for the process to exit gracefully, with a fallback to Kill (async para não bloquear SimHub)
+            // Matar processo Node.js imediatamente
             var processToCleanup = _nodeProcess;
             _nodeProcess = null;
 
             if (processToCleanup != null)
             {
-                _ = Task.Run(async () =>
+                try
                 {
-                    try
+                    if (!processToCleanup.HasExited)
                     {
-                        if (!processToCleanup.HasExited)
-                        {
-                            StatusChanged?.Invoke(this, "Debug: Waiting for Node.js process to exit...");
-
-                            // Aguardar até 5 segundos de forma async
-                            var exitTask = Task.Run(() => processToCleanup.WaitForExit(5000));
-                            bool exited = await exitTask.ConfigureAwait(false);
-
-                            if (exited)
-                            {
-                                StatusChanged?.Invoke(this, "Debug: Node.js process exited gracefully.");
-                            }
-                            else
-                            {
-                                StatusChanged?.Invoke(this, "Debug: Node.js process did not exit in time. Killing it.");
-                                try { processToCleanup.Kill(); } catch { }
-                            }
-                        }
+                        processToCleanup.Kill();
+                        processToCleanup.WaitForExit(2000);
                     }
-                    catch (Exception ex)
-                    {
-                        StatusChanged?.Invoke(this, $"Debug: Exception during process stop: {ex.Message}");
-                        try { if (!processToCleanup.HasExited) processToCleanup.Kill(); } catch { }
-                    }
-                    finally
-                    {
-                        try { processToCleanup.Dispose(); } catch { }
-                        StatusChanged?.Invoke(this, "Debug: Stop() finished.");
-                    }
-                });
-            }
-            else
-            {
-                StatusChanged?.Invoke(this, "Debug: Stop() finished.");
+                }
+                catch { }
+                finally
+                {
+                    try { processToCleanup.Dispose(); } catch { }
+                }
             }
         }
 

@@ -573,6 +573,34 @@ namespace WhatsAppSimHubPlugin
         }
 
         /// <summary>
+        /// Limpa todas as propriedades do overlay (usado quando desconecta)
+        /// </summary>
+        private void ClearOverlayProperties()
+        {
+            _showMessage = false;
+            _overlaySender = "";
+            _overlayTypeMessage = "";
+            _overlayTotalMessages = 0;
+            for (int i = 0; i < _overlayMessages.Length; i++)
+                _overlayMessages[i] = "";
+            WriteLog("[OVERLAY] Properties cleared");
+        }
+
+        /// <summary>
+        /// Mostra mensagem "No connection" no overlay
+        /// </summary>
+        private void ShowNoConnectionMessage()
+        {
+            _showMessage = true;
+            _overlaySender = "No connection to WhatsApp";
+            _overlayTypeMessage = "";
+            _overlayTotalMessages = 1; // Manter 1 para o fundo continuar visível
+            for (int i = 0; i < _overlayMessages.Length; i++)
+                _overlayMessages[i] = "";
+            WriteLog("[OVERLAY] Showing 'No connection' message");
+        }
+
+        /// <summary>
         /// Atualiza propriedades do overlay para mostrar GRUPO de mensagens
         /// </summary>
         private void UpdateOverlayProperties(List<QueuedMessage> messages)
@@ -881,6 +909,9 @@ namespace WhatsAppSimHubPlugin
                 WriteLog("User requested disconnect - not retrying");
                 _connectionStatus = "Disconnected";
                 _settingsControl?.UpdateConnectionStatus("Disconnected");
+
+                // Limpar propriedades do overlay
+                ClearOverlayProperties();
                 return;
             }
 
@@ -934,11 +965,7 @@ namespace WhatsAppSimHubPlugin
                 _messageQueue?.PauseQueue();
 
                 // Mostrar mensagem fixa no ecrã
-                _showMessage = true;
-                _overlaySender = "No connection to WhatsApp";
-                for (int i = 0; i < _overlayMessages.Length; i++)
-                    _overlayMessages[i] = "";
-                WriteLog("Showing 'No connection' message on overlay");
+                ShowNoConnectionMessage();
             }
         }
 
@@ -997,6 +1024,15 @@ namespace WhatsAppSimHubPlugin
             {
                 // Logar mas não fazer nada no UI
                 WriteLog($"🔍 {status}");
+
+                // Se script foi atualizado, refrescar versão na UI
+                if (status.Contains("Updated script") || status.Contains("Created script"))
+                {
+                    _settingsControl?.Dispatcher?.BeginInvoke(new Action(() =>
+                    {
+                        _settingsControl?.RefreshScriptsVersion();
+                    }));
+                }
             }
         }
 
@@ -1185,10 +1221,10 @@ namespace WhatsAppSimHubPlugin
                 WriteLog($"⚠️ Error killing Chrome processes: {ex.Message}");
             }
 
-            // 🔥 MATAR PROCESSOS NODE.JS RESTANTES
+            // 🔥 MATAR TODOS OS PROCESSOS NODE.JS DO PLUGIN
             try
             {
-                WriteLog("Killing Node.js processes from WhatsApp plugin...");
+                WriteLog("Killing all Node.js processes from WhatsApp plugin...");
                 var nodeProcesses = System.Diagnostics.Process.GetProcessesByName("node");
                 int killedCount = 0;
 
@@ -1197,20 +1233,14 @@ namespace WhatsAppSimHubPlugin
                     try
                     {
                         var cmdLine = GetProcessCommandLine(proc);
-                        if (cmdLine != null && cmdLine.IndexOf("whatsapp-client.js", StringComparison.OrdinalIgnoreCase) >= 0)
+                        // Verificar se é script do plugin (whatsapp-server.js OU baileys-server.mjs)
+                        if (cmdLine != null &&
+                            (cmdLine.IndexOf("whatsapp-server.js", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                             cmdLine.IndexOf("baileys-server.mjs", StringComparison.OrdinalIgnoreCase) >= 0))
                         {
                             WriteLog($"  Killing Node.js process {proc.Id}");
                             proc.Kill();
-                            // Fire-and-forget wait para não bloquear SimHub
-                            var procToWait = proc;
-                            _ = Task.Run(async () =>
-                            {
-                                try
-                                {
-                                    await Task.Run(() => procToWait.WaitForExit(1000)).ConfigureAwait(false);
-                                }
-                                catch { }
-                            });
+                            try { proc.WaitForExit(1000); } catch { }
                             killedCount++;
                         }
                     }
@@ -1222,6 +1252,8 @@ namespace WhatsAppSimHubPlugin
 
                 if (killedCount > 0)
                     WriteLog($"✅ Killed {killedCount} Node.js process(es)");
+                else
+                    WriteLog("No WhatsApp plugin Node.js processes found");
             }
             catch (Exception ex)
             {

@@ -5,11 +5,12 @@
   "main": "whatsapp-server.js",
   "scripts": {
     "start-whatsapp": "node whatsapp-server.js",
-    "start-baileys": "node baileys-server.js"
+    "start-baileys": "node baileys-server.mjs"
   },
   "dependencies": {
     "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#main",
     "@whiskeysockets/baileys": "npm:@whiskeysockets/baileys@latest",
+    "@hapi/boom": "^10.0.1",
     "ws": "^8.18.0",
     "pino": "^9.6.0",
     "qrcode-terminal": "^0.12.0",
