@@ -10,6 +10,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
@@ -80,8 +81,91 @@
                 </StackPanel>
             </Border>
 
-            <!-- Manual Add -->
+            <!-- Add from Google Contacts -->
             <Border Grid.Row="2" Background="#2D2D30" Padding="15" CornerRadius="8" Margin="0,0,0,15">
+                <StackPanel>
+                    <TextBlock Text="📇 Add from Google Contacts"
+                              FontSize="16"
+                              FontWeight="SemiBold"
+                              Foreground="#D4D4D4"
+                              Margin="0,0,0,10"/>
+
+                    <!-- Connect Button + Status -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <styles:SHButtonPrimary x:Name="GoogleConnectButton"
+                               Content="🔗 Connect Google"
+                               Background="#4285F4"
+                               Foreground="White"
+                               Padding="15,6"
+                               Height="32"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               ToolTip="Connect to Google Contacts"/>
+
+                        <Ellipse x:Name="GoogleStatusIndicator"
+                                 Width="12" Height="12"
+                                 Fill="#C42B1C"
+                                 Margin="15,0,8,0"
+                                 VerticalAlignment="Center"/>
+
+                        <TextBlock x:Name="GoogleStatusText"
+                                   Text="Not connected"
+                                   Foreground="#858585"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- ComboBox + Refresh + Add -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <ComboBox x:Name="GoogleContactsComboBox"
+                                 Grid.Column="0"
+                                 IsEnabled="False"
+                                 IsEditable="True"
+                                 IsTextSearchEnabled="False"
+                                 StaysOpenOnEdit="True"
+                                 DisplayMemberPath="DisplayText"
+                                 Background="#252526"
+                                 Foreground="#D4D4D4"
+                                 BorderBrush="#3E3E42"
+                                 Height="32"
+                                 Margin="0,0,10,0"
+                                 FontSize="13"
+                                 ToolTip="Type to search contacts"/>
+
+                        <styles:SHButtonPrimary x:Name="GoogleRefreshButton"
+                               Grid.Column="1"
+                               Content="🔄 Refresh"
+                               IsEnabled="False"
+                               Background="#007ACC"
+                               Foreground="White"
+                               Width="110"
+                               Height="32"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Margin="0,0,10,0"
+                               ToolTip="Refresh Google contacts"/>
+
+                        <styles:SHButtonPrimary x:Name="GoogleAddButton"
+                               Grid.Column="2"
+                               Content="➕ Add"
+                               IsEnabled="False"
+                               Background="#0E7A0D"
+                               Foreground="White"
+                               Padding="15,6"
+                               FontSize="13"
+                               FontWeight="SemiBold"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Manual Add -->
+            <Border Grid.Row="3" Background="#2D2D30" Padding="15" CornerRadius="8" Margin="0,0,0,15">
                 <StackPanel>
                     <TextBlock Text="➕ Add Contact"
                               FontSize="16"
@@ -137,7 +221,7 @@
             </Border>
 
             <!-- Allowed Contacts Header -->
-            <Border Grid.Row="3" Background="#2D2D30" Padding="15,10,15,5" CornerRadius="8,8,0,0">
+            <Border Grid.Row="4" Background="#2D2D30" Padding="15,10,15,5" CornerRadius="8,8,0,0">
                 <TextBlock Text="📋 Allowed Contacts"
                           FontSize="16"
                           FontWeight="SemiBold"
@@ -145,7 +229,7 @@
             </Border>
 
             <!-- Contacts DataGrid -->
-            <Border Grid.Row="4" Background="#252526" Padding="0" CornerRadius="0,0,8,8">
+            <Border Grid.Row="5" Background="#252526" Padding="0" CornerRadius="0,0,8,8">
                 <DataGrid x:Name="ContactsDataGrid"
                              AutoGenerateColumns="False"
                              CanUserAddRows="False"
@@ -258,7 +342,8 @@
                                                BorderThickness="0"
                                                Padding="8,4"
                                                FontSize="11"
-                                               Margin="5,2"/>
+                                               Margin="5,2"
+                                               Loaded="RemoveContactButton_Loaded"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>

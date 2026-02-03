@@ -34,6 +34,12 @@ namespace WhatsAppSimHubPlugin.Core
         public event EventHandler<string> ChatContactsError;  // ❌ Erro ao carregar
         public event EventHandler<bool> InstallationCompleted;  // 🔧 Instalação terminou (true=sucesso)
 
+        // Google Contacts events
+        public event EventHandler<(bool connected, string status)> GoogleStatusReceived;
+        public event EventHandler<string> GoogleAuthUrlReceived;
+        public event EventHandler GoogleContactsDone;  // Signal that contacts file was updated
+        public event EventHandler<string> GoogleError;
+
         // Propriedade pública para verificar conexão
         public bool IsConnected => _isConnected && IsNodeProcessAlive;
 
@@ -147,6 +153,10 @@ namespace WhatsAppSimHubPlugin.Core
             // Copy baileys-server.mjs if not exists or version changed
             var baileysScriptPath = Path.Combine(_pluginPath, "node", "baileys-server.mjs");
             CopyScriptIfNeeded(assembly, "WhatsAppSimHubPlugin.Resources.baileys-server.mjs", baileysScriptPath);
+
+            // Copy google-contacts.js if not exists
+            var googleContactsScriptPath = Path.Combine(_pluginPath, "node", "google-contacts.js");
+            CopyScriptIfNeeded(assembly, "WhatsAppSimHubPlugin.Resources.google-contacts.js", googleContactsScriptPath);
         }
 
         /// <summary>
@@ -764,6 +774,23 @@ namespace WhatsAppSimHubPlugin.Core
                             ChatContactsError?.Invoke(this, json["error"]?.ToString() ?? "Unknown error");
                         else if (type == "disconnected")
                             Disconnected?.Invoke(this, EventArgs.Empty);
+                        // Google Contacts handlers
+                        else if (type == "googleStatus")
+                            GoogleStatusReceived?.Invoke(this, (json["connected"]?.ToObject<bool>() ?? false, json["status"]?.ToString() ?? "Unknown"));
+                        else if (type == "googleAuthUrl")
+                            GoogleAuthUrlReceived?.Invoke(this, json["url"]?.ToString());
+                        else if (type == "googleAuthComplete")
+                        {
+                            bool success = json["success"]?.ToObject<bool>() ?? false;
+                            if (success)
+                                GoogleStatusReceived?.Invoke(this, (true, "Connected"));
+                            else
+                                GoogleError?.Invoke(this, json["error"]?.ToString() ?? "Authentication failed");
+                        }
+                        else if (type == "googleContactsDone")
+                            GoogleContactsDone?.Invoke(this, EventArgs.Empty);
+                        else if (type == "googleError")
+                            GoogleError?.Invoke(this, json["error"]?.ToString() ?? "Unknown error");
                     }
                     catch (OperationCanceledException)
                     {
@@ -774,6 +801,18 @@ namespace WhatsAppSimHubPlugin.Core
                     {
                         // WebSocket error (connection lost), exit loop
                         break;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Catch any other exceptions but don't break the loop
+                        // Log to file for debugging
+                        try
+                        {
+                            var logPath = Path.Combine(_pluginPath, "logs", "websocket-errors.log");
+                            File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] Error: {ex.Message}\n{ex.StackTrace}\n\n");
+                        }
+                        catch { }
+                        // Continue processing messages
                     }
                 }
             }
@@ -811,6 +850,13 @@ namespace WhatsAppSimHubPlugin.Core
                 ["type"] = commandType
             };
 
+            var bytes = Encoding.UTF8.GetBytes(json.ToString());
+            await _webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cts.Token);
+        }
+
+        public async Task SendJsonAsync(object data)
+        {
+            var json = JObject.FromObject(data);
             var bytes = Encoding.UTF8.GetBytes(json.ToString());
             await _webSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cts.Token);
         }

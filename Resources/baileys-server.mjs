@@ -29,6 +29,12 @@ const authPath = path.join(pluginDir, "data_baileys", "auth_info");
 const logPath = path.join(pluginDir, "logs", "baileys.log");
 const debugConfigPath = path.join(pluginDir, "config", "debug.json");
 
+// Google Contacts module
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const googleContacts = require("./google-contacts.js");
+googleContacts.init(pluginDir);
+
 // Create directories
 try {
   fs.mkdirSync(path.dirname(logPath), { recursive: true });
@@ -183,6 +189,81 @@ wss.on("connection", (socket) => {
             type: "chatContactsError",
             error: "Chat contacts not supported with Baileys.",
           });
+          break;
+
+        // Google Contacts handlers
+        case "googleGetStatus":
+          // getStatus() returns { connected, status, lastSync }
+          const gStatus = googleContacts.getStatus();
+          sendToPlugin({
+            type: "googleStatus",
+            connected: gStatus.connected,
+            status: gStatus.status,
+          });
+          break;
+
+        case "googleStartAuth":
+          // Check if already connected with valid tokens
+          if (googleContacts.isConnected()) {
+            log("[GOOGLE] Already connected - using existing session");
+            sendToPlugin({ type: "googleAuthComplete", success: true });
+            break;
+          }
+
+          // Start Google OAuth flow
+          log("[GOOGLE] Starting OAuth flow...");
+          const authUrl = googleContacts.getAuthUrlForBrowser();
+          sendToPlugin({ type: "googleAuthUrl", url: authUrl });
+
+          // Start auth server and wait for callback
+          googleContacts
+            .startAuth()
+            .then((result) => {
+              log("[GOOGLE] OAuth completed successfully");
+              sendToPlugin({ type: "googleAuthComplete", success: true });
+            })
+            .catch((err) => {
+              log("[GOOGLE] OAuth failed: " + err.message);
+              sendToPlugin({
+                type: "googleAuthComplete",
+                success: false,
+                error: err.message,
+              });
+            });
+          break;
+
+        case "googleGetContacts":
+          // Fetch contacts from Google API and save to file
+          log("[GOOGLE] Refreshing contacts...");
+          try {
+            const forceRefresh = data.forceRefresh || false;
+            await googleContacts.getContacts(forceRefresh);
+            // Signal done - plugin reads file directly
+            sendToPlugin({ type: "googleContactsDone" });
+          } catch (error) {
+            if (error.message === "AUTH_REQUIRED") {
+              sendToPlugin({
+                type: "googleStatus",
+                connected: false,
+                status: "Not connected",
+              });
+            } else {
+              sendToPlugin({ type: "googleError", error: error.message });
+            }
+          }
+          break;
+
+        case "googleDisconnect":
+          try {
+            await googleContacts.disconnect();
+            sendToPlugin({
+              type: "googleStatus",
+              connected: false,
+              status: "Disconnected",
+            });
+          } catch (error) {
+            sendToPlugin({ type: "googleError", error: error.message });
+          }
           break;
       }
     } catch (err) {

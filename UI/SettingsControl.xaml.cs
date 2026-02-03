@@ -139,6 +139,7 @@ namespace WhatsAppSimHubPlugin.UI
             ConnectionTab.ScriptsCheckButtonCtrl.Click += ScriptsCheckButton_Click;
             ConnectionTab.WwjsScriptUpdateButtonCtrl.Click += WwjsScriptUpdateButton_Click;
             ConnectionTab.BaileysScriptUpdateButtonCtrl.Click += BaileysScriptUpdateButton_Click;
+            ConnectionTab.GoogleScriptUpdateButtonCtrl.Click += GoogleScriptUpdateButton_Click;
         }
 
         /// <summary>
@@ -150,8 +151,17 @@ namespace WhatsAppSimHubPlugin.UI
             ContactsTab.RefreshChatsButtonCtrl.Click += RefreshChatsButton_Click;
             ContactsTab.AddFromChatsButtonCtrl.Click += AddFromChatsButton_Click;
 
+            // Google Contacts
+            ContactsTab.GoogleConnectButtonCtrl.Click += GoogleConnectButton_Click;
+            ContactsTab.GoogleRefreshButtonCtrl.Click += GoogleRefreshButton_Click;
+            ContactsTab.GoogleAddButtonCtrl.Click += GoogleAddButton_Click;
+            ContactsTab.GoogleContactsSearchChanged += GoogleContactsComboBox_SearchChanged;
+
             // Manual add
             ContactsTab.AddManualButtonCtrl.Click += AddManualButton_Click;
+
+            // Remove contact from DataTemplate
+            ContactsTab.RemoveContactRequested += ContactsTab_RemoveContactRequested;
         }
 
         /// <summary>
@@ -161,6 +171,9 @@ namespace WhatsAppSimHubPlugin.UI
         {
             KeywordsTab.AddKeywordButtonCtrl.Click += AddKeyword_Click;
             KeywordsTab.NewKeywordCtrl.KeyDown += NewKeyword_KeyDown;
+
+            // Remove keyword from DataTemplate
+            KeywordsTab.RemoveKeywordRequested += KeywordsTab_RemoveKeywordRequested;
         }
 
         /// <summary>
@@ -168,6 +181,8 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private void WireUpDisplayTabEvents()
         {
+            DisplayTab.VoCoreEnabledCheckboxCtrl.Checked += VoCoreEnabledCheckbox_Changed;
+            DisplayTab.VoCoreEnabledCheckboxCtrl.Unchecked += VoCoreEnabledCheckbox_Changed;
             DisplayTab.TargetDeviceComboBoxCtrl.SelectionChanged += TargetDeviceCombo_SelectionChanged;
             DisplayTab.RefreshDevicesButtonCtrl.Click += RefreshDevicesButton_Click;
             DisplayTab.TestOverlayButtonCtrl.Click += TestOverlayButton_Click;
@@ -407,7 +422,41 @@ namespace WhatsAppSimHubPlugin.UI
                         DisplayTab.DeviceStatusLabelCtrl.Foreground = new SolidColorBrush(Color.FromRgb(231, 72, 119));
                     }
                 }
+
+                // Enable Test button only if VoCore is enabled AND has connected devices
+                UpdateTestButtonState(connectedCount);
             });
+        }
+
+        private void UpdateTestButtonState(int connectedCount = -1)
+        {
+            // If connectedCount not provided, use current known count
+            if (connectedCount < 0)
+            {
+                connectedCount = _knownDeviceIds.Count;
+            }
+
+            bool vocoreEnabled = DisplayTab.VoCoreEnabledCheckboxCtrl.IsChecked == true;
+            bool hasDevices = connectedCount > 0;
+            bool hasSelectedDevice = !string.IsNullOrEmpty(_settings.TargetDevice);
+
+            DisplayTab.TestOverlayButtonCtrl.IsEnabled = vocoreEnabled && hasDevices && hasSelectedDevice;
+        }
+
+        private void VoCoreEnabledCheckbox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_settings == null || _plugin == null) return;
+
+            bool isEnabled = DisplayTab.VoCoreEnabledCheckboxCtrl.IsChecked == true;
+
+            // Update plugin property (exposed to dashboards as WhatsAppPlugin.vocoreenabled)
+            _plugin.SetVoCoreEnabled(isEnabled);
+            _plugin.SaveSettings();
+
+            // Update UI state
+            DisplayTab.TargetDeviceComboBoxCtrl.IsEnabled = isEnabled;
+            DisplayTab.RefreshDevicesButtonCtrl.IsEnabled = isEnabled;
+            UpdateTestButtonState();
         }
 
         private void LoadSettings()
@@ -426,6 +475,11 @@ namespace WhatsAppSimHubPlugin.UI
 
                 // 🔧 Carregar Debug Logging state
                 ConnectionTab.DebugLoggingCheckBoxCtrl.IsChecked = LoadDebugLoggingState();
+
+                // 🔧 Carregar VoCore Enabled state
+                DisplayTab.VoCoreEnabledCheckboxCtrl.IsChecked = _settings.VoCoreEnabled;
+                DisplayTab.TargetDeviceComboBoxCtrl.IsEnabled = _settings.VoCoreEnabled;
+                DisplayTab.RefreshDevicesButtonCtrl.IsEnabled = _settings.VoCoreEnabled;
 
                 // 🔧 Carregar Target Device (se salvo)
                 if (!string.IsNullOrEmpty(_settings.TargetDevice))
@@ -993,6 +1047,193 @@ namespace WhatsAppSimHubPlugin.UI
             // O botão será reativado quando UpdateChatContactsList() for chamado
         }
 
+        #region Google Contacts
+
+        private ObservableCollection<Contact> _googleContacts;
+        private bool _googleConnected = false;
+
+        /// <summary>
+        /// Handle Google Connect/Disconnect button click
+        /// </summary>
+        private void GoogleConnectButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_googleConnected)
+            {
+                // Disconnect from Google
+                _plugin.GoogleDisconnect();
+            }
+            else
+            {
+                // Start Google authentication
+                UpdateGoogleStatus("Authenticating...", false);
+                ContactsTab.GoogleConnectButtonCtrl.IsEnabled = false;
+                _plugin.GoogleStartAuth();
+            }
+        }
+
+        /// <summary>
+        /// Handle Google Refresh button click
+        /// </summary>
+        private void GoogleRefreshButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_googleConnected)
+            {
+                ShowToast("Please connect to Google first.", "⚠️", 5);
+                return;
+            }
+
+            ContactsTab.GoogleRefreshButtonCtrl.IsEnabled = false;
+            UpdateGoogleStatus("Refreshing contacts...", true);
+            _plugin.GoogleGetContacts();
+        }
+
+        /// <summary>
+        /// Handle Google Add button click
+        /// </summary>
+        private void GoogleAddButton_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = ContactsTab.GoogleContactsComboBoxCtrl.SelectedItem as Contact;
+
+            if (selected == null)
+            {
+                ShowToast("Please select a contact from the list.", "⚠️", 5);
+                return;
+            }
+
+            // Check if already exists
+            var existing = _contacts.FirstOrDefault(c =>
+                c.Number.Replace("+", "").Replace(" ", "").Replace("-", "") ==
+                selected.Number.Replace("+", "").Replace(" ", "").Replace("-", ""));
+
+            if (existing != null)
+            {
+                ShowToast($"{existing.Name} is already in your allowed contacts list.", "ℹ️", 5);
+                return;
+            }
+
+            // Add new contact
+            var newContact = new Contact
+            {
+                Name = selected.Name,
+                Number = selected.Number,
+                IsVip = false
+            };
+
+            _contacts.Add(newContact);
+
+            ContactsTab.GoogleContactsComboBoxCtrl.SelectedIndex = -1;
+
+            ShowToast($"{newContact.Name} added to allowed contacts!", "✅");
+        }
+
+        /// <summary>
+        /// Update Google Contacts status from plugin
+        /// </summary>
+        public void UpdateGoogleStatus(string status, bool connected)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _googleConnected = connected;
+                ContactsTab.GoogleStatusTextCtrl.Text = status;
+
+                if (connected)
+                {
+                    ContactsTab.GoogleStatusIndicatorCtrl.Fill = new SolidColorBrush(Color.FromRgb(14, 122, 13)); // Green
+                    ContactsTab.GoogleConnectButtonCtrl.Content = "🔌 Disconnect";
+                    ContactsTab.GoogleContactsComboBoxCtrl.IsEnabled = true;
+                    ContactsTab.GoogleRefreshButtonCtrl.IsEnabled = true;
+                    ContactsTab.GoogleAddButtonCtrl.IsEnabled = true;
+                }
+                else
+                {
+                    ContactsTab.GoogleStatusIndicatorCtrl.Fill = new SolidColorBrush(Color.FromRgb(196, 43, 28)); // Red
+                    ContactsTab.GoogleConnectButtonCtrl.Content = "🔗 Connect Google";
+                    ContactsTab.GoogleContactsComboBoxCtrl.IsEnabled = false;
+                    ContactsTab.GoogleRefreshButtonCtrl.IsEnabled = false;
+                    ContactsTab.GoogleAddButtonCtrl.IsEnabled = false;
+                }
+
+                ContactsTab.GoogleConnectButtonCtrl.IsEnabled = true;
+            });
+        }
+
+        /// <summary>
+        /// Update Google Contacts list from plugin
+        /// </summary>
+        public void UpdateGoogleContactsList(ObservableCollection<Contact> contacts)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _googleContacts = contacts;
+                ContactsTab.GoogleContactsComboBoxCtrl.ItemsSource = _googleContacts;
+                ContactsTab.GoogleRefreshButtonCtrl.IsEnabled = true;
+
+                if (contacts != null && contacts.Count > 0)
+                {
+                    UpdateGoogleStatus($"Connected - {contacts.Count} contacts", true);
+                }
+                else
+                {
+                    UpdateGoogleStatus("Connected - No contacts found", true);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Handle Google authentication error
+        /// </summary>
+        public void HandleGoogleError(string error)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                UpdateGoogleStatus($"Error: {error}", false);
+                ShowToast($"Google error: {error}", "❌", 10);
+            });
+        }
+
+        /// <summary>
+        /// Request Google status from backend on load
+        /// </summary>
+        public void RequestGoogleStatus()
+        {
+            _plugin.GoogleGetStatus();
+        }
+
+        /// <summary>
+        /// Handle Google Contacts search/filter text changed
+        /// </summary>
+        private void GoogleContactsComboBox_SearchChanged(object sender, string searchText)
+        {
+            if (_googleContacts == null || _googleContacts.Count == 0)
+                return;
+
+            // If search text is empty, show all contacts
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                ContactsTab.GoogleContactsComboBoxCtrl.ItemsSource = _googleContacts;
+                return;
+            }
+
+            // Filter contacts by name or number (case-insensitive)
+            var searchLower = searchText.ToLowerInvariant();
+            var filtered = _googleContacts
+                .Where(c =>
+                    (c.Name != null && c.Name.ToLowerInvariant().Contains(searchLower)) ||
+                    (c.Number != null && c.Number.Contains(searchText)))
+                .ToList();
+
+            // Update ItemsSource with filtered results
+            ContactsTab.GoogleContactsComboBoxCtrl.ItemsSource = filtered;
+
+            // Keep dropdown open while typing
+            if (!ContactsTab.GoogleContactsComboBoxCtrl.IsDropDownOpen && filtered.Count > 0)
+            {
+                ContactsTab.GoogleContactsComboBoxCtrl.IsDropDownOpen = true;
+            }
+        }
+
+        #endregion
+
         #endregion
 
         #region Keywords Tab
@@ -1033,6 +1274,15 @@ namespace WhatsAppSimHubPlugin.UI
             _settings.Keywords.Remove(keyword);
             _plugin.SaveSettings();
 
+        }
+
+        private void KeywordsTab_RemoveKeywordRequested(object sender, string keyword)
+        {
+            if (string.IsNullOrEmpty(keyword)) return;
+
+            _keywords.Remove(keyword);
+            _settings.Keywords.Remove(keyword);
+            _plugin.SaveSettings();
         }
 
         private void NewKeyword_KeyDown(object sender, KeyEventArgs e)
@@ -1294,6 +1544,20 @@ namespace WhatsAppSimHubPlugin.UI
             }
         }
 
+        private void ContactsTab_RemoveContactRequested(object sender, Contact contact)
+        {
+            if (contact == null) return;
+
+            var result = MessageBox.Show($"Remove {contact.Name} from allowed contacts?\n\nThey will no longer be able to send you messages.",
+                "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                _contacts.Remove(contact);
+                _plugin.SaveSettings();
+            }
+        }
+
         /// <summary>
         /// Backend Mode ComboBox changed
         /// </summary>
@@ -1541,6 +1805,7 @@ namespace WhatsAppSimHubPlugin.UI
         private List<string> _baileysVersions = new List<string>();
         private string _latestWwjsScriptVersion = null;
         private string _latestBaileysScriptVersion = null;
+        private string _latestGoogleScriptVersion = null;
 
         /// <summary>
         /// Initialize backend library settings from saved config
@@ -1795,6 +2060,21 @@ namespace WhatsAppSimHubPlugin.UI
                     });
                     WriteDebugLog($"[CheckScriptsVersionOnStartup] baileys-server.mjs update available: {baileysLocalVersion} -> {baileysGithubVersion}");
                 }
+
+                // Check google-contacts.js
+                var googleLocalVersion = GetLocalScriptVersion("google-contacts.js");
+                var googleGithubVersion = await FetchGitHubScriptVersionAsync("google-contacts.js");
+                WriteDebugLog($"[CheckScriptsVersionOnStartup] google-contacts.js - Local: {googleLocalVersion}, GitHub: {googleGithubVersion}");
+
+                if (googleGithubVersion != null && googleLocalVersion != googleGithubVersion)
+                {
+                    _latestGoogleScriptVersion = googleGithubVersion;
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        ConnectionTab.GoogleScriptUpdateButtonCtrl.Visibility = Visibility.Visible;
+                    });
+                    WriteDebugLog($"[CheckScriptsVersionOnStartup] google-contacts.js update available: {googleLocalVersion} -> {googleGithubVersion}");
+                }
             }
             catch (Exception ex)
             {
@@ -1922,6 +2202,9 @@ namespace WhatsAppSimHubPlugin.UI
 
                 var baileysScriptVersion = GetLocalScriptVersion("baileys-server.mjs");
                 ConnectionTab.BaileysScriptVersionTextCtrl.Text = baileysScriptVersion ?? "N/A";
+
+                var googleScriptVersion = GetLocalScriptVersion("google-contacts.js");
+                ConnectionTab.GoogleScriptVersionTextCtrl.Text = googleScriptVersion ?? "N/A";
             }
             catch (Exception ex)
             {
@@ -2712,6 +2995,21 @@ namespace WhatsAppSimHubPlugin.UI
                     ConnectionTab.BaileysScriptUpdateButtonCtrl.Visibility = Visibility.Collapsed;
                 }
 
+                // Check google-contacts.js
+                var googleLocalVersion = GetLocalScriptVersion("google-contacts.js");
+                var googleGithubVersion = await FetchGitHubScriptVersionAsync("google-contacts.js");
+
+                if (googleGithubVersion != null && googleLocalVersion != googleGithubVersion)
+                {
+                    _latestGoogleScriptVersion = googleGithubVersion;
+                    ConnectionTab.GoogleScriptUpdateButtonCtrl.Visibility = Visibility.Visible;
+                    updatesFound++;
+                }
+                else
+                {
+                    ConnectionTab.GoogleScriptUpdateButtonCtrl.Visibility = Visibility.Collapsed;
+                }
+
                 // Show toast with result
                 if (updatesFound > 0)
                 {
@@ -2829,6 +3127,30 @@ namespace WhatsAppSimHubPlugin.UI
         }
 
         /// <summary>
+        /// Handle click on google-contacts.js update button
+        /// </summary>
+        private async void GoogleScriptUpdateButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_latestGoogleScriptVersion))
+                return;
+
+            var currentVersion = GetLocalScriptVersion("google-contacts.js") ?? "unknown";
+            var result = MessageBox.Show(
+                $"Update google-contacts.js to version {_latestGoogleScriptVersion}?\n\nCurrent: {currentVersion}\n\nContinue?",
+                "Update Script",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                await UpdateScriptFromGitHubAsync("google-contacts.js", _latestGoogleScriptVersion);
+                ConnectionTab.GoogleScriptUpdateButtonCtrl.Visibility = Visibility.Collapsed;
+                ConnectionTab.GoogleScriptVersionTextCtrl.Text = _latestGoogleScriptVersion;
+                _latestGoogleScriptVersion = null;
+            }
+        }
+
+        /// <summary>
         /// Download and update a single script from GitHub
         /// </summary>
         private async Task UpdateScriptFromGitHubAsync(string scriptFileName, string newVersion)
@@ -2941,6 +3263,9 @@ namespace WhatsAppSimHubPlugin.UI
 
                 var baileysScriptVersion = GetLocalScriptVersion("baileys-server.mjs");
                 ConnectionTab.BaileysScriptVersionTextCtrl.Text = baileysScriptVersion ?? "N/A";
+
+                var googleScriptVersion = GetLocalScriptVersion("google-contacts.js");
+                ConnectionTab.GoogleScriptVersionTextCtrl.Text = googleScriptVersion ?? "N/A";
             });
         }
 

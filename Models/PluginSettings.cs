@@ -17,6 +17,7 @@ namespace WhatsAppSimHubPlugin.Models
         public string BaileysVersion { get; set; } = ""; // Current installed version
 
         // Display
+        public bool VoCoreEnabled { get; set; } = true; // Enable/disable VoCore output (disable for VR-only users)
         public string TargetDevice { get; set; } = "";
 
         // Queue

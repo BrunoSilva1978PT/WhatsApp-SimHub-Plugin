@@ -203,6 +203,7 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <!-- Header -->
@@ -222,7 +223,7 @@
                         </StackPanel>
 
                         <!-- baileys-server.mjs row -->
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10">
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
                             <TextBlock Text="baileys-server.mjs:" VerticalAlignment="Center" Width="140"/>
                             <Border Background="#252526" BorderBrush="#3E3E42" BorderThickness="1"
                                     Width="80" Height="28" VerticalAlignment="Center">
@@ -234,8 +235,21 @@
                                     Background="#0E7A0D" Foreground="White"/>
                         </StackPanel>
 
+                        <!-- google-contacts.js row -->
+                        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="google-contacts.js:" VerticalAlignment="Center" Width="140"/>
+                            <Border Background="#252526" BorderBrush="#3E3E42" BorderThickness="1"
+                                    Width="80" Height="28" VerticalAlignment="Center">
+                                <TextBlock x:Name="GoogleScriptVersionText" Text=""
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            </Border>
+                            <styles:SHButtonPrimary x:Name="GoogleScriptUpdateButton" Content="New Update"
+                                    Margin="10,0,0,0" Padding="10,5" Visibility="Collapsed"
+                                    Background="#0E7A0D" Foreground="White"/>
+                        </StackPanel>
+
                         <!-- Check for updates button -->
-                        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="140,0,0,0">
+                        <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="140,0,0,0">
                             <styles:SHButtonPrimary x:Name="ScriptsCheckButton" Content="Check for updates"
                                     Padding="10,5"/>
                         </StackPanel>

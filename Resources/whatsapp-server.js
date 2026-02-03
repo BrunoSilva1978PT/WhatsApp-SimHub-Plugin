@@ -18,6 +18,10 @@ const dataPath = path.join(pluginDir, "data");
 const logPath = path.join(pluginDir, "logs", "node.log");
 const debugConfigPath = path.join(pluginDir, "config", "debug.json");
 
+// Google Contacts module
+const googleContacts = require("./google-contacts.js");
+googleContacts.init(pluginDir);
+
 try {
   const logDir = path.dirname(logPath);
   if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
@@ -181,6 +185,68 @@ wss.on("connection", (socket) => {
         } catch (error) {
           log("[REPLY] Failed: " + error.message);
         }
+      } else if (data.type === "googleGetStatus") {
+        // Get Google Contacts connection status
+        const status = googleContacts.getStatus();
+        send({ type: "googleStatus", ...status });
+      } else if (data.type === "googleStartAuth") {
+        // Check if already connected with valid tokens
+        if (googleContacts.isConnected()) {
+          log("[GOOGLE] Already connected - using existing session");
+          send({ type: "googleAuthComplete", success: true });
+          return;
+        }
+
+        // Start Google OAuth flow
+        log("[GOOGLE] Starting OAuth flow...");
+        const authUrl = googleContacts.getAuthUrlForBrowser();
+        send({ type: "googleAuthUrl", url: authUrl });
+
+        // Start auth server and wait for callback
+        googleContacts
+          .startAuth()
+          .then((result) => {
+            log("[GOOGLE] OAuth completed successfully");
+            send({ type: "googleAuthComplete", success: true });
+          })
+          .catch((err) => {
+            log("[GOOGLE] OAuth failed: " + err.message);
+            send({
+              type: "googleAuthComplete",
+              success: false,
+              error: err.message,
+            });
+          });
+      } else if (data.type === "googleGetContacts") {
+        // Fetch contacts from Google API and save to file
+        log("[GOOGLE] Refreshing contacts...");
+        const forceRefresh = data.forceRefresh || false;
+        googleContacts
+          .getContacts(forceRefresh)
+          .then(() => {
+            // Signal done - plugin reads file directly
+            send({ type: "googleContactsDone" });
+          })
+          .catch((err) => {
+            if (err.message === "AUTH_REQUIRED") {
+              send({
+                type: "googleStatus",
+                connected: false,
+                status: "AUTH_REQUIRED",
+              });
+            } else {
+              send({ type: "googleError", error: err.message });
+            }
+          });
+      } else if (data.type === "googleDisconnect") {
+        // Disconnect Google account
+        log("[GOOGLE] Disconnecting...");
+        googleContacts.disconnect();
+        send({
+          type: "googleStatus",
+          connected: false,
+          status: "NOT_CONNECTED",
+        });
       } else if (data.type === "refreshChatContacts") {
         log("[CHATS] Refreshing contacts...");
         client

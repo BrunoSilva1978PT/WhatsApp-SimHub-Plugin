@@ -69,7 +69,8 @@
                                     Background="#C42B1C"
                                     Foreground="White"
                                     FontSize="11"
-                                    Tag="{Binding}"/>
+                                    Tag="{Binding}"
+                                    Loaded="RemoveKeywordButton_Loaded"/>
                         </Grid>
                     </Border>
                 </DataTemplate>

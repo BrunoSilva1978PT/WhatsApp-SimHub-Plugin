@@ -52,6 +52,8 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public Button WwjsScriptUpdateButtonCtrl => WwjsScriptUpdateButton;
         public TextBlock BaileysScriptVersionTextCtrl => BaileysScriptVersionText;
         public Button BaileysScriptUpdateButtonCtrl => BaileysScriptUpdateButton;
+        public TextBlock GoogleScriptVersionTextCtrl => GoogleScriptVersionText;
+        public Button GoogleScriptUpdateButtonCtrl => GoogleScriptUpdateButton;
         public Button ScriptsCheckButtonCtrl => ScriptsCheckButton;
 
         // Dependencies

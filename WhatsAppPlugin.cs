@@ -28,17 +28,17 @@ namespace WhatsAppSimHubPlugin
         private WebSocketManager _nodeManager;
         private MessageQueue _messageQueue;
         private OverlayRenderer _overlayRenderer;
-        private object _vocoreDevice; // Referência ao BitmapDisplayDevice do VoCore
-        private object _vocoreSettings; // Settings do VoCore
-        private DateTime _lastDashboardCheck = DateTime.MinValue; // 🔥 Throttle verificação dashboard
-        private bool _isTestingMessage = false; // 🔥 Flag para bloquear queues durante teste
+        private object _vocoreDevice; // Reference to VoCore BitmapDisplayDevice
+        private object _vocoreSettings; // VoCore settings
+        private DateTime _lastDashboardCheck = DateTime.MinValue; // Throttle dashboard verification
+        private bool _isTestingMessage = false; // Flag to block queues during test
 
-        private DashboardInstaller _dashboardInstaller; // 🔥 Installer para reinstalar dashboard
-        private DashboardMerger _dashboardMerger; // 🔥 Merger para juntar dashboards
+        private DashboardInstaller _dashboardInstaller; // Installer to reinstall dashboard
+        private DashboardMerger _dashboardMerger; // Merger to combine dashboards
 
-        // 🎮 QUICK REPLIES: Agora funcionam via Actions registadas!
-        // Ver RegisterActions() e SendQuickReply(int)
-        private bool _replySentForCurrentMessage = false; // 🔒 Bloqueia múltiplos envios para mesma mensagem
+        // QUICK REPLIES: Now work via registered Actions
+        // See RegisterActions() and SendQuickReply(int)
+        private bool _replySentForCurrentMessage = false; // Blocks multiple sends for same message
 
         private string _pluginPath;
         private string _settingsFile;
@@ -46,28 +46,28 @@ namespace WhatsAppSimHubPlugin
         private string _keywordsFile;
         private UI.SettingsControl _settingsControl;
 
-        // 🆕 SETUP & DEPENDENCIES
+        // SETUP & DEPENDENCIES
         private DependencyManager _dependencyManager;
         // SetupControl removed - dependencies now managed in SettingsControl Connection tab
 
-        // Propriedade pública para acesso às configurações
+        // Public property for settings access
         public PluginSettings Settings => _settings;
 
-        // Propriedade para verificar se o script Node.js está a correr
+        // Property to check if Node.js script is running
         public bool IsScriptRunning => _nodeManager?.IsConnected ?? false;
 
-        // Verificar se Node.js está instalado (cached para evitar bloqueios)
+        // Check if Node.js is installed (cached to avoid blocking)
         private bool? _nodeJsInstalledCache = null;
         private DateTime _nodeJsCacheTime = DateTime.MinValue;
         private bool _nodeJsCheckInProgress = false;
 
         public bool IsNodeJsInstalled()
         {
-            // Usar cache por 30 segundos para evitar verificações repetidas
+            // Use cache for 30 seconds to avoid repeated verifications
             if (_nodeJsInstalledCache.HasValue && (DateTime.Now - _nodeJsCacheTime).TotalSeconds < 30)
                 return _nodeJsInstalledCache.Value;
 
-            // Verificar se node.exe existe em locais comuns (não bloqueia)
+            // Check if node.exe exists in common locations (non-blocking)
             var nodePaths = new[]
             {
                 @"C:\Program Files\nodejs\node.exe",
@@ -84,7 +84,7 @@ namespace WhatsAppSimHubPlugin
                 }
             }
 
-            // Se já temos cache (expirado), retornar valor antigo e fazer check em background
+            // If we have cache (expired), return old value and check in background
             if (_nodeJsInstalledCache.HasValue)
             {
                 if (!_nodeJsCheckInProgress)
@@ -107,7 +107,7 @@ namespace WhatsAppSimHubPlugin
                 return _nodeJsInstalledCache.Value;
             }
 
-            // Primeira vez - fazer check síncrono (inevitável)
+            // First time - do synchronous check (unavoidable)
             bool firstResult = CheckNodeJsViaProcess();
             _nodeJsInstalledCache = firstResult;
             _nodeJsCacheTime = DateTime.Now;
@@ -115,7 +115,7 @@ namespace WhatsAppSimHubPlugin
         }
 
         /// <summary>
-        /// Verifica Node.js via processo (pode bloquear até 1.5s)
+        /// Checks Node.js via process (may block up to 1.5s)
         /// </summary>
         private bool CheckNodeJsViaProcess()
         {
@@ -143,7 +143,7 @@ namespace WhatsAppSimHubPlugin
         }
 
         /// <summary>
-        /// Criar ícone WhatsApp PRETO E BRANCO para menu SimHub
+        /// Create BLACK AND WHITE WhatsApp icon for SimHub menu
         /// </summary>
         private ImageSource CreateWhatsAppIcon()
         {
@@ -151,20 +151,20 @@ namespace WhatsAppSimHubPlugin
             {
                 var drawingGroup = new DrawingGroup();
 
-                // Círculo externo (PRETO)
+                // Outer circle (BLACK)
                 var circlePen = new Pen(Brushes.Black, 2.5);
                 drawingGroup.Children.Add(new GeometryDrawing(null, circlePen,
                     new EllipseGeometry(new Point(16, 16), 14, 14)));
 
-                // Telefone + bolha (PRETO)
+                // Phone + bubble (BLACK)
                 var blackBrush = Brushes.Black;
 
-                // Bolha do chat (canto inferior esquerdo)
+                // Chat bubble (bottom left corner)
                 var bubblePath = "M 8,28 L 4,32 L 8,32 C 8,30.5 8,29 8,28 Z";
                 drawingGroup.Children.Add(new GeometryDrawing(blackBrush, null,
                     Geometry.Parse(bubblePath)));
 
-                // Telefone dentro do círculo
+                // Phone inside circle
                 var phonePath = "M 22,19 C 21.7,19.3 20.8,20.2 20.2,20.2 C 20,20.2 19.8,20.2 19.6,20.1 C 17.8,19.7 16.2,19 14.8,17.8 C 13.5,16.8 12.4,15.5 11.5,14 C 10.8,12.7 10.4,11.3 10.3,9.9 C 10.3,9.3 10.5,8.7 10.9,8.2 C 11.3,7.8 11.9,7.5 12.5,7.5 C 12.7,7.5 12.8,7.5 12.9,7.6 C 13.4,7.7 13.7,8.2 13.9,8.8 C 14.1,9.3 14.3,9.9 14.5,10.5 C 14.6,10.9 14.6,11.4 14.3,11.7 L 14.1,11.9 C 13.9,12.1 13.8,12.5 13.9,12.8 C 14.3,13.6 14.9,14.3 15.7,14.9 C 16.3,15.4 17.1,15.8 17.9,16 C 18.2,16.1 18.6,16 18.8,15.8 L 19,15.6 C 19.3,15.3 19.7,15.2 20.1,15.4 C 20.6,15.6 21.2,15.8 21.7,16 C 22.3,16.2 22.7,16.5 22.9,16.9 C 23,17.3 22.9,17.8 22.7,18.1 Z";
                 drawingGroup.Children.Add(new GeometryDrawing(blackBrush, null,
                     Geometry.Parse(phonePath)));
@@ -180,7 +180,7 @@ namespace WhatsAppSimHubPlugin
         }
 
         /// <summary>
-        /// Obter lista de VoCores disponíveis (APENAS VoCores, não monitores)
+        /// Get list of available VoCores (ONLY VoCores, not monitors)
         /// </summary>
         public System.Collections.Generic.List<DeviceInfo> GetAvailableDevices()
         {
@@ -188,20 +188,20 @@ namespace WhatsAppSimHubPlugin
 
             try
             {
-                // Usar reflection para aceder GetAllDevices
+                // Use reflection to access GetAllDevices
                 var getAllDevicesMethod = PluginManager.GetType().GetMethod("GetAllDevices");
                 if (getAllDevicesMethod == null) return devices;
 
                 var devicesEnumerable = getAllDevicesMethod.Invoke(PluginManager, new object[] { true }) as System.Collections.IEnumerable;
                 if (devicesEnumerable == null) return devices;
 
-                // Iterar devices
+                // Iterate devices
                 foreach (var device in devicesEnumerable)
                 {
                     var deviceType = device.GetType();
 
-                    // 🔥 FILTRAR: Só VoCores têm Settings.UseOverlayDashboard
-                    // Monitores NÃO têm Information Overlay!
+                    // FILTER: Only VoCores have Settings.UseOverlayDashboard
+                    // Monitors DON'T have Information Overlay!
                     var settingsProp = deviceType.GetProperty("Settings");
                     if (settingsProp == null) continue;
 
@@ -211,10 +211,10 @@ namespace WhatsAppSimHubPlugin
                     var settingsType = settings.GetType();
                     var overlayProp = settingsType.GetProperty("UseOverlayDashboard");
 
-                    // Se NÃO tem UseOverlayDashboard → É monitor, ignorar!
+                    // If NO UseOverlayDashboard → It's a monitor, skip!
                     if (overlayProp == null) continue;
 
-                    // ✅ É VoCore! Adicionar à lista
+                    // It's a VoCore! Add to list
                     var mainNameProp = deviceType.GetProperty("MainDisplayName");
                     var instanceIdProp = deviceType.GetProperty("InstanceId");
                     var serialProp = deviceType.GetProperty("SerialNumber");
@@ -243,14 +243,14 @@ namespace WhatsAppSimHubPlugin
         }
 
         /// <summary>
-        /// Re-attach ao VoCore e ativa overlay (chamado quando user muda device na UI)
+        /// Re-attach to VoCore and activate overlay (called when user changes device in UI)
         /// </summary>
         public void ReattachAndActivateOverlay()
         {
-            // Re-attach ao VoCore
+            // Re-attach to VoCore
             AttachToVoCore();
 
-            // Ativar overlay se attach foi bem sucedido (em background para não bloquear UI)
+            // Activate overlay if attach was successful (in background to not block UI)
             if (_vocoreDevice != null && _vocoreSettings != null)
             {
                 _ = Task.Run(() => EnsureOverlayActive());
@@ -261,7 +261,7 @@ namespace WhatsAppSimHubPlugin
             }
         }
 
-        // Classe para informação de device
+        // Class for device information
         public class DeviceInfo
         {
             public string Name { get; set; }
@@ -269,29 +269,30 @@ namespace WhatsAppSimHubPlugin
             public string SerialNumber { get; set; }
         }
 
-        // ===== PROPRIEDADES PARA CONNECTION TAB =====
+        // ===== CONNECTION TAB PROPERTIES =====
         private string _connectionStatus = "Disconnected";
         private string _connectedNumber = "";
-        private string _lastLoggedDashboard = null; // Para debug - evitar spam de logs
+        private string _lastLoggedDashboard = null; // For debug - avoid log spam
 
         // ===== RETRY SYSTEM =====
-        private bool _userRequestedDisconnect = false; // True se user clicou em Disconnect
+        private bool _userRequestedDisconnect = false; // True if user clicked Disconnect
         private int _connectionRetryCount = 0;
         private const int MAX_RETRY_ATTEMPTS = 3;
-        private const int RETRY_DELAY_MS = 5000; // 5 segundos entre tentativas
+        private const int RETRY_DELAY_MS = 5000; // 5 seconds between attempts
         private bool _isRetrying = false; // Prevents multiple concurrent retries
 
-        // ===== ESTADO INTERNO (NÃO EXPOR AO SIMHUB) =====
+        // ===== INTERNAL STATE (NOT EXPOSED TO SIMHUB) =====
         private List<QueuedMessage> _currentMessageGroup = null;
         private string _currentContactNumber = "";
-        private string _currentContactRealNumber = "";  // Número real (ex: 351910203114) para enviar mensagens
+        private string _currentContactRealNumber = "";  // Real number (e.g.: 351910203114) to send messages
 
-        // ===== PROPRIEDADES PARA OVERLAY/DASHBOARD (EXPOSTAS AO SIMHUB) =====
-        private bool _showMessage = false; // Controla visibilidade do overlay
+        // ===== OVERLAY/DASHBOARD PROPERTIES (EXPOSED TO SIMHUB) =====
+        private bool _showMessage = false; // Controls overlay visibility
+        private bool _voCoreEnabled = true; // Controls VoCore display (for VR-only users)
         private string _overlaySender = "";
         private string _overlayTypeMessage = "";
         private int _overlayTotalMessages = 0;
-        private string[] _overlayMessages = new string[10]; // Array de 10 mensagens
+        private string[] _overlayMessages = new string[10]; // Array of 10 messages
 
         /// <summary>
         /// Clear all overlay messages
@@ -310,7 +311,7 @@ namespace WhatsAppSimHubPlugin
 
             Directory.CreateDirectory(_pluginPath);
 
-            // 🗑️ LIMPAR LOGS AO ARRANQUE (economia de espaço)
+            // Clear logs on startup (save space)
             try
             {
                 var logsPath = Path.Combine(_pluginPath, "logs");
@@ -321,7 +322,7 @@ namespace WhatsAppSimHubPlugin
             }
             catch { }
 
-            // Inicializar array de mensagens vazias
+            // Initialize empty messages array
             for (int i = 0; i < 10; i++)
             {
                 _overlayMessages[i] = "";
@@ -334,10 +335,10 @@ namespace WhatsAppSimHubPlugin
             // Ensure debug.json exists (default: disabled)
             EnsureDebugConfigExists();
 
-            // Carregar configurações
+            // Load settings
             LoadSettings();
 
-            // 🔥 VERIFICAR SE SETUP JÁ FOI COMPLETO (arquivo .setup-complete existe?)
+            // Check if setup was already completed (node_modules exists?)
             string setupFlagPath = Path.Combine(_pluginPath, ".setup-complete");
             if (Directory.Exists(Path.Combine(_pluginPath, "node", "node_modules", "@whiskeysockets", "baileys")))
             {
@@ -348,7 +349,7 @@ namespace WhatsAppSimHubPlugin
                 WriteLog("⚠️ First run or setup not complete (no .setup-complete flag)");
             }
 
-            // Inicializar componentes básicos
+            // Initialize basic components
             _messageQueue = new MessageQueue(_settings, WriteLog);
             _messageQueue.OnGroupDisplay += MessageQueue_OnGroupDisplay;
             _messageQueue.OnMessageRemoved += MessageQueue_OnMessageRemoved;
@@ -363,14 +364,20 @@ namespace WhatsAppSimHubPlugin
             _nodeManager.ChatContactsError += NodeManager_OnChatContactsError;
             _nodeManager.InstallationCompleted += NodeManager_OnInstallationCompleted;
 
-            // Inicializar overlay renderer
+            // Google Contacts events
+            _nodeManager.GoogleStatusReceived += NodeManager_OnGoogleStatusReceived;
+            _nodeManager.GoogleAuthUrlReceived += NodeManager_OnGoogleAuthUrlReceived;
+            _nodeManager.GoogleContactsDone += NodeManager_OnGoogleContactsDone;
+            _nodeManager.GoogleError += NodeManager_OnGoogleError;
+
+            // Initialize overlay renderer
             _overlayRenderer = new OverlayRenderer(_settings);
 
-            // 📦 INSTALAR DASHBOARD AUTOMATICAMENTE
+            // Install dashboard automatically
             WriteLog("=== Dashboard Installation ===");
             _dashboardInstaller = new DashboardInstaller(PluginManager, WriteLog);
 
-            // Inicializar dashboard merger
+            // Initialize dashboard merger
             string dashTemplatesPath = _dashboardInstaller.GetDashboardsPath();
             _dashboardMerger = new DashboardMerger(dashTemplatesPath, WriteLog);
 
@@ -385,30 +392,30 @@ namespace WhatsAppSimHubPlugin
                 WriteLog("⚠️ Dashboard installation failed or dashboard already exists");
             }
 
-            // Instalar overlay dashboard (para VR, etc.) se não existir
+            // Install overlay dashboard (for VR, etc.) if not exists
             _dashboardInstaller.InstallOverlayDashboard();
 
-            // Verificar se dashboard está acessível
+            // Check if dashboard is accessible
             bool dashExists = _dashboardInstaller.IsDashboardInstalled();
             WriteLog($"Dashboard accessible: {dashExists}");
 
 
 
-            // 🎮 IDataPlugin vai chamar DataUpdate() automaticamente a 60 FPS!
-            // Não precisa de timer manual para botões!
+            // IDataPlugin will call DataUpdate() automatically at 60 FPS!
+            // No need for manual timer for buttons!
             WriteLog("✅ IDataPlugin enabled - button detection ready (60 FPS)");
 
-            // Registar propriedades no SimHub
+            // Register properties in SimHub
             RegisterProperties();
 
-            // Registar ações
+            // Register actions
             RegisterActions();
 
-            // 🆕 INICIAR PROCESSO DE SETUP (verificar e instalar dependências)
+            // Start setup process (check and install dependencies)
             WriteLog("=== Starting Dependency Setup ===");
             _ = InitializeDependenciesAsync();
 
-            // Log de inicialização
+            // Initialization log
             WriteLog("=== WhatsApp Plugin Initialized ===");
             WriteLog($"Plugin path: {_pluginPath}");
             WriteLog($"Contacts: {_settings.Contacts.Count}");
@@ -516,6 +523,7 @@ namespace WhatsAppSimHubPlugin
             // ===== OVERLAY PROPERTIES (PARA DASHBOARD) =====
             // SimHub adiciona prefixo "WhatsAppPlugin." automaticamente!
             this.AttachDelegate("showmessage", () => _showMessage); // WhatsAppPlugin.showmessage
+            this.AttachDelegate("vocoreenabled", () => _voCoreEnabled); // WhatsAppPlugin.vocoreenabled
             this.AttachDelegate("sender", () => _overlaySender); // WhatsAppPlugin.sender
             this.AttachDelegate("typemessage", () => _overlayTypeMessage); // WhatsAppPlugin.typemessage
             this.AttachDelegate("totalmessages", () => _overlayTotalMessages); // WhatsAppPlugin.totalmessages
@@ -867,6 +875,9 @@ namespace WhatsAppSimHubPlugin
             // 🔥 ESCONDER AVISO DE DISCONNECT
             _overlayRenderer?.Clear();
 
+            // Request Google Contacts status (check if already connected from previous session)
+            GoogleGetStatus();
+
             WriteLog($"Connected to WhatsApp as {e.number}");
         }
 
@@ -1214,6 +1225,195 @@ namespace WhatsAppSimHubPlugin
             );
         }
 
+        #region Google Contacts Event Handlers
+
+        private void NodeManager_OnGoogleStatusReceived(object sender, (bool connected, string status) args)
+        {
+            WriteLog($"📇 Google status: connected={args.connected}, status={args.status}");
+            _settingsControl?.UpdateGoogleStatus(args.status, args.connected);
+
+            // Load contacts from file when Google is connected
+            if (args.connected)
+            {
+                WriteLog("📇 Google connected - loading contacts from file...");
+                LoadGoogleContactsFromFile();
+            }
+        }
+
+        private void NodeManager_OnGoogleAuthUrlReceived(object sender, string url)
+        {
+            WriteLog($"📇 Google auth URL received: {(url != null ? url.Substring(0, System.Math.Min(80, url.Length)) : "NULL")}...");
+
+            if (string.IsNullOrEmpty(url))
+            {
+                WriteLog("❌ Google auth URL is empty!");
+                _settingsControl?.HandleGoogleError("Authentication URL is empty");
+                return;
+            }
+
+            // Open browser for authentication
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                };
+                System.Diagnostics.Process.Start(psi);
+                WriteLog("📇 Browser opened for Google authentication");
+                _settingsControl?.UpdateGoogleStatus("Waiting for auth in browser...", false);
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"❌ Failed to open browser: {ex.Message}");
+                _settingsControl?.HandleGoogleError($"Failed to open browser: {ex.Message}");
+            }
+        }
+
+        private void NodeManager_OnGoogleContactsDone(object sender, EventArgs e)
+        {
+            WriteLog("📇 Google contacts refresh done - reading from file...");
+            LoadGoogleContactsFromFile();
+        }
+
+        /// <summary>
+        /// Load Google contacts directly from the JSON file
+        /// </summary>
+        private void LoadGoogleContactsFromFile()
+        {
+            try
+            {
+                var contactsFile = Path.Combine(_pluginPath, "data_google", "contacts.json");
+
+                if (!File.Exists(contactsFile))
+                {
+                    WriteLog("📇 No Google contacts file found - fetching from API...");
+                    GoogleGetContacts(true); // Go to API when no local file exists
+                    return;
+                }
+
+                var json = File.ReadAllText(contactsFile);
+                var data = JObject.Parse(json);
+                var contactsArray = data["contacts"] as JArray;
+
+                var contactsList = new System.Collections.ObjectModel.ObservableCollection<Contact>();
+
+                if (contactsArray != null)
+                {
+                    foreach (var contact in contactsArray)
+                    {
+                        var name = contact["name"]?.ToString();
+                        var number = contact["number"]?.ToString();
+
+                        if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(number))
+                        {
+                            contactsList.Add(new Contact
+                            {
+                                Name = name,
+                                Number = number,
+                                IsVip = false
+                            });
+                        }
+                    }
+                }
+
+                WriteLog($"📇 Loaded {contactsList.Count} Google contacts from file");
+                _settingsControl?.UpdateGoogleContactsList(contactsList);
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"❌ Error reading Google contacts file: {ex.Message}");
+            }
+        }
+
+        private void NodeManager_OnGoogleError(object sender, string error)
+        {
+            WriteLog($"❌ Google error: {error}");
+            _settingsControl?.HandleGoogleError(error);
+        }
+
+        #endregion
+
+        #region Google Contacts Methods
+
+        public async void GoogleGetStatus()
+        {
+            WriteLog("📇 Checking Google status...");
+            try
+            {
+                // First check locally if tokens file exists
+                var tokensFile = Path.Combine(_pluginPath, "data_google", "tokens.json");
+                if (File.Exists(tokensFile))
+                {
+                    WriteLog("📇 Google tokens file found - checking with backend...");
+                }
+
+                // Ask backend to verify token validity
+                if (_nodeManager != null)
+                {
+                    await _nodeManager.SendCommandAsync("googleGetStatus");
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"❌ Error getting Google status: {ex.Message}");
+            }
+        }
+
+        public async void GoogleStartAuth()
+        {
+            WriteLog("📇 Starting Google authentication...");
+            try
+            {
+                if (_nodeManager != null)
+                {
+                    await _nodeManager.SendCommandAsync("googleStartAuth");
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"❌ Error starting Google auth: {ex.Message}");
+                _settingsControl?.HandleGoogleError(ex.Message);
+            }
+        }
+
+        public async void GoogleGetContacts(bool forceRefresh = true)
+        {
+            WriteLog($"📇 Requesting Google contacts (forceRefresh={forceRefresh})...");
+            try
+            {
+                if (_nodeManager != null)
+                {
+                    // Send command with forceRefresh parameter to fetch from API instead of cache
+                    var command = new { type = "googleGetContacts", forceRefresh = forceRefresh };
+                    await _nodeManager.SendJsonAsync(command);
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"❌ Error getting Google contacts: {ex.Message}");
+                _settingsControl?.HandleGoogleError(ex.Message);
+            }
+        }
+
+        public async void GoogleDisconnect()
+        {
+            WriteLog("📇 Disconnecting from Google...");
+            try
+            {
+                if (_nodeManager != null)
+                {
+                    await _nodeManager.SendCommandAsync("googleDisconnect");
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"❌ Error disconnecting from Google: {ex.Message}");
+            }
+        }
+
+        #endregion
+
         private void MessageQueue_OnGroupDisplay(System.Collections.Generic.List<QueuedMessage> messages)
         {
             WriteLog($"[EVENT] ▶ OnGroupDisplay triggered - _isTestingMessage = {_isTestingMessage}, messages = {messages?.Count ?? 0}");
@@ -1307,6 +1507,9 @@ namespace WhatsAppSimHubPlugin
                     _settings.EnsureDefaults();
                     SaveSettings(); // Guardar logo para criar o ficheiro
                 }
+
+                // Sync VoCore enabled property with settings
+                _voCoreEnabled = _settings.VoCoreEnabled;
             }
             catch (Exception)
             {
@@ -1314,6 +1517,7 @@ namespace WhatsAppSimHubPlugin
                 _settings = new PluginSettings();
                 _settings.EnsureDefaults();
                 SaveSettings();
+                _voCoreEnabled = _settings.VoCoreEnabled;
             }
         }
 
@@ -1346,7 +1550,9 @@ namespace WhatsAppSimHubPlugin
         // Métodos públicos para a UI
         public void DisconnectWhatsApp()
         {
-            WriteLog("User requested disconnect");
+            // Log stack trace to find who called this
+            var stackTrace = new System.Diagnostics.StackTrace(true);
+            WriteLog($"User requested disconnect - Called from:\n{stackTrace}");
 
             // Marcar que foi o user que pediu disconnect (não tentar reconectar)
             _userRequestedDisconnect = true;
@@ -1431,6 +1637,10 @@ namespace WhatsAppSimHubPlugin
                     _nodeManager.ChatContactsListReceived -= NodeManager_OnChatContactsListReceived;
                     _nodeManager.ChatContactsError -= NodeManager_OnChatContactsError;
                     _nodeManager.InstallationCompleted -= NodeManager_OnInstallationCompleted;
+                    _nodeManager.GoogleStatusReceived -= NodeManager_OnGoogleStatusReceived;
+                    _nodeManager.GoogleAuthUrlReceived -= NodeManager_OnGoogleAuthUrlReceived;
+                    _nodeManager.GoogleContactsDone -= NodeManager_OnGoogleContactsDone;
+                    _nodeManager.GoogleError -= NodeManager_OnGoogleError;
                 }
 
                 // 4. Criar novo nodeManager com o backend escolhido
@@ -1444,6 +1654,10 @@ namespace WhatsAppSimHubPlugin
                 _nodeManager.ChatContactsListReceived += NodeManager_OnChatContactsListReceived;
                 _nodeManager.ChatContactsError += NodeManager_OnChatContactsError;
                 _nodeManager.InstallationCompleted += NodeManager_OnInstallationCompleted;
+                _nodeManager.GoogleStatusReceived += NodeManager_OnGoogleStatusReceived;
+                _nodeManager.GoogleAuthUrlReceived += NodeManager_OnGoogleAuthUrlReceived;
+                _nodeManager.GoogleContactsDone += NodeManager_OnGoogleContactsDone;
+                _nodeManager.GoogleError += NodeManager_OnGoogleError;
 
                 // 5. Iniciar o novo backend
                 WriteLog($"Starting {newBackend} backend...");
@@ -1490,6 +1704,17 @@ namespace WhatsAppSimHubPlugin
 
             // Attach overlay ao VoCore selecionado
             AttachToVoCore();
+        }
+
+        /// <summary>
+        /// Update VoCore enabled state (called from UI)
+        /// This syncs the property exposed to dashboards
+        /// </summary>
+        public void SetVoCoreEnabled(bool enabled)
+        {
+            _voCoreEnabled = enabled;
+            _settings.VoCoreEnabled = enabled;
+            WriteLog($"VoCore enabled: {enabled}");
         }
 
         /// <summary>

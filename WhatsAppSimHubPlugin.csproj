@@ -129,6 +129,7 @@
     <EmbeddedResource Include="Resources\Simhub WhatsApp Plugin Overlay.simhubdash" />
     <EmbeddedResource Include="Resources\whatsapp-server.js" />
     <EmbeddedResource Include="Resources\baileys-server.mjs" />
+    <EmbeddedResource Include="Resources\google-contacts.js" />
     <EmbeddedResource Include="Resources\package.json" />
   </ItemGroup>
   <ItemGroup>

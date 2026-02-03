@@ -20,8 +20,14 @@
                            Margin="0,0,0,8"/>
 
                 <StackPanel Orientation="Horizontal">
+                    <styles:SHToggleCheckbox x:Name="VoCoreEnabledCheckbox"
+                            Content="Enable VoCore"
+                            VerticalAlignment="Center"
+                            Margin="0,0,15,0"
+                            ToolTip="Enable or disable VoCore display. Disable if using VR/overlay only."/>
+
                     <ComboBox x:Name="TargetDeviceComboBox"
-                              Width="380"
+                              Width="300"
                               Height="36"
                               Background="#252526"
                               Foreground="White"
@@ -30,7 +36,7 @@
                     </ComboBox>
 
                     <styles:SHButtonPrimary x:Name="RefreshDevicesButton" Content="🔄 Refresh"
-                            Width="110" Height="36"
+                            Width="100" Height="36"
                             Margin="10,0,0,0"
                             Background="#007ACC"
                             Foreground="White"
@@ -38,10 +44,11 @@
                             ToolTip="Refresh VoCore device list"/>
 
                     <styles:SHButtonPrimary x:Name="TestOverlayButton" Content="🧪 Test"
-                            Width="100" Height="36"
+                            Width="80" Height="36"
                             Margin="10,0,0,0"
                             Background="#0E7A0D"
                             Foreground="White"
+                            IsEnabled="False"
                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                             ToolTip="Test overlay on selected VoCore"/>
 
