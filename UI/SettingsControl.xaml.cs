@@ -45,13 +45,11 @@ namespace WhatsAppSimHubPlugin.UI
         // Public properties for external access (used by WhatsAppPlugin.cs)
         public Button ReconnectButton => ConnectionTab.ReconnectButtonCtrl;
         public Button DisconnectButton => ConnectionTab.DisconnectButtonCtrl;
-        private DispatcherTimer _deviceRefreshTimer; // 🔥 Auto-refresh timer
-        private DispatcherTimer _connectionStatusTimer; // 🔥 Timer para detectar crashes
-        private bool _isLoadingDevices = false; // 🔥 Flag para evitar trigger durante loading
-        private HashSet<string> _knownDeviceIds = new HashSet<string>(); // 🔥 Devices conhecidos
+        private DispatcherTimer _deviceRefreshTimer; // Auto-refresh timer for VoCore devices
+        private bool _isLoadingDevices = false; // Flag to avoid trigger during loading
+        private HashSet<string> _knownDeviceIds = new HashSet<string>(); // Known devices
 
-        private bool _userDisconnected = false; // 🔥 Flag para disconnect intencional
-        private ObservableCollection<Contact> _chatContacts; // 📱 Contactos das conversas ativas
+        private ObservableCollection<Contact> _chatContacts; // Contacts from active chats
 
         public SettingsControl(WhatsAppPlugin plugin)
         {
@@ -87,7 +85,7 @@ namespace WhatsAppSimHubPlugin.UI
             InitializeData();
             LoadSettings();
 
-            // 🔥 Iniciar timer de auto-refresh (a cada 5 segundos)
+            // Start VoCore device auto-refresh timer (every 15 seconds)
             _deviceRefreshTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(15)
@@ -95,13 +93,7 @@ namespace WhatsAppSimHubPlugin.UI
             _deviceRefreshTimer.Tick += (s, e) => LoadAvailableDevicesAsync();
             _deviceRefreshTimer.Start();
 
-            // 🔥 Timer SIMPLIFICADO - apenas detectar crashes APÓS conectar
-            _connectionStatusTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(15)
-            };
-            _connectionStatusTimer.Tick += (s, e) => CheckScriptStatusPeriodic();
-            _connectionStatusTimer.Start();
+            // Note: Connection monitoring and auto-reconnect is handled by WhatsAppPlugin
         }
 
         /// <summary>
@@ -524,51 +516,24 @@ namespace WhatsAppSimHubPlugin.UI
                 ShowToast($"Error loading settings: {ex.Message}", "❌", 10);
             }
 
-            // Verificar se o script Node.js está a correr
-            CheckScriptStatus();
+            // Check initial connection status
+            CheckInitialStatus();
 
             // Load backend library settings
             LoadBackendLibrarySettings();
         }
 
-        private void CheckScriptStatus()
+        private void CheckInitialStatus()
         {
-            // No início, verificar se Node.js está instalado
-            // Se não está, mostrar erro permanente
-            // Se está, mostrar "Disconnected" (estado inicial normal)
-
+            // Check if Node.js is installed on startup
             if (!_plugin.IsNodeJsInstalled())
             {
                 UpdateConnectionStatus("Node.js not installed");
             }
             else
             {
-                // Node.js instalado, mostrar estado inicial "Disconnected"
                 UpdateConnectionStatus("Disconnected");
             }
-        }
-
-        private void CheckScriptStatusPeriodic()
-        {
-            // This timer only checks if Node.js is installed
-            // All connection state management is handled by WhatsAppPlugin via events
-
-            // If user manually disconnected, don't interfere
-            if (_userDisconnected)
-            {
-                return;
-            }
-
-            var currentStatus = ConnectionTab.StatusTextCtrl.Text.ToLower();
-
-            // If already showing Node.js error, don't check again
-            if (currentStatus.Contains("node.js"))
-            {
-                return;
-            }
-
-            // Don't interfere with active states (connecting, reconnecting, qr, etc.)
-            // The WhatsAppPlugin handles all reconnection logic via NodeManager_OnError
         }
 
         #region Connection Tab
@@ -592,10 +557,7 @@ namespace WhatsAppSimHubPlugin.UI
 
                         ConnectionTab.ConnectedNumberTextCtrl.Text = number != null ? $"Connected as: +{number}" : "Connected";
 
-                        // Reset user disconnect flag on successful connection
-                        _userDisconnected = false;
-
-                        // ✅ ESCONDER QR CODE quando conecta
+                        // Hide QR code when connected
                         ConnectionTab.QRCodeImageCtrl.Visibility = Visibility.Collapsed;
                         ConnectionTab.QRCodeInstructionsCtrl.Visibility = Visibility.Collapsed;
                         break;
@@ -711,8 +673,6 @@ namespace WhatsAppSimHubPlugin.UI
         {
             try
             {
-                _userDisconnected = true; // 🔥 Marcar que user desconectou intencionalmente
-
                 _plugin.DisconnectWhatsApp();
                 UpdateConnectionStatus("Disconnected");
                 ConnectionTab.QRCodeImageCtrl.Visibility = Visibility.Collapsed;
@@ -893,8 +853,6 @@ namespace WhatsAppSimHubPlugin.UI
         {
             try
             {
-                _userDisconnected = false; // 🔥 Limpar flag - user quer conectar novamente
-
                 UpdateConnectionStatus("Connecting");
                 await _plugin.ReconnectWhatsApp();
             }

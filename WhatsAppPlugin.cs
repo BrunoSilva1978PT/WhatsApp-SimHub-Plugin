@@ -280,13 +280,13 @@ namespace WhatsAppSimHubPlugin
         private string _connectedNumber = "";
         private string _lastLoggedDashboard = null; // For debug - avoid log spam
 
-        // ===== RETRY SYSTEM =====
-        private bool _userRequestedDisconnect = false; // True if user clicked Disconnect
-        private int _connectionRetryCount = 0;
-        private const int MAX_RETRY_ATTEMPTS = 3;
-        private const int RETRY_DELAY_MS = 5000; // 5 seconds between attempts
-        private bool _isRetrying = false; // Prevents multiple concurrent retries
-        private bool _isWhatsAppConnected = false; // True when backend confirms WhatsApp connection (ready event)
+        // ===== RECONNECTION SYSTEM =====
+        private bool _userRequestedDisconnect = false; // True when user clicks Disconnect button
+        private int _reconnectAttempts = 0;
+        private const int MAX_RECONNECT_ATTEMPTS = 5;
+        private const int RECONNECT_INTERVAL_MS = 15000; // 15 seconds between attempts
+        private System.Timers.Timer _reconnectTimer;
+        private bool _isWhatsAppConnected = false; // True when backend confirms WhatsApp connection
 
         // ===== INTERNAL STATE (NOT EXPOSED TO SIMHUB) =====
         private List<QueuedMessage> _currentMessageGroup = null;
@@ -865,27 +865,27 @@ namespace WhatsAppSimHubPlugin
         {
             _connectionStatus = "Connected";
             _connectedNumber = e.number;
-            _isWhatsAppConnected = true; // Mark WhatsApp as connected
-            _userRequestedDisconnect = false; // Clear disconnect flag on successful connection
+            _isWhatsAppConnected = true;
+            _userRequestedDisconnect = false;
             _settingsControl?.UpdateConnectionStatus("Connected", e.number);
 
-            // Reset retry counter on successful connection
-            _connectionRetryCount = 0;
-            _isRetrying = false;
+            // Stop reconnection timer on successful connection
+            StopReconnectTimer();
+            _reconnectAttempts = 0;
 
-            // Garantir que overlay está limpo
+            // Clear overlay
             _showMessage = false;
             _overlaySender = "";
             ClearAllOverlayMessages();
 
-            // Retomar queues (caso estivessem pausadas)
+            // Resume message queue
             _messageQueue?.ResumeQueue();
             WriteLog("Queue resumed after successful connection");
 
-            // 🔥 ESCONDER AVISO DE DISCONNECT
+            // Hide disconnect warning
             _overlayRenderer?.Clear();
 
-            // Request Google Contacts status (check if already connected from previous session)
+            // Request Google Contacts status
             GoogleGetStatus();
 
             WriteLog($"Connected to WhatsApp as {e.number}");
@@ -1014,7 +1014,7 @@ namespace WhatsAppSimHubPlugin
 
         private void NodeManager_OnError(object sender, EventArgs e)
         {
-            WriteLog($"🔴 Connection lost - WhatsApp disconnected or backend error");
+            WriteLog("Connection error detected");
 
             // Mark WhatsApp as disconnected
             _isWhatsAppConnected = false;
@@ -1022,79 +1022,129 @@ namespace WhatsAppSimHubPlugin
             // If user clicked Disconnect button, don't auto-reconnect
             if (_userRequestedDisconnect)
             {
-                WriteLog("User requested disconnect - not retrying");
+                WriteLog("User requested disconnect - not starting reconnection timer");
                 _connectionStatus = "Disconnected";
                 _settingsControl?.UpdateConnectionStatus("Disconnected");
-                _isRetrying = false;
                 ClearOverlayProperties();
                 return;
             }
 
-            // Prevent multiple concurrent retries
-            if (_isRetrying)
-            {
-                WriteLog("Retry already in progress - ignoring duplicate error event");
-                return;
-            }
-
-            // Pause message queue during reconnection attempts
+            // Pause message queue during reconnection
             _messageQueue?.PauseQueue();
             WriteLog("Queue paused for reconnection");
 
-            // Start auto-reconnect process
-            _isRetrying = true;
-            _connectionRetryCount++;
+            // Start reconnection timer (15 seconds interval)
+            StartReconnectTimer();
+        }
 
-            if (_connectionRetryCount <= MAX_RETRY_ATTEMPTS)
+        /// <summary>
+        /// Start the 15-second reconnection timer
+        /// </summary>
+        private void StartReconnectTimer()
+        {
+            // Don't start if already running
+            if (_reconnectTimer != null && _reconnectTimer.Enabled)
             {
-                WriteLog($"🔄 Auto-reconnect attempt {_connectionRetryCount}/{MAX_RETRY_ATTEMPTS}");
-                _connectionStatus = $"Reconnecting ({_connectionRetryCount}/{MAX_RETRY_ATTEMPTS})...";
-                _settingsControl?.UpdateConnectionStatus($"Reconnecting ({_connectionRetryCount}/{MAX_RETRY_ATTEMPTS})...");
-
-                // Attempt reconnection in background
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        // Wait before retrying
-                        WriteLog($"Waiting {RETRY_DELAY_MS}ms before retry...");
-                        await Task.Delay(RETRY_DELAY_MS);
-
-                        // Check if user disconnected during wait
-                        if (_userRequestedDisconnect)
-                        {
-                            WriteLog("User requested disconnect during retry delay - aborting");
-                            _isRetrying = false;
-                            return;
-                        }
-
-                        // Stop current connection and restart
-                        WriteLog($"Stopping current connection...");
-                        _nodeManager?.Stop();
-                        await Task.Delay(1000);
-
-                        WriteLog($"Starting reconnection attempt {_connectionRetryCount}...");
-                        await _nodeManager.StartAsync();
-                        // If successful, NodeManager_OnReady will be called and reset counters
-                    }
-                    catch (Exception ex)
-                    {
-                        WriteLog($"❌ Retry {_connectionRetryCount} failed: {ex.Message}");
-                        _isRetrying = false;
-                        // Next error will trigger NodeManager_OnError again
-                    }
-                });
+                WriteLog("Reconnection timer already running");
+                return;
             }
-            else
+
+            _reconnectAttempts = 0;
+            _connectionStatus = "Reconnecting...";
+            _settingsControl?.UpdateConnectionStatus("Reconnecting (1/5)...");
+
+            WriteLog($"Starting reconnection timer ({RECONNECT_INTERVAL_MS}ms interval, max {MAX_RECONNECT_ATTEMPTS} attempts)");
+
+            _reconnectTimer = new System.Timers.Timer(RECONNECT_INTERVAL_MS);
+            _reconnectTimer.Elapsed += ReconnectTimer_Elapsed;
+            _reconnectTimer.AutoReset = true;
+            _reconnectTimer.Start();
+
+            // Try first reconnection immediately
+            TryReconnect();
+        }
+
+        /// <summary>
+        /// Stop the reconnection timer
+        /// </summary>
+        private void StopReconnectTimer()
+        {
+            if (_reconnectTimer != null)
             {
-                // All retry attempts failed
-                WriteLog($"❌ All {MAX_RETRY_ATTEMPTS} reconnection attempts failed");
+                _reconnectTimer.Stop();
+                _reconnectTimer.Elapsed -= ReconnectTimer_Elapsed;
+                _reconnectTimer.Dispose();
+                _reconnectTimer = null;
+                WriteLog("Reconnection timer stopped");
+            }
+        }
+
+        /// <summary>
+        /// Timer callback - check connection and retry if needed
+        /// </summary>
+        private void ReconnectTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            // Check if already connected
+            if (_isWhatsAppConnected)
+            {
+                WriteLog("Already connected - stopping reconnection timer");
+                StopReconnectTimer();
+                return;
+            }
+
+            // Check if user requested disconnect
+            if (_userRequestedDisconnect)
+            {
+                WriteLog("User requested disconnect - stopping reconnection timer");
+                StopReconnectTimer();
+                _connectionStatus = "Disconnected";
+                _settingsControl?.UpdateConnectionStatus("Disconnected");
+                return;
+            }
+
+            // Try to reconnect
+            TryReconnect();
+        }
+
+        /// <summary>
+        /// Attempt to reconnect to WhatsApp
+        /// </summary>
+        private async void TryReconnect()
+        {
+            _reconnectAttempts++;
+
+            if (_reconnectAttempts > MAX_RECONNECT_ATTEMPTS)
+            {
+                // All attempts failed
+                WriteLog($"All {MAX_RECONNECT_ATTEMPTS} reconnection attempts failed");
+                StopReconnectTimer();
+
                 _connectionStatus = "Connection Error";
                 _settingsControl?.UpdateConnectionStatus("Connection Error");
-                _isRetrying = false;
 
                 // Show error message on screen
                 ShowNoConnectionMessage();
+                return;
+            }
+
+            WriteLog($"Reconnection attempt {_reconnectAttempts}/{MAX_RECONNECT_ATTEMPTS}");
+            _connectionStatus = $"Reconnecting ({_reconnectAttempts}/{MAX_RECONNECT_ATTEMPTS})...";
+            _settingsControl?.UpdateConnectionStatus($"Reconnecting ({_reconnectAttempts}/{MAX_RECONNECT_ATTEMPTS})...");
+
+            try
+            {
+                // Stop current connection
+                _nodeManager?.Stop();
+                await Task.Delay(1000);
+
+                // Start new connection
+                await _nodeManager.StartAsync();
+                // If successful, NodeManager_OnReady will be called and stop the timer
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Reconnection attempt {_reconnectAttempts} failed: {ex.Message}");
+                // Timer will trigger next attempt in 15 seconds
             }
         }
 
@@ -1482,8 +1532,10 @@ namespace WhatsAppSimHubPlugin
 
             SaveSettings();
 
-            // Clean disconnect - same as clicking Disconnect button
-            // This sends shutdown command to Node.js and waits for clean exit
+            // Stop reconnection timer
+            StopReconnectTimer();
+
+            // Clean disconnect
             if (_nodeManager != null)
             {
                 WriteLog("Disconnecting Node.js...");
@@ -1563,16 +1615,16 @@ namespace WhatsAppSimHubPlugin
             var stackTrace = new System.Diagnostics.StackTrace(true);
             WriteLog($"User requested disconnect - Called from:\n{stackTrace}");
 
-            // Marcar que foi o user que pediu disconnect (não tentar reconectar)
+            // Mark as user requested disconnect (prevents auto-reconnect)
             _userRequestedDisconnect = true;
-            _connectionRetryCount = 0;
-            _isRetrying = false;
+            _reconnectAttempts = 0;
+            StopReconnectTimer();
 
-            // Limpar ambas as queues
+            // Clear message queues
             _messageQueue?.ClearQueue();
             WriteLog("Queues cleared on user disconnect");
 
-            // Limpar overlay
+            // Clear overlay
             _showMessage = false;
             _overlaySender = "";
             ClearAllOverlayMessages();
@@ -1584,12 +1636,12 @@ namespace WhatsAppSimHubPlugin
         {
             WriteLog("User requested connect...");
 
-            // Reset flags - user quer conectar
+            // Reset flags - user wants to connect
             _userRequestedDisconnect = false;
-            _connectionRetryCount = 0;
-            _isRetrying = false;
+            _reconnectAttempts = 0;
+            StopReconnectTimer();
 
-            // Garantir que overlay está limpo
+            // Clear overlay
             _showMessage = false;
             _overlaySender = "";
             ClearAllOverlayMessages();
