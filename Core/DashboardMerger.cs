@@ -120,6 +120,19 @@ namespace WhatsAppSimHubPlugin.Core
                 _log?.Invoke($"Base dashboard has {baseItems.Count} items");
                 _log?.Invoke($"Overlay dashboard has {overlayItems.Count} items");
 
+                // Copy OverlayTriggerExpression from original overlay dashboard
+                var overlayTriggerExpression = overlayDash["Screens"]?[0]?["OverlayTriggerExpression"]?.DeepClone();
+                if (overlayTriggerExpression == null)
+                {
+                    _log?.Invoke("⚠️ Warning: Original dashboard has no OverlayTriggerExpression, using default");
+                    overlayTriggerExpression = new JObject();
+                    overlayTriggerExpression["Expression"] = "[WhatsAppPlugin.showmessage]";
+                }
+                else
+                {
+                    _log?.Invoke($"✅ Copied OverlayTriggerExpression: {overlayTriggerExpression["Expression"]}");
+                }
+
                 // Get original dimensions
                 int baseWidth = baseDash["BaseWidth"]?.Value<int>() ?? 850;
                 int baseHeight = baseDash["BaseHeight"]?.Value<int>() ?? 480;
@@ -226,13 +239,15 @@ namespace WhatsAppSimHubPlugin.Core
                 }
                 overlayLayer["Childrens"] = clonedOverlayItems;
 
+                // Apply visibility binding using the copied OverlayTriggerExpression
                 var bindings = new JObject();
                 var visibleBinding = new JObject();
                 var formula = new JObject();
-                formula["Expression"] = "if ($prop(\"WhatsAppPlugin.showmessage\") && $prop(\"WhatsAppPlugin.vocoreenabled\")) return true\nreturn false";
-                formula["JSExt"] = 1;
-                formula["Interpreter"] = 1;
-                visibleBinding["Formula"] = formula;
+
+                // Copy the entire OverlayTriggerExpression as-is (preserves exact format)
+                visibleBinding["Formula"] = overlayTriggerExpression.DeepClone();
+
+                _log?.Invoke($"✅ Applied visibility binding with expression: {overlayTriggerExpression["Expression"]}");
                 visibleBinding["Mode"] = 2;
                 visibleBinding["TargetPropertyName"] = "Visible";
                 bindings["Visible"] = visibleBinding;

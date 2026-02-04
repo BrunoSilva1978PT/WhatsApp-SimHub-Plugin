@@ -469,7 +469,7 @@ namespace WhatsAppSimHubPlugin
             // Array de 10 mensagens: WhatsAppPlugin.message[0] a WhatsAppPlugin.message[9]
             for (int i = 0; i < 10; i++)
             {
-                int index = i; // Capturar valor para closure
+                int index = i; // catch value for closure
                 this.AttachDelegate($"message[{index}]", () => _overlayMessages[index]);
             }
         }
