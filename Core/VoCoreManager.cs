@@ -25,6 +25,38 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
+        /// Check if a dashboard exists in SimHub (uses official API, zero I/O, zero reflection)
+        /// </summary>
+        public bool DoesDashboardExist(string dashboardName)
+        {
+            if (string.IsNullOrEmpty(dashboardName))
+            {
+                _log?.Invoke($"[DashboardCheck] Dashboard name is empty");
+                return false;
+            }
+
+            try
+            {
+                _log?.Invoke($"[DashboardCheck] Checking if dashboard '{dashboardName}' exists...");
+
+                // Use SimHub public API (fast, no I/O, always up-to-date)
+                var metadata = _pluginManager?.GetDashboardMetadata(dashboardName);
+
+                bool exists = metadata != null;
+                _log?.Invoke($"[DashboardCheck] Dashboard '{dashboardName}' exists: {exists}");
+
+                return exists;
+            }
+            catch (Exception ex)
+            {
+                _log?.Invoke($"[DashboardCheck] Error checking dashboard '{dashboardName}': {ex.Message}");
+                _log?.Invoke($"[DashboardCheck] Exception type: {ex.GetType().Name}");
+                _log?.Invoke($"[DashboardCheck] Stack: {ex.StackTrace}");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Get all connected VoCore devices with their current state
         /// </summary>
         public List<VoCoreDevice> GetConnectedDevices()
@@ -164,6 +196,14 @@ namespace WhatsAppSimHubPlugin.Core
                 {
                     vocoreSettings.CurrentOverlayDashboard.TrySet("WhatsAppPlugin");
                     _log?.Invoke("✓ Dashboard set to 'WhatsAppPlugin' (was empty)");
+                    return;
+                }
+
+                // Check if current dashboard still exists (user may have deleted it)
+                if (!DoesDashboardExist(currentDash))
+                {
+                    _log?.Invoke($"⚠️ Dashboard '{currentDash}' no longer exists (deleted) → reverting to 'WhatsAppPlugin'");
+                    vocoreSettings.CurrentOverlayDashboard.TrySet("WhatsAppPlugin");
                     return;
                 }
 
