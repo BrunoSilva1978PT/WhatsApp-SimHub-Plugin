@@ -7,7 +7,7 @@ using WhatsAppSimHubPlugin.Models;
 namespace WhatsAppSimHubPlugin.Core
 {
     /// <summary>
-    /// Sistema de filas de mensagens WhatsApp para SimHub
+    /// WhatsApp message queue system for SimHub
     /// </summary>
     public class MessageQueue
     {
@@ -103,14 +103,14 @@ namespace WhatsAppSimHubPlugin.Core
 
                 if (contactMessagesCount <= _settings.MaxGroupSize)
                 {
-                    // Ainda cabe no grupo - refresh completo
+                    // Still fits in group - full refresh
                     _displayTimer.Stop();
                     RefreshCurrentDisplay();
                     StartDisplayTimer();
                 }
                 else
                 {
-                    // Já atingiu limite - só atualizar o display para mostrar +X
+                    // Already reached limit - only update display to show +X
                     OnGroupDisplay?.Invoke(_currentDisplayGroup);
                 }
             }

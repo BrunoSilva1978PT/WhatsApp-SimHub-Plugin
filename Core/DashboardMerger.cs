@@ -120,15 +120,15 @@ namespace WhatsAppSimHubPlugin.Core
                 _log?.Invoke($"Base dashboard has {baseItems.Count} items");
                 _log?.Invoke($"Overlay dashboard has {overlayItems.Count} items");
 
-                // Obter dimensões originais
+                // Get original dimensions
                 int baseWidth = baseDash["BaseWidth"]?.Value<int>() ?? 850;
                 int baseHeight = baseDash["BaseHeight"]?.Value<int>() ?? 480;
 
-                // Resolução nativa do plugin overlay (sempre 850x480)
+                // Native resolution of plugin overlay (always 850x480)
                 const int OVERLAY_NATIVE_WIDTH = 850;
                 const int OVERLAY_NATIVE_HEIGHT = 480;
 
-                // ✅ NOVA LÓGICA: Resolução final é SEMPRE a MAIOR entre base e overlay
+                // NEW LOGIC: Final resolution is ALWAYS the MAXIMUM between base and overlay
                 int finalWidth = Math.Max(baseWidth, OVERLAY_NATIVE_WIDTH);
                 int finalHeight = Math.Max(baseHeight, OVERLAY_NATIVE_HEIGHT);
 
@@ -136,7 +136,7 @@ namespace WhatsAppSimHubPlugin.Core
                 _log?.Invoke($"Overlay dashboard: {OVERLAY_NATIVE_WIDTH}x{OVERLAY_NATIVE_HEIGHT}");
                 _log?.Invoke($"Final merged resolution (MAX): {finalWidth}x{finalHeight}");
 
-                // Calcular scale para cada layer
+                // Calculate scale for each layer
                 double baseScale = 1.0;
                 double baseLeft = 0.0;
                 double baseTop = 0.0;
@@ -145,7 +145,7 @@ namespace WhatsAppSimHubPlugin.Core
                 double overlayLeft = 0.0;
                 double overlayTop = 0.0;
 
-                // Se final > base, escalar base dashboard
+                // If final > base, scale base dashboard
                 if (finalWidth > baseWidth || finalHeight > baseHeight)
                 {
                     baseScale = Math.Min(
@@ -155,7 +155,7 @@ namespace WhatsAppSimHubPlugin.Core
                     _log?.Invoke($"Scaling base dashboard: {baseScale:F3}x");
                 }
 
-                // Se final > overlay, escalar overlay dashboard
+                // If final > overlay, scale overlay dashboard
                 if (finalWidth > OVERLAY_NATIVE_WIDTH || finalHeight > OVERLAY_NATIVE_HEIGHT)
                 {
                     overlayScale = Math.Min(
@@ -164,7 +164,7 @@ namespace WhatsAppSimHubPlugin.Core
                     );
                     _log?.Invoke($"Scaling overlay dashboard: {overlayScale:F3}x");
                 }
-                // Calcular dimensões do base layer (escaladas se necessário)
+                // Calculate base layer dimensions (scaled if necessary)
                 double baseLayerWidth = baseWidth * baseScale;
                 double baseLayerHeight = baseHeight * baseScale;
 
@@ -179,13 +179,13 @@ namespace WhatsAppSimHubPlugin.Core
                 baseLayer["Visible"] = true;
                 baseLayer["Group"] = false;
 
-                // Clonar e escalar base items se necessário
+                // Clone and scale base items if necessary
                 var clonedBaseItems = new JArray();
                 foreach (var item in baseItems)
                 {
                     var cloned = item.DeepClone();
 
-                    // Escalar item se base foi escalado
+                    // Scale item if base was scaled
                     if (baseScale != 1.0)
                     {
                         ScaleItem(cloned, baseScale);
@@ -195,7 +195,7 @@ namespace WhatsAppSimHubPlugin.Core
                 }
                 baseLayer["Childrens"] = clonedBaseItems;
 
-                // Calcular dimensões do overlay layer (escaladas se necessário)
+                // Calculate overlay layer dimensions (scaled if necessary)
                 double layerWidth = OVERLAY_NATIVE_WIDTH * overlayScale;
                 double layerHeight = OVERLAY_NATIVE_HEIGHT * overlayScale;
 
@@ -210,13 +210,13 @@ namespace WhatsAppSimHubPlugin.Core
                 overlayLayer["Visible"] = true;
                 overlayLayer["Group"] = false;
 
-                // Clonar e escalar overlay items
+                // Clone and scale overlay items
                 var clonedOverlayItems = new JArray();
                 foreach (var item in overlayItems)
                 {
                     var cloned = item.DeepClone();
 
-                    // Escalar item (X, Y, Width, Height) se necessário
+                    // Scale item (X, Y, Width, Height) if necessary
                     if (overlayScale != 1.0)
                     {
                         ScaleItem(cloned, overlayScale);
@@ -395,27 +395,27 @@ namespace WhatsAppSimHubPlugin.Core
 
         private void ScaleItem(JToken item, double scale)
         {
-            // Tudo em pixels = inteiros
+            // Everything in pixels = integers
 
-            // Escalar posição
+            // Scale position
             if (item["Left"] != null)
                 item["Left"] = (int)(item["Left"].Value<double>() * scale);
 
             if (item["Top"] != null)
                 item["Top"] = (int)(item["Top"].Value<double>() * scale);
 
-            // Escalar tamanho
+            // Scale size
             if (item["Width"] != null)
                 item["Width"] = (int)(item["Width"].Value<double>() * scale);
 
             if (item["Height"] != null)
                 item["Height"] = (int)(item["Height"].Value<double>() * scale);
 
-            // Escalar font size
+            // Scale font size
             if (item["FontSize"] != null)
                 item["FontSize"] = (int)(item["FontSize"].Value<double>() * scale);
 
-            // Escalar BorderRadius
+            // Scale BorderRadius
             if (item["BorderStyle"] != null)
             {
                 var border = item["BorderStyle"] as JObject;
@@ -432,7 +432,7 @@ namespace WhatsAppSimHubPlugin.Core
                 }
             }
 
-            // Escalar Bindings de propriedades de tamanho/posição
+            // Scale Bindings for size/position properties
             var bindings = item["Bindings"] as JObject;
             if (bindings != null)
             {
@@ -442,7 +442,7 @@ namespace WhatsAppSimHubPlugin.Core
                 ScaleBindingFormula(bindings, "Top", scale);
             }
 
-            // Escalar Childrens recursivamente
+            // Scale Childrens recursively
             var childrens = item["Childrens"] as JArray;
             if (childrens != null)
             {
@@ -460,8 +460,8 @@ namespace WhatsAppSimHubPlugin.Core
             {
                 string expr = binding["Formula"]["Expression"].ToString();
 
-                // Substituir cada "return X;" por "return (X) * scale;"
-                // Regex para encontrar "return ...;" e envolver com scale
+                // Replace each "return X;" with "return (X) * scale;"
+                // Regex to find "return ...;" and wrap with scale
                 string scaleStr = scale.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 string scaledExpr = System.Text.RegularExpressions.Regex.Replace(
                     expr,
@@ -475,15 +475,15 @@ namespace WhatsAppSimHubPlugin.Core
 
         private string WrapFormulaWithScale(string expression, double scale)
         {
-            // Multiplicar o resultado final da fórmula por scale
-            // Isto funciona para qualquer fórmula JavaScript sem ter que parseá-la
+            // Multiply the final formula result by scale
+            // This works for any JavaScript formula without having to parse it
             string trimmed = expression.Trim();
 
-            // Remover ponto e vírgula final se existir
+            // Remove trailing semicolon if exists
             if (trimmed.EndsWith(";"))
                 trimmed = trimmed.Substring(0, trimmed.Length - 1).Trim();
 
-            // Se tem múltiplas linhas/statements, envolver a última expressão após o último return
+            // If has multiple lines/statements, wrap the last expression after the last return
             int lastReturnIndex = trimmed.LastIndexOf("return ", StringComparison.OrdinalIgnoreCase);
             if (lastReturnIndex >= 0)
             {
@@ -492,7 +492,7 @@ namespace WhatsAppSimHubPlugin.Core
                 return $"{beforeLastReturn}return ({afterReturn}) * {scale.ToString(System.Globalization.CultureInfo.InvariantCulture)};";
             }
 
-            // Fallback: se não tem return, envolver toda a expressão
+            // Fallback: if no return, wrap entire expression
             return $"return ({trimmed}) * {scale.ToString(System.Globalization.CultureInfo.InvariantCulture)};";
         }
         public static string MergedDashboardName => MERGED_DASHBOARD_NAME;

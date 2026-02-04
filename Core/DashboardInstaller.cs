@@ -6,7 +6,7 @@ using System.Reflection;
 namespace WhatsAppSimHubPlugin.Core
 {
     /// <summary>
-    /// Instala automaticamente o dashboard WhatsApp no SimHub
+    /// Automatically installs the WhatsApp dashboard in SimHub
     /// </summary>
     public class DashboardInstaller
     {
@@ -25,15 +25,15 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Instala (extrai) o dashboard automaticamente
-        /// Só instala se a pasta WhatsAppPlugin NÃO existir em DashTemplates
-        /// Isto permite ao utilizador fazer updates manuais sem perder alterações
+        /// Installs (extracts) the dashboard automatically
+        /// Only installs if the WhatsAppPlugin folder does NOT exist in DashTemplates
+        /// This allows the user to make manual updates without losing changes
         /// </summary>
         public bool InstallDashboard()
         {
             try
             {
-                // Verificar se dashboard já existe - se sim, não reinstalar
+                // Check if dashboard already exists - if so, don't reinstall
                 if (IsDashboardInstalled())
                 {
                     _log?.Invoke("Dashboard already exists - skipping installation (allows manual updates)");
@@ -42,7 +42,7 @@ namespace WhatsAppSimHubPlugin.Core
 
                 _log?.Invoke("Dashboard not found - installing from resources...");
 
-                // Extrair dashboard do recurso embebido para ficheiro temporário
+                // Extract dashboard from embedded resource to temporary file
                 string tempDashFile = ExtractDashboardToTemp();
                 if (string.IsNullOrEmpty(tempDashFile))
                 {
@@ -50,12 +50,12 @@ namespace WhatsAppSimHubPlugin.Core
                     return false;
                 }
 
-                // Tentar importar via DashboardManager (raramente funciona)
+                // Try to import via DashboardManager (rarely works)
                 bool imported = ImportDashboardViaManager(tempDashFile);
 
                 if (imported)
                 {
-                    // Limpar ficheiro temporário
+                    // Clean up temporary file
                     try
                     {
                         if (File.Exists(tempDashFile))
@@ -67,12 +67,12 @@ namespace WhatsAppSimHubPlugin.Core
                     return true;
                 }
 
-                // Usar método de extração direta (sempre funciona)
+                // Use direct extraction method (always works)
                 bool extracted = InstallDashboardFallback();
 
                 if (extracted)
                 {
-                    // Limpar ficheiro temporário
+                    // Clean up temporary file
                     try
                     {
                         if (File.Exists(tempDashFile))
@@ -91,7 +91,7 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Extrai dashboard do recurso embebido para ficheiro temporário
+        /// Extracts dashboard from embedded resource to temporary file
         /// </summary>
         private string ExtractDashboardToTemp()
         {
@@ -108,7 +108,7 @@ namespace WhatsAppSimHubPlugin.Core
                         return null;
                     }
 
-                    // Criar ficheiro temporário
+                    // Create temporary file
                     string tempPath = Path.GetTempPath();
                     string tempFile = Path.Combine(tempPath, DASHBOARD_FILENAME);
 
@@ -129,8 +129,8 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Importa dashboard usando DashboardManager do SimHub (método oficial!)
-        /// Nota: DashboardManager não está disponível via PluginManager, então usa fallback
+        /// Imports dashboard using SimHub's DashboardManager (official method!)
+        /// Note: DashboardManager is not available via PluginManager, so uses fallback
         /// </summary>
         private bool ImportDashboardViaManager(string dashboardFilePath)
         {
@@ -146,7 +146,7 @@ namespace WhatsAppSimHubPlugin.Core
 
                 if (dashboardManagerProp == null)
                 {
-                    // DashboardManager não disponível - usar fallback (extração direta)
+                    // DashboardManager not available - use fallback (direct extraction)
                     return false;
                 }
 
@@ -166,7 +166,7 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Tenta importar usando uma instância de DashboardManager
+        /// Tries to import using a DashboardManager instance
         /// </summary>
         private bool TryImportWithManager(object dashboardManager, string dashboardFilePath)
         {
@@ -175,7 +175,7 @@ namespace WhatsAppSimHubPlugin.Core
                 var dashboardManagerType = dashboardManager.GetType();
                 _log?.Invoke($"✅ Got DashboardManager instance: {dashboardManagerType.Name}");
 
-                // Tentar método ImportDashboard (usado pelo Lovely Dashboard Plugin)
+                // Try ImportDashboard method (used by Lovely Dashboard Plugin)
                 var importMethod = dashboardManagerType.GetMethod("ImportDashboard",
                     new Type[] { typeof(string) });
 
@@ -187,7 +187,7 @@ namespace WhatsAppSimHubPlugin.Core
                     return true;
                 }
 
-                // Fallback: Tentar método ImportDashboardFromFile
+                // Fallback: Try ImportDashboardFromFile method
                 importMethod = dashboardManagerType.GetMethod("ImportDashboardFromFile",
                     new Type[] { typeof(string) });
 
@@ -218,7 +218,7 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Fallback: Extrai dashboard para DashTemplates (SimHub reconhece automaticamente!)
+        /// Fallback: Extracts dashboard to DashTemplates (SimHub auto-detects it!)
         /// </summary>
         private bool InstallDashboardFallback()
         {
@@ -228,9 +228,9 @@ namespace WhatsAppSimHubPlugin.Core
                 if (string.IsNullOrEmpty(dashboardsPath))
                     return false;
 
-                // IMPORTANTE: .simhubdash é um ZIP!
-                // O ZIP JÁ TEM uma pasta "WhatsAppPlugin" dentro
-                // Então extraímos DIRETAMENTE para DashTemplates!
+                // IMPORTANT: .simhubdash is a ZIP!
+                // The ZIP ALREADY HAS a "WhatsAppPlugin" folder inside
+                // So we extract DIRECTLY to DashTemplates!
                 var assembly = Assembly.GetExecutingAssembly();
                 var resourceName = $"WhatsAppSimHubPlugin.Resources.{DASHBOARD_FILENAME}";
 
@@ -239,7 +239,7 @@ namespace WhatsAppSimHubPlugin.Core
                     if (stream == null)
                         return false;
 
-                    // Criar ficheiro temporário
+                    // Create temporary file
                     string tempZipFile = Path.Combine(Path.GetTempPath(), DASHBOARD_FILENAME);
 
                     using (FileStream fileStream = File.Create(tempZipFile))
@@ -247,22 +247,22 @@ namespace WhatsAppSimHubPlugin.Core
                         stream.CopyTo(fileStream);
                     }
 
-                    // Verificar pasta destino (não deve existir, já verificámos em InstallDashboard)
+                    // Check target folder (should not exist, already verified in InstallDashboard)
                     string targetFolder = Path.Combine(dashboardsPath, DASHBOARD_NAME);
 
-                    // EXTRAIR diretamente para DashTemplates
-                    // (O ZIP já contém a pasta WhatsAppPlugin dentro)
+                    // EXTRACT directly to DashTemplates
+                    // (The ZIP already contains the WhatsAppPlugin folder inside)
                     _log?.Invoke($"📦 Extracting dashboard to: {dashboardsPath}");
                     System.IO.Compression.ZipFile.ExtractToDirectory(tempZipFile, dashboardsPath);
 
-                    // Limpar ficheiro temporário
+                    // Clean up temporary file
                     try
                     {
                         File.Delete(tempZipFile);
                     }
                     catch { }
 
-                    // Verificar se pasta foi criada
+                    // Check if folder was created
                     if (Directory.Exists(targetFolder))
                     {
                         _log?.Invoke($"✅ Dashboard extracted successfully!");
@@ -286,13 +286,13 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Verifica se o dashboard está instalado (pasta extraída em DashTemplates)
+        /// Checks if the dashboard is installed (folder extracted in DashTemplates)
         /// </summary>
         public bool IsDashboardInstalled()
         {
             try
             {
-                // Verificar se PASTA existe em DashTemplates
+                // Check if FOLDER exists in DashTemplates
                 string dashboardsPath = GetDashboardsPath();
                 if (!string.IsNullOrEmpty(dashboardsPath))
                 {
@@ -310,14 +310,14 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Obtém o caminho da pasta de dashboards do SimHub
+        /// Gets the path to SimHub's dashboards folder
         /// </summary>
         public string GetDashboardsPath()
         {
             try
             {
-                // OPÇÃO 1: Pasta de instalação do SimHub (onde está o executável)
-                // Normalmente: C:\Program Files (x86)\SimHub\DashTemplates
+                // OPTION 1: SimHub installation folder (where the executable is)
+                // Usually: C:\Program Files (x86)\SimHub\DashTemplates
                 string simHubExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
                 string simHubFolder = Path.GetDirectoryName(simHubExePath);
                 string dashTemplatesPath = Path.Combine(simHubFolder, "DashTemplates");
@@ -327,7 +327,7 @@ namespace WhatsAppSimHubPlugin.Core
                     return dashTemplatesPath;
                 }
 
-                // OPÇÃO 2: AppData (fallback, caso SimHub use este em vez do acima)
+                // OPTION 2: AppData (fallback, in case SimHub uses this instead of above)
                 string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 string appDataDashPath = Path.Combine(appDataPath, "SimHub", "DashboardTemplates");
 
@@ -336,7 +336,7 @@ namespace WhatsAppSimHubPlugin.Core
                     return appDataDashPath;
                 }
 
-                // OPÇÃO 3: Tentar criar na pasta de instalação
+                // OPTION 3: Try to create in installation folder
                 if (!Directory.Exists(dashTemplatesPath))
                 {
                     Directory.CreateDirectory(dashTemplatesPath);
@@ -355,18 +355,18 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Nome do dashboard (sem extensão)
+        /// Dashboard name (without extension)
         /// </summary>
         public static string DashboardName => Path.GetFileNameWithoutExtension(DASHBOARD_FILENAME);
 
         /// <summary>
-        /// Instala o dashboard overlay (para VR, etc.) se não existir
+        /// Installs the overlay dashboard (for VR, etc.) if it doesn't exist
         /// </summary>
         public bool InstallOverlayDashboard()
         {
             try
             {
-                // Verificar se já existe
+                // Check if already exists
                 if (IsOverlayDashboardInstalled())
                 {
                     _log?.Invoke("Overlay dashboard already exists - skipping installation");
@@ -390,7 +390,7 @@ namespace WhatsAppSimHubPlugin.Core
                         return false;
                     }
 
-                    // Criar ficheiro temporário
+                    // Create temporary file
                     string tempZipFile = Path.Combine(Path.GetTempPath(), OVERLAY_DASHBOARD_FILENAME);
 
                     using (FileStream fileStream = File.Create(tempZipFile))
@@ -398,14 +398,14 @@ namespace WhatsAppSimHubPlugin.Core
                         stream.CopyTo(fileStream);
                     }
 
-                    // Extrair para DashTemplates
+                    // Extract to DashTemplates
                     _log?.Invoke($"📦 Extracting overlay dashboard to: {dashboardsPath}");
                     ZipFile.ExtractToDirectory(tempZipFile, dashboardsPath);
 
-                    // Limpar ficheiro temporário
+                    // Clean up temporary file
                     try { File.Delete(tempZipFile); } catch { }
 
-                    // Verificar se pasta foi criada
+                    // Check if folder was created
                     string targetFolder = Path.Combine(dashboardsPath, OVERLAY_DASHBOARD_NAME);
                     if (Directory.Exists(targetFolder))
                     {
@@ -427,7 +427,7 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Verifica se o overlay dashboard está instalado
+        /// Checks if the overlay dashboard is installed
         /// </summary>
         public bool IsOverlayDashboardInstalled()
         {

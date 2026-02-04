@@ -76,7 +76,7 @@ namespace WhatsAppSimHubPlugin.UI
             // ✅ Wire up QuickRepliesTab event handlers
             WireUpQuickRepliesTabEvents();
 
-            // ✅ Criar ControlsEditor dinamicamente via reflexão
+            // ✅ Create ControlsEditor dynamically via reflection
             CreateControlsEditors();
 
             InitializeData();
@@ -518,7 +518,7 @@ namespace WhatsAppSimHubPlugin.UI
                 // Just update UI state based on VoCoreEnabled
                 UpdateTestButtonState();
 
-                // Sliders - converter de ms para segundos onde necessário
+                // Sliders - convert from ms to seconds where necessary
                 QueueTab.MaxMessagesPerContactSliderCtrl.Value = _settings.MaxGroupSize;
                 QueueTab.MaxQueueSizeSliderCtrl.Value = _settings.MaxQueueSize;
                 QueueTab.NormalDurationSliderCtrl.Value = _settings.NormalDuration / 1000; // ms → seconds
@@ -593,7 +593,7 @@ namespace WhatsAppSimHubPlugin.UI
                     case "connecting":
                         ConnectionTab.StatusIndicatorCtrl.Fill = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
 
-                        // Disconnect deve estar sempre disponível
+                        // Disconnect should always be available
                         ConnectionTab.DisconnectButtonCtrl.IsEnabled = true;
                         ConnectionTab.DisconnectButtonCtrl.Opacity = 1.0;
                         ConnectionTab.ReconnectButtonCtrl.IsEnabled = false;
@@ -604,7 +604,7 @@ namespace WhatsAppSimHubPlugin.UI
                     case "qr":
                         ConnectionTab.StatusIndicatorCtrl.Fill = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
 
-                        // Disconnect deve estar sempre disponível
+                        // Disconnect should always be available
                         ConnectionTab.DisconnectButtonCtrl.IsEnabled = true;
                         ConnectionTab.DisconnectButtonCtrl.Opacity = 1.0;
                         ConnectionTab.ReconnectButtonCtrl.IsEnabled = false;
@@ -885,7 +885,7 @@ namespace WhatsAppSimHubPlugin.UI
                 string authPath;
                 if (_settings.BackendMode == "baileys")
                 {
-                    // Para Baileys, apagar toda a pasta data_baileys (contém auth_info e store)
+                    // For Baileys, delete entire data_baileys folder (contains auth_info and store)
                     authPath = Path.Combine(pluginPath, "data_baileys");
                 }
                 else
@@ -1330,7 +1330,7 @@ namespace WhatsAppSimHubPlugin.UI
 
 
         /// <summary>
-        /// 🔍 DEBUG: Descobrir todos os métodos disponíveis no PluginManager
+        /// 🔍 DEBUG: Discover all available methods in PluginManager
         /// </summary>
         private void DiscoverPluginManagerMethods_Click(object sender, RoutedEventArgs e)
         {
@@ -1350,7 +1350,7 @@ namespace WhatsAppSimHubPlugin.UI
                 output.AppendLine("=====================================");
                 output.AppendLine();
 
-                // ======= MÉTODOS =======
+                // ======= METHODS =======
                 output.AppendLine("📌 MÉTODOS RELEVANTES:");
                 output.AppendLine("─────────────────────────────────────");
 
@@ -1415,7 +1415,7 @@ namespace WhatsAppSimHubPlugin.UI
                     output.AppendLine();
                 }
 
-                // ======= TIPOS DISPONÍVEIS NA ASSEMBLY =======
+                // ======= AVAILABLE TYPES IN ASSEMBLY =======
                 output.AppendLine();
                 output.AppendLine("📌 TIPOS RELACIONADOS COM INPUT/CONTROL NA ASSEMBLY:");
                 output.AppendLine("─────────────────────────────────────");
@@ -1430,7 +1430,7 @@ namespace WhatsAppSimHubPlugin.UI
                         t.Name.IndexOf("Bind", StringComparison.OrdinalIgnoreCase) >= 0
                     )
                     .OrderBy(t => t.Name)
-                    .Take(50)  // Limitar a 50 para não ficar muito grande
+                    .Take(50)  // Limit to 50 to not get too big
                     .ToList();
 
                 foreach (var type in inputTypes)
@@ -1586,18 +1586,18 @@ namespace WhatsAppSimHubPlugin.UI
             var newMode = selected?.Tag?.ToString();
 
             if (string.IsNullOrEmpty(newMode)) return;
-            if (_settings.BackendMode == newMode) return; // Sem alteração
+            if (_settings.BackendMode == newMode) return; // No change
 
             _settings.BackendMode = newMode;
             _plugin.SaveSettings();
 
-            // Fazer switch automático do backend
+            // Auto switch backend
             try
             {
-                // Mostrar mensagem que vai fazer reconnect
+                // Show message that will reconnect
                 ShowToast($"Switching to {selected.Content}...", "🔄", 3);
 
-                // Fazer switch do backend (para, aguarda, cria novo, inicia)
+                // Switch backend (stop, wait, create new, start)
                 await _plugin.SwitchBackend(newMode);
 
                 ShowToast($"{selected.Content} connected successfully!", "✅", 5);
@@ -1697,11 +1697,11 @@ namespace WhatsAppSimHubPlugin.UI
         }
 
         /// <summary>
-        /// 🔍 EXPLORAR API DO SIMHUB - Descobrir métodos disponíveis
+        /// 🔍 EXPLORE SIMHUB API - Discover available methods
         /// </summary>
         /// <summary>
-        /// ✅ Criar ControlsEditor dinamicamente via reflexão
-        /// Isto evita erros de compilação se o tipo não existir
+        /// ✅ Create ControlsEditor dynamically via reflection
+        /// This avoids compilation errors if the type doesn't exist
         /// </summary>
         private void CreateControlsEditors()
         {
@@ -1726,16 +1726,16 @@ namespace WhatsAppSimHubPlugin.UI
                     return;
                 }
 
-                // Criar instância para Reply1
+                // Create instance for Reply1
                 var reply1Editor = Activator.CreateInstance(controlsEditorType);
                 if (reply1Editor != null)
                 {
-                    // Configurar propriedades
-                    // ⚡ CRÍTICO: ControlsEditor NÃO adiciona prefixo automaticamente!
-                    // Temos que usar o nome COMPLETO: "WhatsAppPlugin.SendReply1"
+                    // Configure properties
+                    // ⚡ CRITICAL: ControlsEditor does NOT add prefix automatically!
+                    // We need to use the COMPLETE name: "WhatsAppPlugin.SendReply1"
                     controlsEditorType.GetProperty("ActionName")?.SetValue(reply1Editor, "WhatsAppPlugin.SendReply1");
 
-                    // ✅ Substituir conteúdo do ContentPresenter
+                    // ✅ Replace ContentPresenter content
                     if (QuickRepliesTab.Reply1ControlEditorPlaceholderCtrl != null)
                     {
                         QuickRepliesTab.Reply1ControlEditorPlaceholderCtrl.Content = reply1Editor;
@@ -1744,16 +1744,16 @@ namespace WhatsAppSimHubPlugin.UI
                     WriteDebugLog("[ControlsEditor] Reply1 editor created successfully");
                 }
 
-                // Criar instância para Reply2
+                // Create instance for Reply2
                 var reply2Editor = Activator.CreateInstance(controlsEditorType);
                 if (reply2Editor != null)
                 {
-                    // Configurar propriedades
-                    // ⚡ CRÍTICO: ControlsEditor NÃO adiciona prefixo automaticamente!
-                    // Temos que usar o nome COMPLETO: "WhatsAppPlugin.SendReply2"
+                    // Configure properties
+                    // ⚡ CRITICAL: ControlsEditor does NOT add prefix automatically!
+                    // We need to use the COMPLETE name: "WhatsAppPlugin.SendReply2"
                     controlsEditorType.GetProperty("ActionName")?.SetValue(reply2Editor, "WhatsAppPlugin.SendReply2");
 
-                    // ✅ Substituir conteúdo do ContentPresenter
+                    // ✅ Replace ContentPresenter content
                     if (QuickRepliesTab.Reply2ControlEditorPlaceholderCtrl != null)
                     {
                         QuickRepliesTab.Reply2ControlEditorPlaceholderCtrl.Content = reply2Editor;
@@ -1765,7 +1765,7 @@ namespace WhatsAppSimHubPlugin.UI
             catch (Exception ex)
             {
                 WriteDebugLog($"[ControlsEditor] Error: {ex.Message}");
-                // Não fazer nada - deixar os placeholders mostrarem mensagem padrão
+                // Do nothing - let placeholders show default message
             }
         }
 
@@ -2099,13 +2099,13 @@ namespace WhatsAppSimHubPlugin.UI
                             string displayVersion = wwjsSpec;
                             string tagVersion = wwjsSpec;
 
-                            // Se for github:main, mostrar de forma amigável
+                            // If github:main, show in friendly format
                             if (wwjsSpec.Contains("github:") && wwjsSpec.Contains("#main"))
                             {
                                 displayVersion = "github:main (latest dev)";
                                 tagVersion = "github:pedroslopez/whatsapp-web.js#main";
                             }
-                            // Se for versão normal, remover o ^ se existir
+                            // If normal version, remove ^ if exists
                             else if (wwjsSpec.StartsWith("^"))
                             {
                                 displayVersion = wwjsSpec.Substring(1);
@@ -2114,7 +2114,7 @@ namespace WhatsAppSimHubPlugin.UI
 
                             _settings.WhatsAppWebJsVersion = tagVersion;
 
-                            // Adicionar opção github:main
+                            // Add github:main option
                             var mainItem = new ComboBoxItem
                             {
                                 Content = "github:main (latest dev)",
@@ -2123,7 +2123,7 @@ namespace WhatsAppSimHubPlugin.UI
                             ConnectionTab.WhatsAppWebJsVersionComboCtrl.Items.Add(mainItem);
                             if (tagVersion.Contains("#main")) mainItem.IsSelected = true;
 
-                            // Adicionar versão instalada se não for github:main
+                            // Add installed version if not github:main
                             if (!tagVersion.Contains("#main"))
                             {
                                 var installedItem = new ComboBoxItem
@@ -2151,7 +2151,7 @@ namespace WhatsAppSimHubPlugin.UI
                                 displayVersion = "@latest (latest version)";
                                 tagVersion = "npm:@whiskeysockets/baileys@latest";
                             }
-                            // Se for versão normal, remover npm: e ^ se existir
+                            // If normal version, remove npm: and ^ if exists
                             else
                             {
                                 displayVersion = baileysSpec.Replace("npm:@whiskeysockets/baileys@", "").Replace("^", "");
@@ -2160,7 +2160,7 @@ namespace WhatsAppSimHubPlugin.UI
 
                             _settings.BaileysVersion = tagVersion;
 
-                            // Adicionar opção @latest
+                            // Add @latest option
                             var latestItem = new ComboBoxItem
                             {
                                 Content = "@latest (latest version)",
@@ -2169,7 +2169,7 @@ namespace WhatsAppSimHubPlugin.UI
                             ConnectionTab.BaileysVersionComboCtrl.Items.Add(latestItem);
                             if (tagVersion.Contains("@latest")) latestItem.IsSelected = true;
 
-                            // Adicionar versão instalada se não for @latest
+                            // Add installed version if not @latest
                             if (!tagVersion.Contains("@latest"))
                             {
                                 var installedItem = new ComboBoxItem
@@ -2221,10 +2221,10 @@ namespace WhatsAppSimHubPlugin.UI
                     var currentlySelected = ConnectionTab.WhatsAppWebJsVersionComboCtrl.SelectedItem as ComboBoxItem;
                     var existingItems = ConnectionTab.WhatsAppWebJsVersionComboCtrl.Items.Cast<ComboBoxItem>().ToList();
 
-                    // Adicionar versões do npm (últimas 10 v7.x) que ainda não existem
+                    // Add npm versions (last 10 v7.x) that don't exist yet
                     foreach (var version in versions.Take(10))
                     {
-                        // Verificar se já existe no dropdown
+                        // Check if already exists in dropdown
                         var exists = existingItems.Any(item => item.Tag?.ToString() == version);
 
                         if (!exists)
@@ -2238,7 +2238,7 @@ namespace WhatsAppSimHubPlugin.UI
                         }
                     }
 
-                    // Restaurar seleção
+                    // Restore selection
                     if (currentlySelected != null)
                     {
                         ConnectionTab.WhatsAppWebJsVersionComboCtrl.SelectedItem = currentlySelected;
@@ -2290,10 +2290,10 @@ namespace WhatsAppSimHubPlugin.UI
                     // Guardar item selecionado atual
                     var currentlySelectedTag = (ConnectionTab.BaileysVersionComboCtrl.SelectedItem as ComboBoxItem)?.Tag?.ToString();
 
-                    // Limpar e reconstruir dropdown com versões ordenadas
+                    // Clear and rebuild dropdown with sorted versions
                     ConnectionTab.BaileysVersionComboCtrl.Items.Clear();
 
-                    // 1. Adicionar @latest primeiro
+                    // 1. Add @latest first
                     var latestItem = new ComboBoxItem
                     {
                         Content = "@latest (latest version)",
@@ -2301,7 +2301,7 @@ namespace WhatsAppSimHubPlugin.UI
                     };
                     ConnectionTab.BaileysVersionComboCtrl.Items.Add(latestItem);
 
-                    // 2. Adicionar versões v7.x do npm (últimas 10)
+                    // 2. Add v7.x versions from npm (last 10)
                     foreach (var version in versions.Take(10))
                     {
                         var item = new ComboBoxItem
@@ -2312,7 +2312,7 @@ namespace WhatsAppSimHubPlugin.UI
                         ConnectionTab.BaileysVersionComboCtrl.Items.Add(item);
                     }
 
-                    // 3. Restaurar seleção
+                    // 3. Restore selection
                     foreach (ComboBoxItem item in ConnectionTab.BaileysVersionComboCtrl.Items)
                     {
                         if (item.Tag?.ToString() == currentlySelectedTag ||
@@ -3405,7 +3405,7 @@ namespace WhatsAppSimHubPlugin.UI
         #endregion
 
         /// <summary>
-        /// Mostra notificação toast que desaparece após 10 segundos
+        /// Shows toast notification that disappears after 10 seconds
         /// </summary>
         public void ShowToast(string message, string icon = "ℹ️", int durationSeconds = 10)
         {

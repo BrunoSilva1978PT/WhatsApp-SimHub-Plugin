@@ -16,12 +16,12 @@ namespace WhatsAppSimHubPlugin.Core
     public class WebSocketManager
     {
         private readonly string _pluginPath;
-        private string _backendMode; // "whatsapp-web.js" ou "baileys"
+        private string _backendMode; // "whatsapp-web.js" or "baileys"
         private Process _nodeProcess;
         private ClientWebSocket _webSocket;
         private CancellationTokenSource _cts;
         private bool _isConnected = false;
-        private int _selectedPort = 3000; // Porta dinâmica comunicada pelo Node.js
+        private int _selectedPort = 3000; // Dynamic port communicated by Node.js
         private readonly SemaphoreSlim _startLock = new SemaphoreSlim(1, 1); // Prevent concurrent starts
         private bool _isStarting = false; // Flag to prevent multiple starts
 
@@ -42,7 +42,7 @@ namespace WhatsAppSimHubPlugin.Core
         // Public property to check connection
         public bool IsConnected => _isConnected && IsNodeProcessAlive;
 
-        // Flag para tracking de instalação em progresso
+        // Flag for tracking installation in progress
         private bool _isInstalling = false;
         public bool IsInstalling => _isInstalling;
 
@@ -62,7 +62,7 @@ namespace WhatsAppSimHubPlugin.Core
             }
         }
 
-        // Propriedades para subscrição de eventos (compatibilidade)
+        // Properties for event subscription (compatibility)
         public event EventHandler<string> OnQrCode
         {
             add => QrCodeReceived += value;
@@ -93,11 +93,11 @@ namespace WhatsAppSimHubPlugin.Core
             _backendMode = backendMode;
             EnsureNodeDirectories();
             EnsurePackageJson();
-            EnsureServerScripts(); // Copiar ambos os scripts
+            EnsureServerScripts(); // Copy both scripts
         }
 
         /// <summary>
-        /// Atualizar backend mode (deve reconectar depois)
+        /// Update backend mode (must reconnect after)
         /// </summary>
         public void SetBackendMode(string backendMode)
         {
@@ -202,7 +202,7 @@ namespace WhatsAppSimHubPlugin.Core
                 if (_isInstalling) return;
                 if (_isStarting) return;
 
-                // Se já há um processo Node a correr, não iniciar outro
+                // If there's already a Node process running, don't start another
                 if (IsNodeProcessAlive)
                 {
                     StatusChanged?.Invoke(this, "Node.js already running");
@@ -211,18 +211,18 @@ namespace WhatsAppSimHubPlugin.Core
 
                 _isStarting = true;
 
-                // Verificar se precisa instalar pacotes
+                // Check if packages need to be installed
                 bool needsInstall = await CheckIfNpmInstallNeeded().ConfigureAwait(false);
 
                 if (needsInstall)
                 {
-                    // Iniciar instalação em background (event-based, não bloqueia)
+                    // Start installation in background (event-based, doesn't block)
                     StartNpmInstallBackground();
-                    // O fluxo continua quando InstallationCompleted for disparado
+                    // Flow continues when InstallationCompleted is fired
                     return;
                 }
 
-                // Pacotes já instalados, continuar normalmente
+                // Packages already installed, continue normally
                 await StartNodeProcess().ConfigureAwait(false);
                 await ConnectWebSocket().ConfigureAwait(false);
             }
@@ -239,18 +239,18 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Verifica se npm install é necessário (corre em background para não bloquear)
+        /// Checks if npm install is needed (runs in background to not block)
         /// </summary>
         private Task<bool> CheckIfNpmInstallNeeded()
         {
-            // Executar verificações de I/O em background thread
+            // Run I/O checks in background thread
             return Task.Run(() =>
             {
                 var nodeModulesPath = Path.Combine(_pluginPath, "node", "node_modules");
                 var packageJsonPath = Path.Combine(_pluginPath, "node", "package.json");
                 var packageLockPath = Path.Combine(_pluginPath, "node", "package-lock.json");
 
-                // Verificar se package.json mudou desde último install
+                // Check if package.json changed since last install
                 if (File.Exists(packageJsonPath) && File.Exists(packageLockPath))
                 {
                     var packageJsonTime = File.GetLastWriteTime(packageJsonPath);
@@ -276,8 +276,8 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Inicia npm install em background (event-based, não bloqueia SimHub)
-        /// Dispara InstallationCompleted quando terminar
+        /// Starts npm install in background (event-based, doesn't block SimHub)
+        /// Fires InstallationCompleted when done
         /// </summary>
         private void StartNpmInstallBackground()
         {
@@ -286,7 +286,7 @@ namespace WhatsAppSimHubPlugin.Core
             _isInstalling = true;
             StatusChanged?.Invoke(this, "Installing");
 
-            // Fire-and-forget: corre em background thread
+            // Fire-and-forget: runs in background thread
             _ = Task.Run(async () =>
             {
                 bool success = false;
@@ -303,14 +303,14 @@ namespace WhatsAppSimHubPlugin.Core
                 {
                     _isInstalling = false;
 
-                    // Disparar evento de conclusão
+                    // Fire completion event
                     InstallationCompleted?.Invoke(this, success);
 
                     if (success)
                     {
                         StatusChanged?.Invoke(this, "✅ Installation completed - continuing startup...");
 
-                        // Continuar o fluxo normal após instalação
+                        // Continue normal flow after installation
                         try
                         {
                             await StartNodeProcess().ConfigureAwait(false);
@@ -326,7 +326,7 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Executa npm install (corre em background thread)
+        /// Runs npm install (executes in background thread)
         /// </summary>
         private async Task<bool> RunNpmInstallAsync()
         {
@@ -372,11 +372,11 @@ namespace WhatsAppSimHubPlugin.Core
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
-            // Aguardar processo terminar (em background, não bloqueia UI)
+            // Wait for process to finish (in background, doesn't block UI)
             var exitedTask = new TaskCompletionSource<bool>();
             process.Exited += (s, e) => exitedTask.TrySetResult(true);
 
-            // Timeout de 2 minutos
+            // 2 minute timeout
             var timeoutTask = Task.Delay(120000);
             var completedTask = await Task.WhenAny(exitedTask.Task, timeoutTask).ConfigureAwait(false);
 
@@ -389,7 +389,7 @@ namespace WhatsAppSimHubPlugin.Core
 
             var error = errorBuilder.ToString();
 
-            // Verificar se falhou por falta de Git
+            // Check if failed due to missing Git
             if (process.ExitCode != 0 || error.Contains("spawn git") || error.Contains("ENOENT"))
             {
                 if (error.Contains("spawn git") || error.Contains("ENOENT") || process.ExitCode == -4058)
@@ -426,7 +426,7 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Retry npm install após instalar Git
+        /// Retry npm install after installing Git
         /// </summary>
         private async Task<bool> RetryNpmInstallAsync(string npm, string workDir)
         {
@@ -493,13 +493,13 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// 🔥 Mata processos Node.js antigos do plugin (whatsapp-server.js ou baileys-server.mjs)
-        /// Isto resolve o problema de EADDRINUSE quando SimHub reinicia!
-        /// Toda a operação corre em background para não bloquear SimHub
+        /// Kills old Node.js processes from the plugin (whatsapp-server.js or baileys-server.mjs)
+        /// This fixes the EADDRINUSE problem when SimHub restarts!
+        /// All operations run in background to not block SimHub
         /// </summary>
         private async Task KillOldNodeProcessesAsync()
         {
-            // Executar toda a lógica em background thread para não bloquear UI
+            // Run all logic in background thread to not block UI
             await Task.Run(async () =>
             {
                 try
@@ -514,11 +514,11 @@ namespace WhatsAppSimHubPlugin.Core
                         {
                             string commandLine = GetProcessCommandLine(process);
 
-                            // Verificar se é script do plugin (whatsapp-server.js OU baileys-server.mjs)
+                            // Check if it's a plugin script (whatsapp-server.js OR baileys-server.mjs)
                             if (!string.IsNullOrEmpty(commandLine) &&
                                 (commandLine.Contains("whatsapp-server.js") || commandLine.Contains("baileys-server.mjs")))
                             {
-                                // Não matar o processo atual
+                                // Don't kill the current process
                                 if (_nodeProcess != null && process.Id == _nodeProcess.Id)
                                 {
                                     continue;
@@ -535,7 +535,7 @@ namespace WhatsAppSimHubPlugin.Core
                         }
                         catch (Exception)
                         {
-                            // Ignorar erros ao matar processos individuais
+                            // Ignore errors when killing individual processes
                         }
                     }
 
@@ -557,14 +557,14 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Obtem a linha de comando de um processo (para verificar se é whatsapp-server.js)
-        /// NOTA: Usa WMI que pode ser lento - chamar apenas de background thread!
+        /// Gets the command line of a process (to check if it's whatsapp-server.js)
+        /// NOTE: Uses WMI which can be slow - call only from background thread!
         /// </summary>
         private string GetProcessCommandLine(Process process)
         {
             try
             {
-                // Usar WMI para obter command line
+                // Use WMI to get command line
                 using (var searcher = new System.Management.ManagementObjectSearcher(
                     $"SELECT CommandLine FROM Win32_Process WHERE ProcessId = {process.Id}"))
                 {
@@ -576,7 +576,7 @@ namespace WhatsAppSimHubPlugin.Core
             }
             catch
             {
-                // Se WMI falhar, tentar pelo MainModule
+                // If WMI fails, try via MainModule
                 try
                 {
                     return process.MainModule?.FileName ?? "";
@@ -642,20 +642,20 @@ namespace WhatsAppSimHubPlugin.Core
 
             _selectedPort = await Task.Run(() => ReadPortFromNodeSync()).ConfigureAwait(false);
 
-            // Continuar a ler stdout numa Task separada (não usar BeginOutputReadLine)
+            // Continue reading stdout in a separate Task (don't use BeginOutputReadLine)
             _ = Task.Run(() => ReadNodeOutputContinuously());
 
             await Task.Delay(2000).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Lê a porta do stdout do Node.js de forma síncrona (primeira linha deve ser "PORT:XXXX")
+        /// Reads the port from Node.js stdout synchronously (first line should be "PORT:XXXX")
         /// </summary>
         private int ReadPortFromNodeSync()
         {
             try
             {
-                // Ler primeira linha (com timeout implícito - se o processo morrer, ReadLine retorna null)
+                // Read first line (with implicit timeout - if process dies, ReadLine returns null)
                 var portLine = _nodeProcess.StandardOutput.ReadLine();
 
                 if (!string.IsNullOrEmpty(portLine) && portLine.StartsWith("PORT:"))
@@ -676,7 +676,7 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Continua a ler stdout do Node.js numa Task separada
+        /// Continues reading Node.js stdout in a separate Task
         /// </summary>
         private void ReadNodeOutputContinuously()
         {
@@ -690,7 +690,7 @@ namespace WhatsAppSimHubPlugin.Core
             }
             catch (Exception)
             {
-                // Processo terminou ou stream fechado - ignorar
+                // Process terminated or stream closed - ignore
             }
         }
 
@@ -928,7 +928,7 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Instala Git silenciosamente (sem UI) se não estiver instalado
+        /// Installs Git silently (no UI) if not already installed
         /// </summary>
         private async Task<bool> InstallGitSilently()
         {
@@ -936,11 +936,11 @@ namespace WhatsAppSimHubPlugin.Core
             {
                 StatusChanged?.Invoke(this, "📥 Downloading Git installer...");
 
-                // URL do instalador Git (64-bit)
+                // Git installer URL (64-bit)
                 string gitUrl = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/Git-2.47.1-64-bit.exe";
                 string tempPath = Path.Combine(Path.GetTempPath(), "GitInstaller.exe");
 
-                // Download do instalador
+                // Download installer
                 using (var client = new System.Net.WebClient())
                 {
                     await client.DownloadFileTaskAsync(gitUrl, tempPath);
@@ -948,17 +948,17 @@ namespace WhatsAppSimHubPlugin.Core
 
                 StatusChanged?.Invoke(this, "⚙️ Installing Git silently (this may take 1-2 minutes)...");
 
-                // Instalar silenciosamente
+                // Install silently
                 var installProcess = new Process
                 {
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = tempPath,
-                        // Flags para instalação completamente silenciosa:
-                        // /VERYSILENT - Sem UI
-                        // /NORESTART - Não reiniciar
-                        // /SUPPRESSMSGBOXES - Sem popup messages
-                        // /SP- - Não mostrar "preparing to install"
+                        // Flags for completely silent installation:
+                        // /VERYSILENT - No UI
+                        // /NORESTART - Don't restart
+                        // /SUPPRESSMSGBOXES - No popup messages
+                        // /SP- - Don't show "preparing to install"
                         Arguments = "/VERYSILENT /NORESTART /SUPPRESSMSGBOXES /SP-",
                         UseShellExecute = false,
                         CreateNoWindow = true
@@ -968,7 +968,7 @@ namespace WhatsAppSimHubPlugin.Core
                 installProcess.EnableRaisingEvents = true;
                 installProcess.Start();
 
-                // Aguardar até 3 minutos (instalação pode demorar) - event-based
+                // Wait up to 3 minutes (installation can take time) - event-based
                 var exitedTask = new TaskCompletionSource<bool>();
                 installProcess.Exited += (s, e) => exitedTask.TrySetResult(true);
 
@@ -979,15 +979,15 @@ namespace WhatsAppSimHubPlugin.Core
 
                 if (finished && installProcess.ExitCode == 0)
                 {
-                    // Limpar instalador temporário
+                    // Clean up temporary installer
                     try { File.Delete(tempPath); } catch { }
 
-                    // ⭐ ATUALIZAR PATH ENVIRONMENT VARIABLE
-                    // Git instala em C:\Program Files\Git\cmd por default
+                    // Update PATH environment variable
+                    // Git installs to C:\Program Files\Git\cmd by default
                     string gitPath = @"C:\Program Files\Git\cmd";
                     if (Directory.Exists(gitPath))
                     {
-                        // Adicionar ao PATH da sessão atual
+                        // Add to current session PATH
                         string currentPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process);
                         if (!currentPath.Contains(gitPath))
                         {

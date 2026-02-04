@@ -17,7 +17,7 @@ namespace WhatsAppSimHubPlugin.Models
                 {
                     _name = value;
                     OnPropertyChanged(nameof(Name));
-                    OnPropertyChanged(nameof(DisplayText)); // Notificar DisplayText
+                    OnPropertyChanged(nameof(DisplayText)); // Notify DisplayText
                 }
             }
         }
@@ -31,8 +31,8 @@ namespace WhatsAppSimHubPlugin.Models
                 {
                     _number = value;
                     OnPropertyChanged(nameof(Number));
-                    OnPropertyChanged(nameof(FormattedNumber)); // Notificar calculada
-                    OnPropertyChanged(nameof(DisplayText)); // Notificar DisplayText
+                    OnPropertyChanged(nameof(FormattedNumber)); // Notify calculated property
+                    OnPropertyChanged(nameof(DisplayText)); // Notify DisplayText
                 }
             }
         }
@@ -50,10 +50,10 @@ namespace WhatsAppSimHubPlugin.Models
             }
         }
 
-        // Propriedade calculada para UI (formato: +351910203114)
+        // Calculated property for UI (format: +351910203114)
         public string FormattedNumber => $"+{Number?.Replace("+", "")}";
-        
-        // Propriedade para ComboBox (formato: Nome (+351910203114))
+
+        // Property for ComboBox (format: Name (+351910203114))
         public string DisplayText => $"{Name} ({FormattedNumber})";
 
         public event PropertyChangedEventHandler PropertyChanged;

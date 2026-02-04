@@ -26,15 +26,15 @@ namespace WhatsAppSimHubPlugin.Models
 
         public int GetPriority()
         {
-            // Urgente + VIP = 0 (máxima prioridade)
+            // Urgent + VIP = 0 (highest priority)
             if (IsUrgent && IsVip) return 0;
-            
-            // Urgente = 1
+
+            // Urgent = 1
             if (IsUrgent) return 1;
-            
+
             // VIP = 2
             if (IsVip) return 2;
-            
+
             // Normal = 3
             return 3;
         }

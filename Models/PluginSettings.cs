@@ -5,7 +5,7 @@ namespace WhatsAppSimHubPlugin.Models
     public class PluginSettings
     {
         // Backend Mode
-        public string BackendMode { get; set; } = "whatsapp-web.js"; // "whatsapp-web.js" ou "baileys"
+        public string BackendMode { get; set; } = "whatsapp-web.js"; // "whatsapp-web.js" or "baileys"
 
         // Backend Library Sources (Official or Manual)
         public string WhatsAppWebJsSource { get; set; } = "official"; // "official" or "manual"
@@ -32,8 +32,8 @@ namespace WhatsAppSimHubPlugin.Models
         public int UrgentDuration { get; set; } = 10000;
 
         // VIP/Urgent Behavior
-        public bool RemoveAfterFirstDisplay { get; set; } = false; // Se true, VIP/URGENT remove após 1ª exibição
-        public int ReminderInterval { get; set; } = 180000; // Intervalo entre repetições VIP/Urgent (ms) - Default 3 min
+        public bool RemoveAfterFirstDisplay { get; set; } = false; // If true, VIP/URGENT removes after 1st display
+        public int ReminderInterval { get; set; } = 180000; // Interval between VIP/Urgent repetitions (ms) - Default 3 min
 
         // Dependencies
         public bool DependenciesInstalling { get; set; } = false; // True when installing dependencies in background
@@ -49,12 +49,12 @@ namespace WhatsAppSimHubPlugin.Models
 
         public PluginSettings()
         {
-            // Construtor vazio - keywords default são adicionadas via EnsureDefaults()
+            // Empty constructor - default keywords are added via EnsureDefaults()
         }
 
         public void EnsureDefaults()
         {
-            // Adicionar keywords default só se a lista estiver completamente vazia
+            // Add default keywords only if list is completely empty
             if (Keywords == null || Keywords.Count == 0)
             {
                 Keywords = new List<string> { "urgent", "emergency", "hospital", "help" };

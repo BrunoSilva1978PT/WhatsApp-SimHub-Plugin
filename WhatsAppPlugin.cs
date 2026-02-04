@@ -478,9 +478,9 @@ namespace WhatsAppSimHubPlugin
         {
             WriteLog("[ACTIONS] 🔧 Starting RegisterActions()...");
 
-            // 🎮 Actions - aparecem em Controls & Events
-            // IMPORTANTE: SimHub adiciona automaticamente "WhatsAppPlugin." como prefixo!
-            // Então registamos "SendReply1" e SimHub transforma em "WhatsAppPlugin.SendReply1"
+            // 🎮 Actions - appear in Controls & Events
+            // IMPORTANT: SimHub automatically adds "WhatsAppPlugin." as prefix!
+            // So we register "SendReply1" and SimHub transforms it to "WhatsAppPlugin.SendReply1"
             WriteLog("[ACTIONS] Registering SendReply1...");
             this.AddAction("SendReply1", (a, b) =>
             {
@@ -540,14 +540,14 @@ namespace WhatsAppSimHubPlugin
             {
                 WriteLog($"[QUICK REPLY {replyNumber}] ⚡ Button pressed");
 
-                // ✅ Usar mensagem que está MOSTRANDO no ecrã agora!
+                // ✅ Use message that is SHOWING on screen now!
                 if (_currentMessageGroup == null || _currentMessageGroup.Count == 0)
                 {
                     WriteLog($"[QUICK REPLY] ❌ No message displayed");
                     return;
                 }
 
-                // 🔒 ONE-SHOT: Verificar se já enviou reply para esta mensagem
+                // 🔒 ONE-SHOT: Check if already sent reply for this message
                 if (_replySentForCurrentMessage)
                 {
                     WriteLog($"[QUICK REPLY] ⚠️ Reply already sent - blocking duplicate");
@@ -573,11 +573,11 @@ namespace WhatsAppSimHubPlugin
                 _replySentForCurrentMessage = true;
                 WriteLog($"[QUICK REPLY {replyNumber}] ✅ Reply sent successfully!");
 
-                // Remover mensagens se configurado (já automático, sempre remove)
+                // Remove messages (automatic, always removes)
                 _messageQueue.RemoveMessagesFromContact(_currentContactRealNumber);
                 WriteLog($"[QUICK REPLY {replyNumber}] 🗑️ Removed messages from {contactName} (number: {_currentContactRealNumber})");
 
-                // Mostrar confirmação se configurado
+                // Show confirmation if configured
                 if (_settings.ShowConfirmation)
                 {
                     ShowQuickReplyConfirmation(contactName);
@@ -671,7 +671,7 @@ namespace WhatsAppSimHubPlugin
             // 🔓 RESET: Nova mensagem = permite novo envio
             _replySentForCurrentMessage = false;
 
-            // Header - Sender (com +X se há mais mensagens na queue por mostrar)
+            // Header - Sender (with +X if there are more messages in queue to show)
             int showingNow = messages.Count;
             int totalInQueue = _messageQueue.GetContactMessageCount(first.Number);
             int pending = totalInQueue - showingNow;
@@ -692,7 +692,7 @@ namespace WhatsAppSimHubPlugin
             // Header - Total messages
             _overlayTotalMessages = messages.Count;
 
-            // Mensagens (array de 10, ordenadas por timestamp)
+            // Messages (array of 10, ordered by timestamp)
             var sortedMessages = messages.OrderBy(m => m.Timestamp).Take(10).ToList();
             for (int i = 0; i < 10; i++)
             {
@@ -711,17 +711,17 @@ namespace WhatsAppSimHubPlugin
         }
 
         /// <summary>
-        /// Atualiza propriedades do overlay para mostrar mensagens no dashboard
-        /// LEGACY: Usar versão com List<QueuedMessage> quando possível
+        /// Updates overlay properties to show messages on dashboard
+        /// LEGACY: Use version with List<QueuedMessage> when possible
         /// </summary>
         private void UpdateOverlayProperties(QueuedMessage message)
         {
-            // 🔒 IGNORAR durante teste - NÃO ALTERAR NADA!
+            // 🔒 IGNORE during test - DO NOT CHANGE ANYTHING!
             if (_isTestingMessage) return;
 
             if (message == null)
             {
-                // Limpar overlay quando não há mensagens
+                // Clear overlay when there are no messages
                 _overlaySender = "";
                 _overlayTypeMessage = "";
                 _overlayTotalMessages = 0;
@@ -732,7 +732,7 @@ namespace WhatsAppSimHubPlugin
                 return;
             }
 
-            // Obter grupo de mensagens desta pessoa (mesmo número)
+            // Get message group from this person (same number)
             var groupedMessages = _messageQueue
                 .GetAllMessages()
                 .Where(m => m.Number == message.Number)
@@ -740,7 +740,7 @@ namespace WhatsAppSimHubPlugin
                 .Take(10)
                 .ToList();
 
-            // Header - Sender (com +X se há mais mensagens na queue por mostrar)
+            // Header - Sender (with +X if there are more messages in queue to show)
             int showingNow = groupedMessages.Count;
             int totalInQueue = _messageQueue.GetContactMessageCount(message.Number);
             int pending = totalInQueue - showingNow;
@@ -761,7 +761,7 @@ namespace WhatsAppSimHubPlugin
             // Header - Total messages
             _overlayTotalMessages = groupedMessages.Count;
 
-            // Mensagens (array de 10)
+            // Messages (array of 10)
             for (int i = 0; i < 10; i++)
             {
                 if (i < groupedMessages.Count)
@@ -771,7 +771,7 @@ namespace WhatsAppSimHubPlugin
                 }
                 else
                 {
-                    _overlayMessages[i] = ""; // Limpar mensagens vazias
+                    _overlayMessages[i] = ""; // Clear empty messages
                 }
             }
 
@@ -779,15 +779,15 @@ namespace WhatsAppSimHubPlugin
         }
 
         /// <summary>
-        /// Formata mensagem para overlay: "HH:mm [mensagem até 36 chars ou 33 + ...]"
+        /// Formats message for overlay: "HH:mm [message up to 47 chars or 44 + ...]"
         /// </summary>
         private string FormatMessageForOverlay(QueuedMessage msg)
         {
             string timeStr = msg.Timestamp.ToString("HH:mm"); // 5 chars
             string body = msg.Body;
 
-            // Limite CORRETO: hora (5) + espaço (1) + mensagem (47) = 53 chars
-            // Se truncar: hora (5) + espaço (1) + texto (44) + "..." (3) = 53 chars
+            // CORRECT limit: time (5) + space (1) + message (47) = 53 chars
+            // If truncated: time (5) + space (1) + text (44) + "..." (3) = 53 chars
             const int maxMessageLength = 47;
             const int truncatedLength = 44;
 
@@ -846,7 +846,7 @@ namespace WhatsAppSimHubPlugin
             {
                 WriteLog($"Message received from WhatsApp: {messageData}");
 
-                // ⭐ Node.js envia os dados DIRETOS (não em "message")
+                // ⭐ Node.js sends data DIRECTLY (not inside "message")
                 var body = messageData["body"]?.ToString();
                 var from = messageData["from"]?.ToString();
                 var number = messageData["number"]?.ToString();
@@ -861,14 +861,14 @@ namespace WhatsAppSimHubPlugin
                     return;
                 }
 
-                // Normalizar número (remover +, espaços, hífens)
+                // Normalize number (remove +, spaces, hyphens)
                 var normalizedNumber = number.Replace("+", "").Replace(" ", "").Replace("-", "");
 
-                // Se for LID, também extrair o LID do chatId para matching
+                // If LID, also extract LID from chatId for matching
                 string lidNumber = null;
                 if (isLid && !string.IsNullOrEmpty(chatId))
                 {
-                    // chatId vem como "94266210652201@lid"
+                    // chatId comes as "94266210652201@lid"
                     lidNumber = chatId.Split('@')[0];
                     WriteLog($"📞 LID detected - Number: '{number}', ChatId: '{chatId}', LID: '{lidNumber}'");
                 }
@@ -877,7 +877,7 @@ namespace WhatsAppSimHubPlugin
                     WriteLog($"📞 Received number: '{number}' → Normalized: '{normalizedNumber}'");
                 }
 
-                // ⭐ VERIFICAR SE É DE CONTACTO PERMITIDO!
+                // ⭐ CHECK IF FROM ALLOWED CONTACT!
                 WriteLog($"🔍 Checking against {_settings.Contacts.Count} contacts in allowed list:");
 
                 Contact allowedContact = null;
@@ -886,13 +886,13 @@ namespace WhatsAppSimHubPlugin
                 {
                     var contactNumber = c.Number.Replace("+", "").Replace(" ", "").Replace("-", "");
 
-                    // Tentar match normal
+                    // Try normal match
                     bool matchesNumber = contactNumber == normalizedNumber;
 
-                    // Se for LID, também tentar match com o LID
+                    // If LID, also try match with LID
                     bool matchesLid = isLid && lidNumber != null && contactNumber == lidNumber;
 
-                    // Se for LID, também tentar match com chatId completo
+                    // If LID, also try match with full chatId
                     bool matchesChatId = isLid && !string.IsNullOrEmpty(chatId) && c.Number == chatId;
 
                     WriteLog($"   Comparing with {c.Name}: Number:{matchesNumber} LID:{matchesLid} ChatId:{matchesChatId}");
@@ -922,14 +922,14 @@ namespace WhatsAppSimHubPlugin
                     return;  // ⭐ REJEITAR!
                 }
 
-                // ✅ Contacto permitido!
+                // ✅ Allowed contact!
                 WriteLog($"✅ ACCEPTED: Contact found in list: {allowedContact.Name} (VIP: {allowedContact.IsVip})");
 
-                // ⭐ USAR NOME DO CONTACTO (não o "from" do WhatsApp que pode ser LinkedID)
+                // ⭐ USE CONTACT NAME (not "from" from WhatsApp which can be LinkedID)
                 string displayName = allowedContact.Name;
                 bool isVip = allowedContact.IsVip;
 
-                // Verificar se contém keywords urgentes
+                // Check if contains urgent keywords
                 bool isUrgent = _settings.Keywords.Any(keyword =>
                     body.ToLowerInvariant().Contains(keyword.ToLowerInvariant()));
 
@@ -938,10 +938,10 @@ namespace WhatsAppSimHubPlugin
                     WriteLog($"Message marked as URGENT (keyword detected)");
                 }
 
-                // ⭐ CRIAR MENSAGEM COM NOME DO CONTACTO
+                // ⭐ CREATE MESSAGE WITH CONTACT NAME
                 var queuedMessage = new QueuedMessage
                 {
-                    From = displayName,  // ⭐ Nome do contacto da lista!
+                    From = displayName,  // ⭐ Contact name from list!
                     Number = number,
                     Body = body,
                     ChatId = chatId,
@@ -951,7 +951,7 @@ namespace WhatsAppSimHubPlugin
 
                 WriteLog($"✅ QUEUED: From='{displayName}', VIP={isVip}, Urgent={isUrgent}");
 
-                // Adicionar à fila
+                // Add to queue
                 _messageQueue.AddMessage(queuedMessage);
 
             }
@@ -1113,7 +1113,7 @@ namespace WhatsAppSimHubPlugin
                 _connectionStatus = "Installing dependencies...";
                 _settingsControl?.UpdateConnectionStatus("Installing dependencies...");
 
-                // Desabilitar botões durante instalação
+                // Disable buttons during installation
                 _settingsControl?.Dispatcher?.BeginInvoke(new Action(() =>
                 {
                     if (_settingsControl?.ReconnectButton != null)
@@ -1139,7 +1139,7 @@ namespace WhatsAppSimHubPlugin
             }
             else if (status == "Connected")
             {
-                // Não fazer nada, o evento Ready vai tratar
+                // Do nothing, Ready event will handle it
             }
             else if (status.StartsWith("Error:"))
             {
@@ -1157,10 +1157,10 @@ namespace WhatsAppSimHubPlugin
             }
             else if (status.StartsWith("Debug:"))
             {
-                // Logar mas não fazer nada no UI
+                // Log but don't update UI
                 WriteLog($"🔍 {status}");
 
-                // Se script foi atualizado, refrescar versão na UI
+                // If script was updated, refresh version in UI
                 if (status.Contains("Updated script") || status.Contains("Created script"))
                 {
                     _settingsControl?.Dispatcher?.BeginInvoke(new Action(() =>
@@ -1175,18 +1175,18 @@ namespace WhatsAppSimHubPlugin
         {
             WriteLog($"📦 Installation completed: {(success ? "SUCCESS" : "FAILED")}");
 
-            // Atualizar UI na thread correta
+            // Update UI on correct thread
             _settingsControl?.Dispatcher?.BeginInvoke(new Action(() =>
             {
                 if (success)
                 {
                     _settingsControl?.UpdateConnectionStatus("Connecting");
-                    // Botões serão re-habilitados quando Connected/Ready
+                    // Buttons will be re-enabled when Connected/Ready
                 }
                 else
                 {
                     _settingsControl?.UpdateConnectionStatus("Installation failed");
-                    // Re-habilitar botões para permitir retry
+                    // Re-enable buttons to allow retry
                     if (_settingsControl?.ReconnectButton != null)
                     {
                         _settingsControl.ReconnectButton.IsEnabled = true;
@@ -1705,7 +1705,7 @@ del ""%~f0""
                 // ✅ GUARDAR GRUPO ATUAL (para Quick Reply)
                 _currentMessageGroup = messages;
                 _currentContactNumber = messages[0].ChatId;  // LinkedID ou chatId com @c.us
-                _currentContactRealNumber = messages[0].Number;  // ⭐ Número real para enviar!
+                _currentContactRealNumber = messages[0].Number;  // ⭐ Real number to send!
 
                 WriteLog($"[EVENT] OnGroupDisplay: Saved chatId = {messages[0].ChatId}, realNumber = {messages[0].Number}");
 
@@ -1770,19 +1770,19 @@ del ""%~f0""
             {
                 if (File.Exists(_settingsFile))
                 {
-                    // ✅ Ficheiro existe - carregar SEM modificar
+                    // ✅ File exists - load WITHOUT modifying
                     var json = File.ReadAllText(_settingsFile);
                     _settings = JsonConvert.DeserializeObject<PluginSettings>(json);
 
-                    // NÃO chamar EnsureDefaults() aqui!
-                    // Settings já existem, não modificar!
+                    // DO NOT call EnsureDefaults() here!
+                    // Settings already exist, don't modify!
                 }
                 else
                 {
-                    // ✅ Primeira vez - criar settings novas COM defaults
+                    // ✅ First time - create new settings WITH defaults
                     _settings = new PluginSettings();
                     _settings.EnsureDefaults();
-                    SaveSettings(); // Guardar logo para criar o ficheiro
+                    SaveSettings(); // Save immediately to create the file
                 }
 
                 // Sync VoCore enabled property with settings
@@ -1790,7 +1790,7 @@ del ""%~f0""
             }
             catch (Exception)
             {
-                // ⚠️ Erro ao ler - criar novas
+                // ⚠️ Error reading - create new
                 _settings = new PluginSettings();
                 _settings.EnsureDefaults();
                 SaveSettings();
@@ -1824,7 +1824,7 @@ del ""%~f0""
             return _settingsControl;
         }
 
-        // Métodos públicos para a UI
+        // Public methods for the UI
         public void DisconnectWhatsApp()
         {
             // Log stack trace to find who called this
@@ -1883,12 +1883,12 @@ del ""%~f0""
                 _connectionStatus = "Error";
                 _settingsControl?.UpdateConnectionStatus("Error");
 
-                // NÃO mostrar MessageBox - só log!
+                // DON'T show MessageBox - only log!
             }
         }
 
         /// <summary>
-        /// Muda o backend (whatsapp-web.js <-> Baileys) e faz reconnect automático
+        /// Switches backend (whatsapp-web.js <-> Baileys) and auto-reconnects
         /// </summary>
         public async System.Threading.Tasks.Task SwitchBackend(string newBackend)
         {
@@ -1949,7 +1949,7 @@ del ""%~f0""
 
         public void ApplyDisplaySettings()
         {
-            // Recriar MessageQueue com novas configurações
+            // Recreate MessageQueue with new settings
             _messageQueue?.Dispose();
             _messageQueue = new MessageQueue(_settings, WriteLog);
             _messageQueue.OnGroupDisplay += MessageQueue_OnGroupDisplay;
@@ -1997,17 +1997,17 @@ del ""%~f0""
 
 
         /// <summary>
-        /// 🎮 Método chamado automaticamente pelo SimHub a 60 FPS!
+        /// 🎮 Method called automatically by SimHub at 60 FPS!
         ///
-        /// ✅ QUICK REPLIES: Sistema NATIVO do SimHub com ControlsEditor + Actions!
+        /// ✅ QUICK REPLIES: Native SimHub system with ControlsEditor + Actions!
         ///
-        /// O ControlsEditor liga automaticamente os botões às Actions registadas.
-        /// Quando o user carrega no botão, o SimHub chama a Action diretamente.
-        /// Verificação automática de VoCore a cada 3 segundos
+        /// ControlsEditor automatically binds buttons to registered Actions.
+        /// When user presses the button, SimHub calls the Action directly.
+        /// Automatic VoCore check every 3 seconds
         /// </summary>
         public void DataUpdate(PluginManager pluginManager, ref GameData data)
         {
-            // Só verifica de 3 em 3 segundos (não a cada frame!)
+            // Only check every 3 seconds (not every frame!)
             if ((DateTime.Now - _lastDataUpdateCheck).TotalMilliseconds < DATA_UPDATE_INTERVAL_MS)
                 return;
 
@@ -2036,15 +2036,15 @@ del ""%~f0""
             }
             catch
             {
-                // Silenciar erros - não queremos spam no log a cada 3s
-                // O VoCoreManager já faz o seu próprio logging
+                // Silence errors - we don't want spam in log every 3s
+                // VoCoreManager already does its own logging
             }
         }
 
         /// <summary>
-        /// Mostra mensagem de teste por 5 segundos (não muda VoCore ou dashboard)
-        /// Durante o teste, ignora completamente as 2 queues
-        /// Ao fim dos 5s, LIMPA TUDO para o plugin poder continuar
+        /// Shows test message for 5 seconds (doesn't change VoCore or dashboard)
+        /// During test, completely ignores both queues
+        /// After 5s, CLEARS EVERYTHING so plugin can continue
         /// </summary>
         public void ShowTestMessage(string targetSerial = null)
         {
@@ -2056,24 +2056,24 @@ del ""%~f0""
                 _isTestingMessage = true;
                 WriteLog($"[TEST] _isTestingMessage = TRUE (queues BLOCKED)");
 
-                // Hora atual formatada
+                // Current time formatted
                 string currentTime = DateTime.Now.ToString("HH:mm");
 
-                // ✅ Definir campos privados diretamente (expostos via AttachDelegate)
+                // ✅ Set private fields directly (exposed via AttachDelegate)
                 _showMessage = true;
                 _overlaySender = "Bruno Silva";
-                _overlayTypeMessage = "VIP"; // Badge estrela
+                _overlayTypeMessage = "VIP"; // Star badge
                 _overlayTotalMessages = 1;
-                _overlayMessages[0] = $"{currentTime} Ola isto é um teste :)";
+                _overlayMessages[0] = $"{currentTime} Hello this is a test :)";
                 _overlayMessages[1] = "";
                 _overlayMessages[2] = "";
                 _overlayMessages[3] = "";
                 _overlayMessages[4] = "";
 
-                WriteLog($"✅ Test message displayed: {currentTime} Ola isto é um teste :)");
+                WriteLog($"✅ Test message displayed: {currentTime} Hello this is a test :)");
                 WriteLog($"[TEST] Waiting 5 seconds before clearing...");
 
-                // 🔥 Após 5 segundos: LIMPAR TUDO e DESBLOQUEAR QUEUES
+                // 🔥 After 5 seconds: CLEAR EVERYTHING and UNBLOCK QUEUES
                 System.Threading.Tasks.Task.Delay(5000).ContinueWith(_ =>
                 {
                     WriteLog($"[TEST] ▶ 5 seconds elapsed - clearing test message");
@@ -2091,7 +2091,7 @@ del ""%~f0""
 
                     WriteLog($"[TEST] Overlay properties cleared");
 
-                    // Desbloquear queues
+                    // Unblock queues
                     _isTestingMessage = false;
                     WriteLog($"[TEST] _isTestingMessage = FALSE (queues UNBLOCKED)");
 
@@ -2117,13 +2117,13 @@ del ""%~f0""
             }
             catch (Exception ex)
             {
-                _isTestingMessage = false; // Garantir que desbloqueia em caso de erro
+                _isTestingMessage = false; // Ensure unlock in case of error
                 WriteLog($"❌ ShowTestMessage error: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Mostra confirmação de que quick reply foi enviada (5s, pausa queue)
+        /// Shows confirmation that quick reply was sent (5s, pauses queue)
         /// </summary>
         public void ShowQuickReplyConfirmation(string recipientName)
         {
@@ -2131,18 +2131,18 @@ del ""%~f0""
             {
                 WriteLog($"[CONFIRMATION] ▶ Showing quick reply confirmation for {recipientName}");
 
-                // 🔥 BLOQUEAR QUEUES durante confirmação
+                // 🔥 BLOCK QUEUES during confirmation
                 _isTestingMessage = true;
 
-                // Hora atual formatada
+                // Current time formatted
                 string currentTime = DateTime.Now.ToString("HH:mm");
 
-                // ✅ Mostrar confirmação
+                // ✅ Show confirmation
                 _showMessage = true;
                 _overlaySender = recipientName;
-                _overlayTypeMessage = ""; // Sem badge
+                _overlayTypeMessage = ""; // No badge
                 _overlayTotalMessages = 1;
-                _overlayMessages[0] = $"{currentTime} Quick reply enviada com sucesso";
+                _overlayMessages[0] = $"{currentTime} Quick reply sent successfully";
                 _overlayMessages[1] = "";
                 _overlayMessages[2] = "";
                 _overlayMessages[3] = "";
@@ -2150,12 +2150,12 @@ del ""%~f0""
 
                 WriteLog($"[CONFIRMATION] ✅ Confirmation displayed for {recipientName}");
 
-                // 🔥 Após 5 segundos: LIMPAR e DESBLOQUEAR
+                // 🔥 After 5 seconds: CLEAR and UNBLOCK
                 System.Threading.Tasks.Task.Delay(5000).ContinueWith(_ =>
                 {
                     WriteLog($"[CONFIRMATION] ▶ 5 seconds elapsed - clearing confirmation");
 
-                    // Limpar overlay
+                    // Clear overlay
                     _showMessage = false;
                     _overlaySender = "";
                     _overlayTypeMessage = "";
@@ -2184,14 +2184,14 @@ del ""%~f0""
             }
             catch (Exception ex)
             {
-                _isTestingMessage = false; // Garantir que desbloqueia
+                _isTestingMessage = false; // Ensure unlock
                 WriteLog($"[CONFIRMATION ERROR] {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Limpa todas as mensagens VIP/URGENT da queue
-        /// Útil quando user ativa RemoveAfterFirstDisplay
+        /// Clears all VIP/URGENT messages from queue
+        /// Useful when user enables RemoveAfterFirstDisplay
         /// </summary>
         public void ClearVipUrgentQueue()
         {
@@ -2207,7 +2207,7 @@ del ""%~f0""
         }
 
         /// <summary>
-        /// Testa o sistema de overlay com dashboard .simhubdash
+        /// Tests overlay system with .simhubdash dashboard
         /// </summary>
         public void TestDashboardOverlay()
         {
@@ -2215,18 +2215,18 @@ del ""%~f0""
             {
                 WriteLog("🧪 Testing message display via SimHub properties...");
 
-                // Criar mensagem de teste
+                // Create test message
                 var testMessage = new QueuedMessage
                 {
-                    From = "🚨 TESTE WHATSAPP 🚨",
+                    From = "🚨 WHATSAPP TEST 🚨",
                     Number = "+351912345678",
-                    Body = "SE VÊS ISTO, FUNCIONOU!",
+                    Body = "IF YOU SEE THIS, IT WORKED!",
                     Timestamp = DateTime.Now,
                     IsVip = false,
                     IsUrgent = true
                 };
 
-                // Mostrar via propriedades SimHub
+                // Show via SimHub properties
                 _showMessage = true;
                 _overlaySender = testMessage.From;
                 _overlayTypeMessage = "URGENT";
@@ -2246,8 +2246,8 @@ del ""%~f0""
         #region Dependency Setup
 
         /// <summary>
-        /// Inicializa e verifica todas as dependências (Node.js, Git, npm packages)
-        /// Só arranca Node.js depois de tudo instalado
+        /// Initializes and checks all dependencies (Node.js, Git, npm packages)
+        /// Only starts Node.js after everything is installed
         /// </summary>
         private async Task InitializeDependenciesAsync()
         {
@@ -2256,7 +2256,7 @@ del ""%~f0""
                 _dependencyManager = new DependencyManager(_pluginPath);
                 _dependencyManager.StatusChanged += (s, msg) => WriteLog(msg);
 
-                // GARANTIR que SetupControl está pronto antes de começar
+                // ENSURE SetupControl is ready before starting
                 WriteLog("Waiting for Setup UI to initialize...");
                 int retries = 0;
                 while (_settingsControl == null && retries < 30)
@@ -2269,7 +2269,7 @@ del ""%~f0""
                 {
                     WriteLog("✅ Setup UI ready! Initializing status...");
 
-                    // DESACTIVAR BOTÕES CONNECTION DURANTE INSTALAÇÃO
+                    // DISABLE CONNECTION BUTTONS DURING INSTALLATION
                     _settingsControl.Dispatcher.Invoke(() =>
                     {
                         _settingsControl.DisconnectButton.IsEnabled = false;
@@ -2278,13 +2278,13 @@ del ""%~f0""
                         _settingsControl.ReconnectButton.ToolTip = "Installing dependencies...";
                     });
 
-                    // INICIALIZAR TODOS OS STATUS EXPLICITAMENTE
+                    // INITIALIZE ALL STATUS EXPLICITLY
                     _settingsControl.UpdateNodeStatus("Checking...", false);
                     _settingsControl.UpdateGitStatus("Waiting...", false);
                     _settingsControl.UpdateNpmStatus("Waiting...", false);
                     // _settingsControl.UpdateProgress(0, "Checking dependencies...");
 
-                    // Pequeno delay para UI renderizar
+                    // Small delay for UI to render
                     await Task.Delay(200).ConfigureAwait(false);
                 }
                 else
@@ -2318,10 +2318,10 @@ del ""%~f0""
                         WriteLog("✅ Node.js portable installed!");
                         nodeWasInstalled = true;
 
-                        // Aguardar 500ms para filesystem atualizar
+                        // Wait 500ms for filesystem to update
                         await Task.Delay(500).ConfigureAwait(false);
 
-                        // VERIFICAR se foi instalado
+                        // VERIFY if installed
                         WriteLog("Verifying Node.js installation...");
                         bool verifyInstalled = _dependencyManager.IsNodeInstalled();
 
@@ -2329,7 +2329,7 @@ del ""%~f0""
                         {
                             WriteLog("✅ Node.js files verified!");
 
-                            // TESTAR EXECUÇÃO REAL E CAPTURAR VERSÃO!
+                            // TEST REAL EXECUTION AND CAPTURE VERSION!
                             WriteLog("Testing Node.js execution...");
                             var (canExecute, nodeVersion) = await TestNodeExecutionAsync().ConfigureAwait(false);
 
@@ -2369,7 +2369,7 @@ del ""%~f0""
                         {
                             _settingsControl.UpdateNodeStatus("Installation failed", false, true);
                             // _settingsControl.UpdateProgress(0, "ERROR: Node.js installation failed");
-                            // _settingsControl.ShowRetryButton(); // MOSTRAR BOTÃO RETRY!
+                            // _settingsControl.ShowRetryButton(); // SHOW RETRY BUTTON!
                         }
                         return;
                     }
@@ -2380,7 +2380,7 @@ del ""%~f0""
                     WriteLog("This could be: portable local, global, or in PATH");
                     WriteLog("No need to install - will use existing Node.js");
 
-                    // TESTAR se executa E CAPTURAR VERSÃO!
+                    // TEST if executes AND CAPTURE VERSION!
                     WriteLog("Testing existing Node.js execution...");
                     var (canExecute, nodeVersion) = await TestNodeExecutionAsync().ConfigureAwait(false);
 
@@ -2400,7 +2400,7 @@ del ""%~f0""
                         }
                         WriteLog("UI updated successfully!");
 
-                        // Delay para garantir que UI renderiza
+                        // Delay to ensure UI renders
                         await Task.Delay(300).ConfigureAwait(false);
                     }
                     else
@@ -2434,10 +2434,10 @@ del ""%~f0""
                         WriteLog("✅ Git portable installed!");
                         gitWasInstalled = true;
 
-                        // Aguardar 500ms para filesystem atualizar
+                        // Wait 500ms for filesystem to update
                         await Task.Delay(500).ConfigureAwait(false);
 
-                        // VERIFICAR se foi instalado
+                        // VERIFY if installed
                         WriteLog("Verifying Git installation...");
                         bool verifyInstalled = _dependencyManager.IsGitInstalled();
 
@@ -2445,7 +2445,7 @@ del ""%~f0""
                         {
                             WriteLog("✅ Git files verified!");
 
-                            // TESTAR EXECUÇÃO REAL E CAPTURAR VERSÃO!
+                            // TEST REAL EXECUTION AND CAPTURE VERSION!
                             WriteLog("Testing Git execution...");
                             var (canExecute, gitVersion) = await TestGitExecutionAsync().ConfigureAwait(false);
 
@@ -2485,7 +2485,7 @@ del ""%~f0""
                         {
                             _settingsControl.UpdateGitStatus("Installation failed", false, true);
                             // _settingsControl.UpdateProgress(0, "ERROR: Git installation failed");
-                            // _settingsControl.ShowRetryButton(); // MOSTRAR BOTÃO RETRY!
+                            // _settingsControl.ShowRetryButton(); // SHOW RETRY BUTTON!
                         }
                         return;
                     }
@@ -2494,7 +2494,7 @@ del ""%~f0""
                 {
                     WriteLog("✅ Git already installed (found existing installation)!");
 
-                    // TESTAR se executa E CAPTURAR VERSÃO!
+                    // TEST if executes AND CAPTURE VERSION!
                     WriteLog("Testing existing Git execution...");
                     var (canExecute, gitVersion) = await TestGitExecutionAsync().ConfigureAwait(false);
 
@@ -2518,7 +2518,7 @@ del ""%~f0""
                 // ============ NPM PACKAGES ============
                 WriteLog("🔍 Checking npm packages...");
 
-                // SE instalou Node OU Git, apagar node_modules por segurança
+                // IF installed Node OR Git, delete node_modules for safety
                 if (nodeWasInstalled || gitWasInstalled)
                 {
                     WriteLog("⚠️ Node or Git was just installed - deleting node_modules for safety...");
@@ -2558,7 +2558,7 @@ del ""%~f0""
                     {
                         WriteLog("✅ npm packages installed successfully!");
 
-                        // Verificar individualmente cada biblioteca
+                        // Verify each library individually
                         bool whatsappWebJsInstalled = _dependencyManager.IsWhatsAppWebJsInstalled();
                         bool baileysInstalled = _dependencyManager.IsBaileysInstalled();
 
@@ -2609,7 +2609,7 @@ del ""%~f0""
                 {
                     WriteLog("✅ npm packages already installed - verifying libraries...");
 
-                    // Actualizar UI para mostrar que já estão instalados
+                    // Update UI to show they are already installed
                     if (_settingsControl != null)
                     {
                         _settingsControl.Dispatcher.Invoke(() =>
@@ -2658,10 +2658,10 @@ del ""%~f0""
                 }
 
 
-                // ============ TUDO PRONTO! ============
+                // ============ ALL READY! ============
                 WriteLog("✅ All dependencies installed - starting Node.js...");
 
-                // REACTIVAR BOTÕES CONNECTION
+                // RE-ENABLE CONNECTION BUTTONS
                 if (_settingsControl != null)
                 {
                     _settingsControl.Dispatcher.Invoke(() =>
@@ -2674,16 +2674,16 @@ del ""%~f0""
                     WriteLog("✅ Connection buttons re-enabled");
                 }
 
-                // Mostrar botão Continue!
+                // Show Continue button!
                 if (_settingsControl != null)
                 {
                     // _settingsControl.ShowContinueButton();
                 }
 
-                // Aguardar 1s para user ver a UI completa
+                // Wait 1s for user to see complete UI
                 await Task.Delay(1000).ConfigureAwait(false);
 
-                // Agora sim, arrancar Node.js!
+                // Now start Node.js!
                 await StartNodeJs().ConfigureAwait(false);
 
                 WriteLog("🎉 Plugin ready to use!");
@@ -2696,7 +2696,7 @@ del ""%~f0""
         }
 
         /// <summary>
-        /// Arranca Node.js (só chamado depois de dependências instaladas)
+        /// Starts Node.js (only called after dependencies are installed)
         /// </summary>
         private async Task StartNodeJs()
         {
@@ -2716,7 +2716,7 @@ del ""%~f0""
         }
 
         /// <summary>
-        /// Testa se Node.js pode ser executado e captura a versão
+        /// Tests if Node.js can be executed and captures the version
         /// </summary>
         /// <returns>(success, version)</returns>
         private async Task<(bool success, string version)> TestNodeExecutionAsync()
@@ -2760,7 +2760,7 @@ del ""%~f0""
                         WriteLog($"⚠️ Attempt {attempt}/3: Cannot execute node - {ex.Message}");
                     }
 
-                    // Aguardar antes de retry
+                    // Wait before retry
                     if (attempt < 3)
                     {
                         WriteLog($"Waiting 1 second before retry...");
@@ -2779,7 +2779,7 @@ del ""%~f0""
         }
 
         /// <summary>
-        /// Testa se Git pode ser executado e captura a versão
+        /// Tests if Git can be executed and captures the version
         /// </summary>
         /// <returns>(success, version)</returns>
         private async Task<(bool success, string version)> TestGitExecutionAsync()
@@ -2811,7 +2811,7 @@ del ""%~f0""
 
                         if (process.ExitCode == 0 && !string.IsNullOrEmpty(output))
                         {
-                            // Extrair versão: "git version 2.47.1.windows.1" → "2.47.1"
+                            // Extract version: "git version 2.47.1.windows.1" → "2.47.1"
                             string version = output.Trim();
                             if (version.Contains("version"))
                             {
@@ -2832,7 +2832,7 @@ del ""%~f0""
                         WriteLog($"⚠️ Attempt {attempt}/3: Cannot execute git - {ex.Message}");
                     }
 
-                    // Aguardar antes de retry
+                    // Wait before retry
                     if (attempt < 3)
                     {
                         WriteLog($"Waiting 1 second before retry...");
@@ -2851,11 +2851,11 @@ del ""%~f0""
         }
 
         /// <summary>
-        /// Event handler quando user clica no botão Retry do Setup
+        /// Event handler when user clicks Retry button in Setup
         /// </summary>
 
         /// <summary>
-        /// Event handler quando user clica no botão Restart SimHub
+        /// Event handler when user clicks Restart SimHub button
         /// </summary>
 
 

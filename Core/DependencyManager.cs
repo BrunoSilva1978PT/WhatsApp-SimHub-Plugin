@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace WhatsAppSimHubPlugin.Core
 {
     /// <summary>
-    /// Gerencia verificação e instalação de dependências (Node.js, Git, npm packages)
+    /// Manages verification and installation of dependencies (Node.js, Git, npm packages)
     /// </summary>
     public class DependencyManager
     {
@@ -25,7 +25,7 @@ namespace WhatsAppSimHubPlugin.Core
         #region Node.js
 
         /// <summary>
-        /// Verifica se Node.js está instalado (portable ou global)
+        /// Checks if Node.js is installed (portable or global)
         /// </summary>
         public bool IsNodeInstalled()
         {
@@ -33,7 +33,7 @@ namespace WhatsAppSimHubPlugin.Core
             {
                 Log("Checking Node.js installation...");
 
-                // 1. VERIFICAR VERSÃO PORTABLE (prioridade!)
+                // 1. CHECK PORTABLE VERSION (priority!)
                 string nodePortablePath = Path.Combine(_pluginPath, "tools", "node");
                 Log($"Checking portable path: {nodePortablePath}");
 
@@ -52,7 +52,7 @@ namespace WhatsAppSimHubPlugin.Core
                         {
                             Log($"✅ Node.exe found!");
 
-                            // Adicionar ao PATH
+                            // Add to PATH
                             string currentPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process);
                             if (!currentPath.Contains(subdirs[0]))
                             {
@@ -80,7 +80,7 @@ namespace WhatsAppSimHubPlugin.Core
                     Log($"❌ Portable node folder does not exist: {nodePortablePath}");
                 }
 
-                // 2. VERIFICAR INSTALAÇÃO GLOBAL
+                // 2. CHECK GLOBAL INSTALLATION
                 Log("Checking global Node.js installations...");
                 var paths = new[]
                 {
@@ -97,7 +97,7 @@ namespace WhatsAppSimHubPlugin.Core
                     }
                 }
 
-                // 3. TENTAR VIA PATH
+                // 3. TRY VIA PATH
                 Log("Trying to run node --version...");
                 var process = new Process
                 {
@@ -130,7 +130,7 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Instala Node.js PORTABLE (sem UAC, sem admin, sem popup!)
+        /// Installs Node.js PORTABLE (no UAC, no admin, no popup!)
         /// </summary>
         public async Task<bool> InstallNodeSilently()
         {
@@ -138,15 +138,15 @@ namespace WhatsAppSimHubPlugin.Core
             {
                 Log("Downloading Node.js portable...");
 
-                // Pasta local para Node.js portable
+                // Local folder for Node.js portable
                 string nodePortablePath = Path.Combine(_pluginPath, "tools", "node");
                 Directory.CreateDirectory(nodePortablePath);
 
-                // URL do Node.js PORTABLE (zip)
+                // Node.js PORTABLE URL (zip)
                 string nodeUrl = "https://nodejs.org/dist/v20.11.0/node-v20.11.0-win-x64.zip";
                 string zipPath = Path.Combine(Path.GetTempPath(), "node-portable.zip");
 
-                // Download do zip
+                // Download zip
                 using (var client = new WebClient())
                 {
                     await client.DownloadFileTaskAsync(nodeUrl, zipPath).ConfigureAwait(false);
@@ -154,16 +154,16 @@ namespace WhatsAppSimHubPlugin.Core
 
                 Log("Extracting Node.js portable (no installation needed)...");
 
-                // Extrair zip
+                // Extract zip
                 System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, nodePortablePath);
 
-                // Limpar zip temporário
+                // Clean up temporary zip
                 try { File.Delete(zipPath); } catch { }
 
-                // Encontrar pasta extraída (node-v20.11.0-win-x64)
+                // Find extracted folder (node-v20.11.0-win-x64)
                 var extractedFolder = Directory.GetDirectories(nodePortablePath)[0];
 
-                // Atualizar PATH para apontar para esta pasta
+                // Update PATH to point to this folder
                 string nodeBinPath = extractedFolder;
                 string currentPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process);
                 if (!currentPath.Contains(nodeBinPath))
@@ -190,13 +190,13 @@ namespace WhatsAppSimHubPlugin.Core
         #region Git
 
         /// <summary>
-        /// Verifica se Git está instalado (portable ou global)
+        /// Checks if Git is installed (portable or global)
         /// </summary>
         public bool IsGitInstalled()
         {
             try
             {
-                // 1. VERIFICAR VERSÃO PORTABLE (prioridade!)
+                // 1. CHECK PORTABLE VERSION (priority!)
                 string gitPortablePath = Path.Combine(_pluginPath, "tools", "git");
                 string gitCmdPath = Path.Combine(gitPortablePath, "cmd");
 
@@ -205,7 +205,7 @@ namespace WhatsAppSimHubPlugin.Core
                     string gitExe = Path.Combine(gitCmdPath, "git.exe");
                     if (File.Exists(gitExe))
                     {
-                        // Adicionar ao PATH
+                        // Add to PATH
                         string currentPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process);
                         if (!currentPath.Contains(gitCmdPath))
                         {
@@ -219,7 +219,7 @@ namespace WhatsAppSimHubPlugin.Core
                     }
                 }
 
-                // 2. VERIFICAR INSTALAÇÃO GLOBAL
+                // 2. CHECK GLOBAL INSTALLATION
                 var paths = new[]
                 {
                     @"C:\Program Files\Git\cmd\git.exe",
@@ -235,7 +235,7 @@ namespace WhatsAppSimHubPlugin.Core
                     }
                 }
 
-                // 3. TENTAR VIA PATH
+                // 3. TRY VIA PATH
                 var process = new Process
                 {
                     StartInfo = new ProcessStartInfo
@@ -267,7 +267,7 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Instala Git PORTABLE usando MinGit .zip (TOTALMENTE silencioso!)
+        /// Installs Git PORTABLE using MinGit .zip (COMPLETELY silent!)
         /// </summary>
         public async Task<bool> InstallGitSilently()
         {
@@ -275,15 +275,15 @@ namespace WhatsAppSimHubPlugin.Core
             {
                 Log("Downloading MinGit portable (zip version - no window!)...");
 
-                // Pasta local para Git portable
+                // Local folder for Git portable
                 string gitPortablePath = Path.Combine(_pluginPath, "tools", "git");
                 Directory.CreateDirectory(gitPortablePath);
 
-                // URL do MinGit (versão minimal do Git, formato .zip, ZERO UI!)
+                // MinGit URL (minimal Git version, .zip format, ZERO UI!)
                 string gitUrl = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/MinGit-2.47.1-64-bit.zip";
                 string zipPath = Path.Combine(Path.GetTempPath(), "mingit.zip");
 
-                // Download do zip
+                // Download zip
                 using (var client = new WebClient())
                 {
                     await client.DownloadFileTaskAsync(gitUrl, zipPath).ConfigureAwait(false);
@@ -291,26 +291,26 @@ namespace WhatsAppSimHubPlugin.Core
 
                 Log("Extracting MinGit (completely silent, no window)...");
 
-                // Extrair zip diretamente - SEM executar nada, SEM janela!
+                // Extract zip directly - WITHOUT running anything, WITHOUT window!
                 ZipFile.ExtractToDirectory(zipPath, gitPortablePath);
 
-                // Limpar zip temporário
+                // Clean up temporary zip
                 try { File.Delete(zipPath); } catch { }
 
-                // MinGit: git.exe está na pasta cmd (igual ao Git normal)
+                // MinGit: git.exe is in the cmd folder (same as normal Git)
                 string gitCmdPath = Path.Combine(gitPortablePath, "cmd");
 
-                // Se não existir cmd, tentar raiz
+                // If cmd doesn't exist, try root
                 if (!Directory.Exists(gitCmdPath))
                 {
                     gitCmdPath = gitPortablePath;
                 }
 
-                // Verificar se git.exe existe
+                // Check if git.exe exists
                 string gitExe = Path.Combine(gitCmdPath, "git.exe");
                 if (File.Exists(gitExe))
                 {
-                    // Adicionar ao PATH
+                    // Add to PATH
                     string currentPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process);
                     if (!currentPath.Contains(gitCmdPath))
                     {
@@ -340,7 +340,7 @@ namespace WhatsAppSimHubPlugin.Core
         #region npm packages
 
         /// <summary>
-        /// Verifica se npm packages estão instalados
+        /// Checks if npm packages are installed
         /// </summary>
         public bool AreNpmPackagesInstalled()
         {
@@ -348,7 +348,7 @@ namespace WhatsAppSimHubPlugin.Core
             {
                 string nodeModulesPath = Path.Combine(_pluginPath, "node", "node_modules");
 
-                // Verificar se pasta node_modules existe e tem conteúdo
+                // Check if node_modules folder exists and has content
                 if (Directory.Exists(nodeModulesPath))
                 {
                     var dirs = Directory.GetDirectories(nodeModulesPath);
@@ -368,10 +368,10 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Instala npm packages localmente
-
+        /// Installs npm packages locally
+        /// </summary>
         /// <summary>
-        /// Verifica se whatsapp-web.js está instalado
+        /// Checks if whatsapp-web.js is installed
         /// </summary>
         public bool IsWhatsAppWebJsInstalled()
         {
@@ -381,7 +381,7 @@ namespace WhatsAppSimHubPlugin.Core
 
                 if (Directory.Exists(whatsappWebPath))
                 {
-                    // Verificar se tem package.json para confirmar instalação válida
+                    // Check if it has package.json to confirm valid installation
                     string packageJson = Path.Combine(whatsappWebPath, "package.json");
                     if (File.Exists(packageJson))
                     {
@@ -400,7 +400,7 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Verifica se Baileys está instalado
+        /// Checks if Baileys is installed
         /// </summary>
         public bool IsBaileysInstalled()
         {
@@ -410,7 +410,7 @@ namespace WhatsAppSimHubPlugin.Core
 
                 if (Directory.Exists(baileysPath))
                 {
-                    // Verificar se tem package.json para confirmar instalação válida
+                    // Check if it has package.json to confirm valid installation
                     string packageJson = Path.Combine(baileysPath, "package.json");
                     if (File.Exists(packageJson))
                     {
@@ -436,7 +436,7 @@ namespace WhatsAppSimHubPlugin.Core
 
                 string nodePath = Path.Combine(_pluginPath, "node");
 
-                // Procurar npm
+                // Find npm
                 string npm = FindNpm();
                 if (string.IsNullOrEmpty(npm))
                 {
@@ -446,7 +446,7 @@ namespace WhatsAppSimHubPlugin.Core
 
                 Log($"Using npm: {npm}");
 
-                // Executar npm install
+                // Run npm install
                 var process = new Process
                 {
                     StartInfo = new ProcessStartInfo
@@ -507,7 +507,7 @@ namespace WhatsAppSimHubPlugin.Core
         {
             Log("=== FindNpm() Debug ===");
 
-            // 1. PROCURAR NA INSTALAÇÃO PORTABLE (PRIORIDADE!)
+            // 1. SEARCH IN PORTABLE INSTALLATION (PRIORITY!)
             string nodePortablePath = Path.Combine(_pluginPath, "tools", "node");
             Log($"Checking portable path: {nodePortablePath}");
 
@@ -532,7 +532,7 @@ namespace WhatsAppSimHubPlugin.Core
                     {
                         Log($"❌ npm.cmd NOT FOUND at: {npmCmd}");
 
-                        // DEBUG: Listar arquivos na pasta
+                        // DEBUG: List files in folder
                         try
                         {
                             var files = Directory.GetFiles(subdirs[0]);
@@ -558,7 +558,7 @@ namespace WhatsAppSimHubPlugin.Core
                 Log($"❌ Portable node folder does NOT exist: {nodePortablePath}");
             }
 
-            // 2. PROCURAR EM INSTALAÇÕES GLOBAIS
+            // 2. SEARCH IN GLOBAL INSTALLATIONS
             Log("Checking global installations...");
             var paths = new[]
             {
