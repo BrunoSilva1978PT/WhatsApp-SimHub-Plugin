@@ -35,7 +35,6 @@ namespace WhatsAppSimHubPlugin
         private WebSocketManager _nodeManager;
         private MessageQueue _messageQueue;
 
-        private VOCORESettings _vocoreSettings; // VoCore settings (typed!)
         private bool _isTestingMessage = false; // Flag to block queues during test
 
         private DashboardInstaller _dashboardInstaller; // Installer to reinstall dashboard
@@ -248,13 +247,7 @@ namespace WhatsAppSimHubPlugin
             return devices;
         }
 
-        /// <summary>
-        /// Re-attach to VoCore and activate overlay (called when user changes device in UI)
-        /// </summary>
-        public void ReattachAndActivateOverlay()
-        {
-            // TODO: Rewrite VoCore logic from scratch
-        }
+
 
         // Class for device information
         public class DeviceInfo
@@ -2086,8 +2079,6 @@ del ""%~f0""
             _messageQueue = new MessageQueue(_settings, WriteLog);
             _messageQueue.OnGroupDisplay += MessageQueue_OnGroupDisplay;
             _messageQueue.OnMessageRemoved += MessageQueue_OnMessageRemoved;
-
-            // TODO: VoCore setup will be rewritten
         }
 
         /// <summary>
@@ -2308,75 +2299,35 @@ del ""%~f0""
         {
             try
             {
-                WriteLog("");
-                WriteLog("╔═══════════════════════════════════════════════════════════════════╗");
-                WriteLog("║             TESTING DASHBOARD OVERLAY SYSTEM                      ║");
-                WriteLog("╚═══════════════════════════════════════════════════════════════════╝");
-                WriteLog("");
-
-                if (_vocoreSettings == null)
-                {
-                    WriteLog("❌ ERROR: VoCore settings not attached!");
-                    WriteLog("   Please select a VoCore in settings.");
-                    return;
-                }
+                WriteLog("🧪 Testing message display via SimHub properties...");
 
                 // Criar mensagem de teste
                 var testMessage = new QueuedMessage
                 {
                     From = "🚨 TESTE WHATSAPP 🚨",
                     Number = "+351912345678",
-                    Body = "SE VÊS ISTO, FUNCIONOU!\n\nDashboard overlay a funcionar!",
+                    Body = "SE VÊS ISTO, FUNCIONOU!",
                     Timestamp = DateTime.Now,
                     IsVip = false,
                     IsUrgent = true
                 };
 
-                WriteLog("📝 Test message created");
-                WriteLog($"   From: {testMessage.From}");
-                WriteLog($"   Message: {testMessage.Body}");
-                WriteLog("");
+                // Mostrar via propriedades SimHub
+                _showMessage = true;
+                _overlaySender = testMessage.From;
+                _overlayTypeMessage = "URGENT";
+                _overlayTotalMessages = 1;
+                _overlayMessages[0] = $"{testMessage.Timestamp:HH:mm} {testMessage.Body}";
 
-                // Mostrar overlay
-                WriteLog("🎨 Calling ShowMessage()...");
-                bool success = true; // Messages mostradas via SimHub properties
-
-                if (success)
-                {
-                    WriteLog("");
-                    WriteLog("✅ SUCCESS! Overlay should be visible now!");
-                    WriteLog("");
-                    WriteLog("╔═══════════════════════════════════════════════════════╗");
-                    WriteLog("║   🎉 OVERLAY IS NOW ACTIVE!                          ║");
-                    WriteLog("║      Check your VoCore - toggle should be ON!        ║");
-                    WriteLog("║                                                       ║");
-                    WriteLog("║   💡 Overlay will stay ON (not clearing)             ║");
-                    WriteLog("╚═══════════════════════════════════════════════════════╝");
-                    WriteLog("");
-                    WriteLog("✅ Test completed!");
-
-                    // NÃO desligar automaticamente!
-                    // O overlay fica LIGADO para Bruno verificar!
-
-                }
-                else
-                {
-                    WriteLog("❌ FAILED: Could not show overlay");
-                }
-
-                WriteLog("");
-                WriteLog("╔═══════════════════════════════════════════════════════════════════╗");
-                WriteLog("║                    TEST COMPLETED                                 ║");
-                WriteLog("╚═══════════════════════════════════════════════════════════════════╝");
-                WriteLog("");
-
+                WriteLog("✅ Test message displayed via SimHub properties");
+                WriteLog("   Check your dashboard - message should be visible!");
             }
             catch (Exception ex)
             {
                 WriteLog($"❌ TestDashboardOverlay ERROR: {ex.Message}");
-                WriteLog($"   Stack: {ex.StackTrace}");
             }
         }
+
 
         #region Dependency Setup
 
@@ -2820,8 +2771,6 @@ del ""%~f0""
 
                 // Agora sim, arrancar Node.js!
                 await StartNodeJs().ConfigureAwait(false);
-
-                // TODO: VoCore setup will be rewritten
 
                 WriteLog("🎉 Plugin ready to use!");
             }

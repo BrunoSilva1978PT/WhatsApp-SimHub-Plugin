@@ -1437,9 +1437,6 @@ namespace WhatsAppSimHubPlugin.UI
                     _settings.TargetDeviceName = newDeviceName; // Guardar o nome também
                     _plugin.SaveSettings();
                     _plugin.ApplyDisplaySettings();
-
-                    // 🎯 AUTO-ATIVAR OVERLAY quando device muda
-                    _plugin.ReattachAndActivateOverlay();
                 }
             }
         }
