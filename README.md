@@ -13,7 +13,7 @@ A professional WhatsApp notification plugin for SimHub that displays messages on
 - **QR Code Authentication**: Quick and secure WhatsApp connection via linked devices
 - **Intelligent Message Queue**: Smart prioritization system (Urgent+VIP > Urgent > VIP > Normal)
 - **Message Grouping**: Automatic grouping of multiple messages from the same contact
-- **VoCore Overlay Integration**: Transparent message display on external VoCore devices
+- **VoCore Auto-Configuration**: Automatic device detection and overlay configuration with auto-recovery
 - **VR & Screen Overlay Support**: Separate overlay dashboard for VR headsets or monitor overlays
 - **Quick Replies**: Respond to messages using steering wheel buttons during races
 - **Priority Badges**: Visual indicators for VIP and Urgent messages
@@ -26,7 +26,6 @@ A professional WhatsApp notification plugin for SimHub that displays messages on
 ### Contact Management
 - **Allowed Contacts**: Only display messages from approved contacts
 - **VIP Contacts**: Mark important contacts for priority treatment
-- **Import from Chats**: Load contacts directly from your WhatsApp conversations
 - **Google Contacts Integration**: Import contacts directly from your Google account
 - **WhatsApp Verification**: Automatically verifies if a phone number has WhatsApp before adding
 - **Search & Filter**: Type to search/filter in contact dropdowns
@@ -75,16 +74,17 @@ A professional WhatsApp notification plugin for SimHub that displays messages on
 git clone https://github.com/BrunoSilva1978PT/WhatsApp-SimHub-Plugin.git
 ```
 
-2. Open `WhatsAppSimHubPlugin.csproj` in Visual Studio 2022
+2. Build using MSBuild (required for XAML projects):
+```bash
+build-and-deploy.bat
+```
 
-3. Copy SimHub DLLs to the `lib/` folder:
-   - `SimHub.Plugins.dll`
-   - `GameReaderCommon.dll`
-   - `SimHub.Plugins.Styles.dll`
+Or manually:
+```bash
+"C:\Program Files\Microsoft Visual Studio\2022\Professional\MSBuild\Current\Bin\amd64\MSBuild.exe" WhatsAppSimHubPlugin.sln -t:Rebuild -p:Configuration=Release
+```
 
-4. Build in Release mode
-
-5. Copy `bin/Release/WhatsAppSimHubPlugin.dll` to SimHub folder
+3. Copy `bin/Release/WhatsAppSimHubPlugin.dll` to SimHub folder
 
 ## First Time Setup
 
@@ -98,7 +98,7 @@ git clone https://github.com/BrunoSilva1978PT/WhatsApp-SimHub-Plugin.git
    - Go to **Settings > Linked Devices > Link a Device**
    - Scan the QR code
 
-4. **Select Display Device**: In the Display tab, select your VoCore device
+4. **Select Display Device**: In the Display tab, select your VoCore device (auto-detected)
 
 5. **Add Contacts**: In the Contacts tab, add contacts whose messages you want to see
 
@@ -117,7 +117,6 @@ git clone https://github.com/BrunoSilva1978PT/WhatsApp-SimHub-Plugin.git
 
 | Feature | Description |
 |---------|-------------|
-| Add from Active Chats | Import contacts from your WhatsApp conversations (with search/filter) |
 | Google Contacts | Connect to Google account and import contacts directly |
 | Manual Add | Add contact by name and phone number (format: +351912345678) |
 | WhatsApp Verification | Automatically checks if number has WhatsApp before adding |
@@ -135,9 +134,15 @@ git clone https://github.com/BrunoSilva1978PT/WhatsApp-SimHub-Plugin.git
 
 | Setting | Description |
 |---------|-------------|
-| Target Device | Select VoCore display for overlay |
+| VoCore Device | Auto-detected VoCore devices with serial numbers |
 | Refresh | Rescan for connected devices |
 | Test | Send test message to verify overlay |
+
+**VoCore Auto-Configuration:**
+- Plugin automatically enables Information Overlay when needed
+- Automatically sets correct dashboard (WhatsAppPlugin or merges with user's custom dashboard)
+- Auto-recovery: If user manually disables overlay or changes dashboard, plugin reconfigures it automatically
+- No manual configuration needed!
 
 ### VR & Screen Overlay Support
 
@@ -181,6 +186,7 @@ Use these properties in custom dashboards:
 | `WhatsApp.typemessage` | String | "VIP", "URGENT", or empty |
 | `WhatsApp.totalmessages` | Integer | Messages in current group |
 | `WhatsApp.message0` - `WhatsApp.message9` | String | Message text (up to 10) |
+| `WhatsAppPlugin.vocoreenabled` | Boolean | VoCore display enabled |
 
 ## SimHub Actions
 
@@ -205,8 +211,30 @@ Bind these actions to steering wheel buttons:
         ▼
 ┌─────────────────┐
 │  VoCore Device  │
+│  (Auto-Config)  │
 └─────────────────┘
 ```
+
+### VoCore Architecture (Phase 4 - Zero Reflection)
+
+**VoCoreManager** (zero reflection, type-safe):
+- Auto-detects connected VoCore devices
+- Configures Information Overlay automatically
+- Handles dashboard switching and merging
+- Uses serial numbers for identification
+- Auto-recovery if user changes settings
+
+**Auto-Configuration Logic:**
+1. Empty/null dashboard → sets "WhatsAppPlugin"
+2. Already "WhatsAppPlugin" → no change
+3. Already "WhatsApp_merged_overlay_dash" → no change
+4. Other dashboard → changes to merged, merges in background
+
+**DataUpdate Auto-Verification:**
+- Called by SimHub at 60 FPS
+- Checks VoCore configuration every 3 seconds
+- Ensures overlay always correctly configured
+- No timers or polling needed
 
 ### Message Flow
 
@@ -243,6 +271,13 @@ Bind these actions to steering wheel buttons:
 - Click Test button to verify overlay works
 - Ensure queue isn't full
 
+### VoCore Not Working
+
+- Click Refresh Devices button to rescan
+- Plugin automatically configures overlay - no manual setup needed
+- If user dashboard was active, plugin creates merged dashboard automatically
+- Check that VoCore is properly connected to SimHub
+
 ### Connection Drops Frequently
 
 - Check internet connection stability
@@ -263,17 +298,28 @@ Bind these actions to steering wheel buttons:
 | `%AppData%\SimHub\WhatsAppPlugin\node\` | Node.js scripts and packages |
 | `%AppData%\SimHub\WhatsAppPlugin\data\` | Session authentication data |
 | `%AppData%\SimHub\WhatsAppPlugin\logs\` | Debug logs (when enabled) |
+| `%AppData%\SimHub\WhatsAppPlugin\google-contacts.json` | Google Contacts cache |
 
 ## Changelog
 
+### Version 1.0.2
+- **VoCore Architecture Rewrite (Phase 4)**: Complete redesign for zero reflection
+  - New VoCoreManager class for clean device management
+  - VoCoreDevice model with device state
+  - Serial number-based identification (no volatile IDs)
+  - Auto-configuration via DataUpdate() every 3 seconds
+  - Auto-recovery when user manually changes settings
+  - Zero timers for VoCore (uses SimHub's 60 FPS cycle)
+  - Dashboard merge logic simplified
+- **Code Quality**: All comments translated to English
+- **Removed Features**: Active Chats import (removed due to WhatsApp LID issues)
+- **Bug Fix**: Prevent multiple confirm dialogs on contact removal
+
 ### Version 1.0.1
 - **Auto-Update System**: Plugin now checks GitHub releases for updates automatically
-  - Shows version in header (visible on all tabs)
-  - One-click download and install
-  - Automatic SimHub restart after update
 - **Google Contacts Integration**: Import contacts directly from Google account
 - **WhatsApp Number Verification**: Verifies if phone number has WhatsApp before adding contact
-- **Search & Filter**: Type to search in Active Chats and Google Contacts dropdowns
+- **Search & Filter**: Type to search in contact dropdowns
 - **Auto-Reconnect System**: Automatic reconnection with 15-second intervals (up to 5 attempts)
 - **QR Code Overlay Notification**: Shows "Scan QR Code in SimHub" on VoCore/overlay when authentication needed
 - **Custom Confirm Dialogs**: Dark-themed confirmation dialogs matching SimHub UI
@@ -298,10 +344,15 @@ Bind these actions to steering wheel buttons:
 Contributions are welcome! Please:
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/NewFeature`)
+2. Create a feature branch from `develop` (`git checkout -b feature/NewFeature`)
 3. Commit your changes (`git commit -m 'Add NewFeature'`)
 4. Push to branch (`git push origin feature/NewFeature`)
-5. Open a Pull Request
+5. Open a Pull Request to `develop` branch
+
+**Branch Structure:**
+- `main` - Stable releases only
+- `develop` - Active development branch
+- `feature/*` - Feature branches
 
 ## License
 
