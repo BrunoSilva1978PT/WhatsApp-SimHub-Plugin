@@ -13,7 +13,6 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
 
         // Events for search/filter in ComboBoxes
         public event EventHandler<string> GoogleContactsSearchChanged;
-        public event EventHandler<string> ChatContactsSearchChanged;
 
         public ContactsTab()
         {
@@ -23,10 +22,6 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
             GoogleContactsComboBox.AddHandler(
                 System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent,
                 new TextChangedEventHandler(GoogleContactsComboBox_TextChanged));
-
-            ChatContactsComboBox.AddHandler(
-                System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent,
-                new TextChangedEventHandler(ChatContactsComboBox_TextChanged));
         }
 
         private void GoogleContactsComboBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -37,21 +32,6 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
             var text = comboBox.Text ?? string.Empty;
             GoogleContactsSearchChanged?.Invoke(this, text);
         }
-
-        private void ChatContactsComboBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            var comboBox = sender as ComboBox;
-            if (comboBox == null) return;
-
-            var text = comboBox.Text ?? string.Empty;
-            ChatContactsSearchChanged?.Invoke(this, text);
-        }
-
-        // Chat Contacts
-        public ComboBox ChatContactsComboBoxCtrl => ChatContactsComboBox;
-        public Button RefreshChatsButtonCtrl => RefreshChatsButton;
-        public Button AddFromChatsButtonCtrl => AddFromChatsButton;
-        public TextBlock ChatsStatusTextCtrl => ChatsStatusText;
 
         // Google Contacts
         public Button GoogleConnectButtonCtrl => GoogleConnectButton;

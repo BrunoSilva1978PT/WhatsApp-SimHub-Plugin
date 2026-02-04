@@ -5,78 +5,108 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="20">
-            <!-- Target Device -->
-            <TextBlock Text="Target Device"
+            <!-- Target Devices -->
+            <TextBlock Text="Target Devices"
                        FontSize="18"
                        FontWeight="Bold"
                        Foreground="#00BCD4"
                        Margin="0,0,0,5"/>
             <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
 
-            <StackPanel Margin="0,0,0,20">
-                <TextBlock Text="VoCore Device:"
-                           FontSize="13"
-                           FontWeight="SemiBold"
-                           Margin="0,0,0,8"/>
-
-                <StackPanel Orientation="Horizontal">
-                    <styles:SHToggleCheckbox x:Name="VoCoreEnabledCheckbox"
-                            Content="Enable VoCore"
-                            VerticalAlignment="Center"
-                            Margin="0,0,15,0"
-                            ToolTip="Enable or disable VoCore display. Disable if using VR/overlay only."/>
-
-                    <ComboBox x:Name="TargetDeviceComboBox"
-                              Width="400"
-                              Height="36"
-                              Background="#252526"
-                              Foreground="White"
-                              BorderBrush="#3E3E42">
-                        <!-- Devices will be loaded dynamically -->
-                    </ComboBox>
-
-                    <styles:SHButtonPrimary x:Name="TestOverlayButton" Content="🧪 Test"
-                            Width="80" Height="36"
-                            Margin="10,0,0,0"
-                            Background="#0E7A0D"
-                            Foreground="White"
-                            IsEnabled="False"
-                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                            ToolTip="Send a test message to verify VoCore is working"/>
-                </StackPanel>
-
-                <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,15,0,0">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White" VerticalAlignment="Top"/>
-                            <TextBlock Foreground="White" FontSize="12" TextWrapping="Wrap">
-                                <Run Text="Select a VoCore to display WhatsApp notifications during races." FontWeight="SemiBold"/>
-                                <LineBreak/><LineBreak/>
-                                <Run Text="The device list updates automatically every second. If your VoCore is connected, it will appear with a ✅ checkmark. If offline or disconnected, it will show ❌." FontWeight="Normal"/>
-                                <LineBreak/><LineBreak/>
-                                <Run Text="The plugin automatically detects and configures:" FontWeight="SemiBold"/>
-                                <LineBreak/>
-                                <Run Text="  • Device connection status"/>
-                                <LineBreak/>
-                                <Run Text="  • Information Overlay activation"/>
-                                <LineBreak/>
-                                <Run Text="  • Dashboard configuration and merging"/>
-                                <LineBreak/><LineBreak/>
-                                <Run Text="Use the " FontWeight="Normal"/>
-                                <Run Text="Test" FontWeight="SemiBold"/>
-                                <Run Text=" button to send a test message and verify everything is working correctly." FontWeight="Normal"/>
-                            </TextBlock>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
+            <!-- Enable VoCores Toggle + Test Button -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                <styles:SHToggleCheckbox x:Name="VoCoreEnabledCheckbox"
+                        Content="Enable VoCores"
+                        VerticalAlignment="Center"
+                        Margin="0,0,20,0"
+                        ToolTip="Enable or disable VoCore displays. Disable if using VR/overlay only."/>
+                <styles:SHButtonPrimary x:Name="TestVoCoresButton"
+                        Content="🔧 Test VoCores"
+                        Width="120" Height="32"
+                        Background="#0E7A0D"
+                        Foreground="White"
+                        IsEnabled="False"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        ToolTip="Send a test message to verify VoCores are working"/>
             </StackPanel>
+
+            <!-- VoCore Device 1 -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <TextBlock Text="VoCore Device 1:"
+                           Width="130"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           Foreground="#DDDDDD"
+                           VerticalAlignment="Center"/>
+                <ComboBox x:Name="VoCore1ComboBox"
+                          Width="250"
+                          Height="32"
+                          Background="#252526"
+                          Foreground="White"
+                          BorderBrush="#3E3E42"/>
+                <styles:SHButtonPrimary x:Name="RemoveVoCore1Button"
+                        Content="🗑️ Remove"
+                        Width="110" Height="32"
+                        Margin="10,0,0,0"
+                        Background="#C42B1C"
+                        Foreground="White"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        ToolTip="Remove VoCore 1 selection"/>
+            </StackPanel>
+
+            <!-- VoCore Device 2 -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                <TextBlock Text="VoCore Device 2:"
+                           Width="130"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           Foreground="#DDDDDD"
+                           VerticalAlignment="Center"/>
+                <ComboBox x:Name="VoCore2ComboBox"
+                          Width="250"
+                          Height="32"
+                          Background="#252526"
+                          Foreground="White"
+                          BorderBrush="#3E3E42"/>
+                <styles:SHButtonPrimary x:Name="RemoveVoCore2Button"
+                        Content="🗑️ Remove"
+                        Width="110" Height="32"
+                        Margin="10,0,0,0"
+                        Background="#C42B1C"
+                        Foreground="White"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        ToolTip="Remove VoCore 2 selection"/>
+            </StackPanel>
+
+            <!-- Info Box -->
+            <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,0,0,20">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White" VerticalAlignment="Top"/>
+                        <TextBlock Foreground="White" FontSize="12" TextWrapping="Wrap">
+                            <Run Text="Select up to 2 VoCore devices to display WhatsApp notifications during races." FontWeight="SemiBold"/>
+                            <LineBreak/><LineBreak/>
+                            <Run Text="• The device list updates automatically every 3s"/>
+                            <LineBreak/>
+                            <Run Text="• Selected devices show ✅ in the dropdown"/>
+                            <LineBreak/>
+                            <Run Text="• Available devices show their name only"/>
+                            <LineBreak/>
+                            <Run Text="• Use Test button to verify configuration"/>
+                        </TextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
 
             <!-- VR / Overlay Info -->
             <TextBlock Text="VR &amp; Overlay Support"
                        FontSize="18"
                        FontWeight="Bold"
                        Foreground="#00BCD4"
-                       Margin="0,20,0,5"/>
+                       Margin="0,0,0,5"/>
             <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
 
             <Border Background="#2D2D30" Padding="15" CornerRadius="6" Margin="0,0,0,10">

@@ -39,6 +39,7 @@ namespace WhatsAppSimHubPlugin
 
         private DashboardInstaller _dashboardInstaller; // Installer to reinstall dashboard
         private DashboardMerger _dashboardMerger; // Merger to combine dashboards
+        private VoCoreManager _vocoreManager; // VoCore configuration manager
 
         // QUICK REPLIES: Now work via registered Actions
         // See RegisterActions() and SendQuickReply(int)
@@ -190,77 +191,16 @@ namespace WhatsAppSimHubPlugin
         }
 
         /// <summary>
-        /// Get list of available VoCores (ONLY VoCores, not monitors)
+        /// Get list of available VoCores (uses VoCoreManager)
         /// </summary>
-        public System.Collections.Generic.List<DeviceInfo> GetAvailableDevices()
+        public List<VoCoreDevice> GetAvailableDevices()
         {
-            var devices = new System.Collections.Generic.List<DeviceInfo>();
-
-            try
-            {
-                // GetAllDevices é público!
-                var devicesEnumerable = PluginManager.GetAllDevices(true);
-                if (devicesEnumerable == null) return devices;
-
-                // Iterate devices - ZERO REFLECTION!
-                foreach (var device in devicesEnumerable)
-                {
-                    // ✅ CAST para DeviceInstance (classe base pública)
-                    var deviceInstance = device as DeviceInstance;
-                    if (deviceInstance == null) continue;
-
-                    // ✅ ACESSO DIRETO às propriedades!
-                    var mainName = deviceInstance.MainDisplayName;
-                    var instanceId = deviceInstance.InstanceId.ToString();
-                    var serial = deviceInstance.ConfiguredSerialNumber() ?? "N/A";
-
-                    // ✅ DYNAMIC para Settings - filtra só VoCores
-                    dynamic dynDevice = device;
-                    try
-                    {
-                        var settings = dynDevice.Settings as VOCORESettings;
-                        if (settings == null) continue; // Não é VoCore
-
-                        // É VoCore! Adicionar à lista
-                        if (!string.IsNullOrEmpty(mainName))
-                        {
-                            devices.Add(new DeviceInfo
-                            {
-                                Name = mainName,
-                                Id = instanceId,
-                                SerialNumber = serial
-                            });
-                        }
-                    }
-                    catch
-                    {
-                        // Não tem Settings VOCORESettings - skip
-                        continue;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                WriteLog($"GetAvailableDevices error: {ex.Message}");
-            }
-
-            return devices;
-        }
-
-
-
-        // Class for device information
-        public class DeviceInfo
-        {
-            public string Name { get; set; }
-            public string Id { get; set; }
-            public string SerialNumber { get; set; }
+            return _vocoreManager?.GetConnectedDevices() ?? new List<VoCoreDevice>();
         }
 
         // ===== CONNECTION TAB PROPERTIES =====
         private string _connectionStatus = "Disconnected";
         private string _connectedNumber = "";
-        private string _lastLoggedDashboard = null; // For debug - avoid log spam
 
         // ===== RECONNECTION SYSTEM =====
         private bool _userRequestedDisconnect = false; // True when user clicks Disconnect button
@@ -270,6 +210,10 @@ namespace WhatsAppSimHubPlugin
         private System.Timers.Timer _reconnectTimer;
         private bool _isWhatsAppConnected = false; // True when backend confirms WhatsApp connection
         private bool _isWaitingForQrCode = false; // True when waiting for user to scan QR code
+
+        // ===== DATAUPDATE VERIFICATION (Every 3 seconds) =====
+        private DateTime _lastDataUpdateCheck = DateTime.MinValue;
+        private const int DATA_UPDATE_INTERVAL_MS = 3000; // 3 seconds
 
         // ===== INTERNAL STATE (NOT EXPOSED TO SIMHUB) =====
         private List<QueuedMessage> _currentMessageGroup = null;
@@ -350,8 +294,6 @@ namespace WhatsAppSimHubPlugin
             _nodeManager.OnMessage += NodeManager_OnMessage;
             _nodeManager.OnError += NodeManager_OnError;
             _nodeManager.StatusChanged += NodeManager_OnStatusChanged;
-            _nodeManager.ChatContactsListReceived += NodeManager_OnChatContactsListReceived;
-            _nodeManager.ChatContactsError += NodeManager_OnChatContactsError;
             _nodeManager.InstallationCompleted += NodeManager_OnInstallationCompleted;
 
             // Google Contacts events
@@ -373,6 +315,9 @@ namespace WhatsAppSimHubPlugin
             // Initialize dashboard merger
             string dashTemplatesPath = _dashboardInstaller.GetDashboardsPath();
             _dashboardMerger = new DashboardMerger(dashTemplatesPath, WriteLog);
+
+            // Initialize VoCore manager
+            _vocoreManager = new VoCoreManager(PluginManager, _dashboardMerger, WriteLog);
 
             bool installed = _dashboardInstaller.InstallDashboard();
 
@@ -1251,50 +1196,6 @@ namespace WhatsAppSimHubPlugin
             }));
         }
 
-        private void NodeManager_OnChatContactsListReceived(object sender, JArray contactsArray)
-        {
-            try
-            {
-                WriteLog($"📱 Received {contactsArray.Count} contacts from active chats");
-
-                var contacts = new System.Collections.ObjectModel.ObservableCollection<Contact>();
-
-                foreach (var item in contactsArray)
-                {
-                    var name = item["name"]?.ToString() ?? "(No name)";
-                    var number = item["number"]?.ToString();
-
-                    if (!string.IsNullOrEmpty(number))
-                    {
-                        contacts.Add(new Contact
-                        {
-                            Name = name,
-                            Number = number  // Já vem sem + (ex: 351910203114)
-                        });
-                    }
-                }
-
-                WriteLog($"✅ Parsed {contacts.Count} valid contacts");
-
-                // Atualizar UI
-                _settingsControl?.UpdateChatContactsList(contacts);
-            }
-            catch (Exception ex)
-            {
-                WriteLog($"❌ Error processing chat contacts: {ex.Message}");
-            }
-        }
-
-        private void NodeManager_OnChatContactsError(object sender, string error)
-        {
-            WriteLog($"❌ Failed to load chat contacts: {error}");
-
-            // Atualizar UI com erro
-            _settingsControl?.UpdateChatContactsList(
-                new System.Collections.ObjectModel.ObservableCollection<Contact>()
-            );
-        }
-
         #region Google Contacts Event Handlers
 
         private void NodeManager_OnGoogleStatusReceived(object sender, (bool connected, string status) args)
@@ -2010,8 +1911,6 @@ del ""%~f0""
                     _nodeManager.OnMessage -= NodeManager_OnMessage;
                     _nodeManager.OnError -= NodeManager_OnError;
                     _nodeManager.StatusChanged -= NodeManager_OnStatusChanged;
-                    _nodeManager.ChatContactsListReceived -= NodeManager_OnChatContactsListReceived;
-                    _nodeManager.ChatContactsError -= NodeManager_OnChatContactsError;
                     _nodeManager.InstallationCompleted -= NodeManager_OnInstallationCompleted;
                     _nodeManager.GoogleStatusReceived -= NodeManager_OnGoogleStatusReceived;
                     _nodeManager.GoogleAuthUrlReceived -= NodeManager_OnGoogleAuthUrlReceived;
@@ -2028,8 +1927,6 @@ del ""%~f0""
                 _nodeManager.OnMessage += NodeManager_OnMessage;
                 _nodeManager.OnError += NodeManager_OnError;
                 _nodeManager.StatusChanged += NodeManager_OnStatusChanged;
-                _nodeManager.ChatContactsListReceived += NodeManager_OnChatContactsListReceived;
-                _nodeManager.ChatContactsError += NodeManager_OnChatContactsError;
                 _nodeManager.InstallationCompleted += NodeManager_OnInstallationCompleted;
                 _nodeManager.GoogleStatusReceived += NodeManager_OnGoogleStatusReceived;
                 _nodeManager.GoogleAuthUrlReceived += NodeManager_OnGoogleAuthUrlReceived;
@@ -2050,28 +1947,6 @@ del ""%~f0""
             }
         }
 
-        public async void RefreshChatContacts()
-        {
-            WriteLog("🔄 Refreshing chat contacts list...");
-
-            try
-            {
-                if (_nodeManager != null)
-                {
-                    await _nodeManager.SendCommandAsync("refreshChatContacts");
-                    WriteLog("✅ Refresh command sent to Node.js");
-                }
-                else
-                {
-                    WriteLog("❌ Cannot refresh: Node.js not connected");
-                }
-            }
-            catch (Exception ex)
-            {
-                WriteLog($"❌ Error refreshing contacts: {ex.Message}");
-            }
-        }
-
         public void ApplyDisplaySettings()
         {
             // Recriar MessageQueue com novas configurações
@@ -2079,6 +1954,14 @@ del ""%~f0""
             _messageQueue = new MessageQueue(_settings, WriteLog);
             _messageQueue.OnGroupDisplay += MessageQueue_OnGroupDisplay;
             _messageQueue.OnMessageRemoved += MessageQueue_OnMessageRemoved;
+        }
+
+        /// <summary>
+        /// Configure VoCore device (called from UI when user selects device)
+        /// </summary>
+        public void ConfigureVoCore(string serialNumber)
+        {
+            _vocoreManager?.ConfigureDevice(serialNumber);
         }
 
         /// <summary>
@@ -2120,11 +2003,42 @@ del ""%~f0""
         ///
         /// O ControlsEditor liga automaticamente os botões às Actions registadas.
         /// Quando o user carrega no botão, o SimHub chama a Action diretamente.
-        /// Não é necessário verificar nada aqui!
+        /// Verificação automática de VoCore a cada 3 segundos
         /// </summary>
         public void DataUpdate(PluginManager pluginManager, ref GameData data)
         {
-            // Empty - VoCore logic will be rewritten from scratch
+            // Só verifica de 3 em 3 segundos (não a cada frame!)
+            if ((DateTime.Now - _lastDataUpdateCheck).TotalMilliseconds < DATA_UPDATE_INTERVAL_MS)
+                return;
+
+            _lastDataUpdateCheck = DateTime.Now;
+
+            try
+            {
+                // Refresh device list in UI (detects VoCore connect/disconnect)
+                _settingsControl?.RefreshDeviceList();
+
+                // If no VoCores configured, nothing to do
+                if (string.IsNullOrEmpty(_settings?.VoCore1_Serial) && string.IsNullOrEmpty(_settings?.VoCore2_Serial))
+                    return;
+
+                // Configure VoCore 1 if set
+                if (!string.IsNullOrEmpty(_settings?.VoCore1_Serial))
+                {
+                    _vocoreManager?.ConfigureDevice(_settings.VoCore1_Serial);
+                }
+
+                // Configure VoCore 2 if set
+                if (!string.IsNullOrEmpty(_settings?.VoCore2_Serial))
+                {
+                    _vocoreManager?.ConfigureDevice(_settings.VoCore2_Serial);
+                }
+            }
+            catch
+            {
+                // Silenciar erros - não queremos spam no log a cada 3s
+                // O VoCoreManager já faz o seu próprio logging
+            }
         }
 
         /// <summary>
@@ -2132,11 +2046,11 @@ del ""%~f0""
         /// Durante o teste, ignora completamente as 2 queues
         /// Ao fim dos 5s, LIMPA TUDO para o plugin poder continuar
         /// </summary>
-        public void ShowTestMessage()
+        public void ShowTestMessage(string targetSerial = null)
         {
             try
             {
-                WriteLog($"[TEST] ▶ ShowTestMessage started");
+                WriteLog($"[TEST] ▶ ShowTestMessage started (target: {targetSerial ?? "default"})");
 
                 // 🔥 BLOQUEAR QUEUES durante teste
                 _isTestingMessage = true;

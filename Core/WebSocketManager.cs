@@ -29,10 +29,8 @@ namespace WhatsAppSimHubPlugin.Core
         public event EventHandler<(string number, string name)> Ready;
         public event EventHandler<JObject> MessageReceived;
         public event EventHandler Disconnected;
-        public event EventHandler<string> StatusChanged;  // ← NOVO EVENTO!
-        public event EventHandler<JArray> ChatContactsListReceived;  // 📱 Contactos das conversas
-        public event EventHandler<string> ChatContactsError;  // ❌ Erro ao carregar
-        public event EventHandler<bool> InstallationCompleted;  // 🔧 Instalação terminou (true=sucesso)
+        public event EventHandler<string> StatusChanged;
+        public event EventHandler<bool> InstallationCompleted;
 
         // Google Contacts events
         public event EventHandler<(bool connected, string status)> GoogleStatusReceived;
@@ -769,10 +767,6 @@ namespace WhatsAppSimHubPlugin.Core
                             Ready?.Invoke(this, (json["number"].ToString(), json["name"].ToString()));
                         else if (type == "message")
                             MessageReceived?.Invoke(this, json["message"] as JObject);
-                        else if (type == "chatContactsList")
-                            ChatContactsListReceived?.Invoke(this, json["contacts"] as JArray);
-                        else if (type == "chatContactsError")
-                            ChatContactsError?.Invoke(this, json["error"]?.ToString() ?? "Unknown error");
                         else if (type == "disconnected")
                             Disconnected?.Invoke(this, EventArgs.Empty);
                         // Google Contacts handlers

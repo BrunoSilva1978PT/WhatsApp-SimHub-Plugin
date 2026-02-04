@@ -10,7 +10,6 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
@@ -22,71 +21,8 @@
                        Margin="0,0,0,5"/>
             <Border Grid.Row="0" Height="1" Background="#00BCD4" Margin="0,25,0,15"/>
 
-            <!-- Add from Active Chats -->
-            <Border Grid.Row="1" Background="#2D2D30" Padding="15" CornerRadius="8" Margin="0,0,0,15">
-                <StackPanel>
-                    <TextBlock Text="📱 Add from Active Chats"
-                              FontSize="16"
-                              FontWeight="SemiBold"
-                              Foreground="#D4D4D4"
-                              Margin="0,0,0,10"/>
-
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <ComboBox x:Name="ChatContactsComboBox"
-                                 Grid.Column="0"
-                                 IsEnabled="False"
-                                 IsEditable="True"
-                                 IsTextSearchEnabled="False"
-                                 StaysOpenOnEdit="True"
-                                 DisplayMemberPath="DisplayText"
-                                 Background="#252526"
-                                 Foreground="#D4D4D4"
-                                 BorderBrush="#3E3E42"
-                                 Height="32"
-                                 Margin="0,0,10,0"
-                                 FontSize="13"
-                                 ToolTip="Type to search contacts"/>
-
-                        <styles:SHButtonPrimary x:Name="RefreshChatsButton"
-                               Grid.Column="1"
-                               Content="🔄 Refresh"
-                               IsEnabled="False"
-                               Background="#007ACC"
-                               Foreground="White"
-                               Width="110"
-                               Height="32"
-                               FontSize="13"
-                               FontWeight="SemiBold"
-                               Margin="0,0,10,0"
-                               ToolTip="Refresh contacts list"/>
-
-                        <styles:SHButtonPrimary x:Name="AddFromChatsButton"
-                               Grid.Column="2"
-                               Content="➕ Add"
-                               IsEnabled="False"
-                               Background="#0E7A0D"
-                               Foreground="White"
-                               Padding="15,6"
-                               FontSize="13"
-                               FontWeight="SemiBold"/>
-                    </Grid>
-
-                    <TextBlock x:Name="ChatsStatusText"
-                              Text="⏳ Waiting for WhatsApp connection..."
-                              Foreground="#858585"
-                              FontSize="11"
-                              Margin="0,8,0,0"/>
-                </StackPanel>
-            </Border>
-
             <!-- Add from Google Contacts -->
-            <Border Grid.Row="2" Background="#2D2D30" Padding="15" CornerRadius="8" Margin="0,0,0,15">
+            <Border Grid.Row="1" Background="#2D2D30" Padding="15" CornerRadius="8" Margin="0,0,0,15">
                 <StackPanel>
                     <TextBlock Text="📇 Add from Google Contacts"
                               FontSize="16"
@@ -169,7 +105,7 @@
             </Border>
 
             <!-- Manual Add -->
-            <Border Grid.Row="3" Background="#2D2D30" Padding="15" CornerRadius="8" Margin="0,0,0,15">
+            <Border Grid.Row="2" Background="#2D2D30" Padding="15" CornerRadius="8" Margin="0,0,0,15">
                 <StackPanel>
                     <TextBlock Text="➕ Add Contact Manually"
                               FontSize="16"
@@ -191,7 +127,6 @@
                         <TextBox x:Name="ManualNameTextBox"
                                 Grid.Row="0"
                                 Grid.Column="0"
-                                Text="Name"
                                 Background="#252526"
                                 Foreground="#D4D4D4"
                                 BorderBrush="#3E3E42"
@@ -206,7 +141,6 @@
                         <TextBox x:Name="ManualNumberTextBox"
                                 Grid.Row="0"
                                 Grid.Column="1"
-                                Text="+351912345678"
                                 Background="#252526"
                                 Foreground="#D4D4D4"
                                 BorderBrush="#3E3E42"
@@ -228,7 +162,14 @@
                                FontSize="13"
                                FontWeight="SemiBold"/>
 
-                        <!-- Format hint -->
+                        <!-- Hints -->
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="0"
+                                   Text="Name of contact"
+                                   Foreground="#858585"
+                                   FontSize="10"
+                                   Margin="0,4,10,0"/>
+
                         <TextBlock Grid.Row="1"
                                    Grid.Column="1"
                                    Text="Format: +[country code][number] (e.g. +1555123456, +44791234567)"
@@ -240,7 +181,7 @@
             </Border>
 
             <!-- Allowed Contacts Header -->
-            <Border Grid.Row="4" Background="#2D2D30" Padding="15,10,15,5" CornerRadius="8,8,0,0">
+            <Border Grid.Row="3" Background="#2D2D30" Padding="15,10,15,5" CornerRadius="8,8,0,0">
                 <TextBlock Text="📋 Allowed Contacts"
                           FontSize="16"
                           FontWeight="SemiBold"
@@ -248,7 +189,7 @@
             </Border>
 
             <!-- Contacts DataGrid -->
-            <Border Grid.Row="5" Background="#252526" Padding="0" CornerRadius="0,0,8,8">
+            <Border Grid.Row="4" Background="#252526" Padding="0" CornerRadius="0,0,8,8">
                 <DataGrid x:Name="ContactsDataGrid"
                              AutoGenerateColumns="False"
                              CanUserAddRows="False"

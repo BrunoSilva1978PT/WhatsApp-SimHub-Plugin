@@ -110,7 +110,6 @@ const wss = new WebSocket.Server({
 
 let ws = null;
 let pendingReadyData = null;
-let pendingContactsList = null;
 
 wss.on("error", (error) => {
   log("[WS] Server error: " + error.message);
@@ -139,9 +138,6 @@ wss.on("connection", (socket) => {
 
   if (isReady && pendingReadyData) {
     send(pendingReadyData);
-    if (pendingContactsList) {
-      send(pendingContactsList);
-    }
   }
 
   socket.on("message", async (msg) => {
@@ -262,44 +258,6 @@ wss.on("connection", (socket) => {
           connected: false,
           status: "NOT_CONNECTED",
         });
-      } else if (data.type === "refreshChatContacts") {
-        log("[CHATS] Refreshing contacts...");
-        client
-          .getChats()
-          .then(async (chats) => {
-            const validContacts = [];
-            for (const chat of chats) {
-              if (chat.isGroup) continue;
-              const id = chat.id?.user || chat.id?._serialized;
-              if (id) {
-                // Try to get contact info for better name
-                let name = chat.name;
-                try {
-                  const contact = await chat.getContact();
-                  if (contact) {
-                    // Priority: pushname > name > number
-                    name =
-                      contact.pushname ||
-                      contact.name ||
-                      contact.number ||
-                      chat.name;
-                  }
-                } catch (e) {
-                  // Keep chat.name if contact fetch fails
-                }
-                validContacts.push({ name: name || "(No name)", number: id });
-              }
-            }
-            validContacts.sort((a, b) => a.name.localeCompare(b.name));
-            pendingContactsList = {
-              type: "chatContactsList",
-              contacts: validContacts,
-            };
-            send(pendingContactsList);
-          })
-          .catch((error) => {
-            send({ type: "chatContactsError", error: error.message });
-          });
       } else if (data.type === "checkWhatsApp") {
         // Check if a phone number has WhatsApp
         const phoneNumber = data.number;
@@ -386,9 +344,21 @@ let readyTimestamp = 0;
 
 async function processMessage(msg) {
   try {
-    if (seenMessages.has(msg.id._serialized)) return;
-    if (msg.fromMe) return;
-    if (readyTimestamp > 0 && msg.timestamp * 1000 < readyTimestamp) return;
+    // ALWAYS log incoming messages (for debugging)
+    console.log("[MSG-IN] Processing message from: " + (msg.from || "unknown"));
+
+    if (seenMessages.has(msg.id._serialized)) {
+      console.log("[MSG-IN] SKIP: Already seen");
+      return;
+    }
+    if (msg.fromMe) {
+      console.log("[MSG-IN] SKIP: From me");
+      return;
+    }
+    if (readyTimestamp > 0 && msg.timestamp * 1000 < readyTimestamp) {
+      console.log("[MSG-IN] SKIP: Old message (before ready)");
+      return;
+    }
 
     seenMessages.add(msg.id._serialized);
 
@@ -451,7 +421,15 @@ async function processMessage(msg) {
       return;
     }
 
-    log("[MSG] From: " + name + " (" + number + ")");
+    // ALWAYS log (for debugging)
+    console.log(
+      "[MSG-IN] ✅ ACCEPTED: " +
+        name +
+        " (" +
+        number +
+        ") - " +
+        (msg.body || "").substring(0, 30),
+    );
 
     const data = {
       id: msg.id._serialized,
@@ -478,9 +456,10 @@ async function processMessage(msg) {
       } catch (err) {}
     }
 
-    send({ type: "message", message: data });
+    const sent = send({ type: "message", message: data });
+    console.log("[MSG-IN] → Sent to C#: " + sent);
   } catch (err) {
-    log("[MSG] Error: " + err.message);
+    console.log("[MSG-IN] ERROR: " + err.message);
   }
 }
 
@@ -553,42 +532,6 @@ client.on("ready", async () => {
 
   isReady = true;
 
-  // Get chat contacts
-  client
-    .getChats()
-    .then(async (chats) => {
-      const validContacts = [];
-      for (const chat of chats) {
-        if (chat.isGroup) continue;
-        const id = chat.id?.user || chat.id?._serialized;
-        if (id) {
-          // Try to get contact info for better name
-          let name = chat.name;
-          try {
-            const contact = await chat.getContact();
-            if (contact) {
-              // Priority: pushname > name > number
-              name =
-                contact.pushname || contact.name || contact.number || chat.name;
-            }
-          } catch (e) {
-            // Keep chat.name if contact fetch fails
-          }
-          validContacts.push({ name: name || "(No name)", number: id });
-        }
-      }
-      validContacts.sort((a, b) => a.name.localeCompare(b.name));
-      log("[CHATS] " + validContacts.length + " contacts loaded");
-      pendingContactsList = {
-        type: "chatContactsList",
-        contacts: validContacts,
-      };
-      send(pendingContactsList);
-    })
-    .catch((error) => {
-      send({ type: "chatContactsError", error: error.message });
-    });
-
   // Fallback to polling if events don't work
   eventsCheckTimeout = setTimeout(() => {
     if (!eventsWorking) {
@@ -601,7 +544,6 @@ client.on("disconnected", (reason) => {
   log("[WA] Disconnected: " + reason);
   isReady = false;
   pendingReadyData = null;
-  pendingContactsList = null;
   send({ type: "disconnected", reason: reason });
 });
 

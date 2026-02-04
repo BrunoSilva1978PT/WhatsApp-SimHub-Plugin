@@ -229,7 +229,7 @@ namespace WhatsAppSimHubPlugin.Core
                 var bindings = new JObject();
                 var visibleBinding = new JObject();
                 var formula = new JObject();
-                formula["Expression"] = "return $prop(\"WhatsAppPlugin.showmessage\")";
+                formula["Expression"] = "if ($prop(\"WhatsAppPlugin.showmessage\") && $prop(\"WhatsAppPlugin.vocoreenabled\")) return true\nreturn false";
                 formula["JSExt"] = 1;
                 formula["Interpreter"] = 1;
                 visibleBinding["Formula"] = formula;

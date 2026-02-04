@@ -84,12 +84,14 @@
     <Compile Include="Models\Contact.cs" />
     <Compile Include="Models\PluginSettings.cs" />
     <Compile Include="Models\QueuedMessage.cs" />
+    <Compile Include="Models\VoCoreDevice.cs" />
     <Compile Include="Core\MessageQueue.cs" />
     <Compile Include="Core\WebSocketManager.cs" />
     <Compile Include="Core\DashboardInstaller.cs" />
     <Compile Include="Core\DashboardMerger.cs" />
     <Compile Include="Core\PluginState.cs" />
     <Compile Include="Core\DependencyManager.cs" />
+    <Compile Include="Core\VoCoreManager.cs" />
     <Compile Include="UI\SettingsControl.xaml.cs">
       <DependentUpon>SettingsControl.xaml</DependentUpon>
     </Compile>

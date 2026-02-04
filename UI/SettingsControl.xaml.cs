@@ -48,8 +48,6 @@ namespace WhatsAppSimHubPlugin.UI
         private bool _isLoadingDevices = false; // Flag to avoid trigger during loading
         private HashSet<string> _knownDeviceIds = new HashSet<string>(); // Known devices
 
-        private ObservableCollection<Contact> _chatContacts; // Contacts from active chats
-
         public SettingsControl(WhatsAppPlugin plugin)
         {
             InitializeComponent();
@@ -82,6 +80,10 @@ namespace WhatsAppSimHubPlugin.UI
             CreateControlsEditors();
 
             InitializeData();
+
+            // Load available devices BEFORE loading settings (so ComboBox is populated)
+            RefreshDeviceList();
+
             LoadSettings();
 
             // Device refresh is now manual via "Refresh" button (no auto-refresh timer)
@@ -141,16 +143,11 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private void WireUpContactsTabEvents()
         {
-            // Chat contacts
-            ContactsTab.RefreshChatsButtonCtrl.Click += RefreshChatsButton_Click;
-            ContactsTab.AddFromChatsButtonCtrl.Click += AddFromChatsButton_Click;
-
             // Google Contacts
             ContactsTab.GoogleConnectButtonCtrl.Click += GoogleConnectButton_Click;
             ContactsTab.GoogleRefreshButtonCtrl.Click += GoogleRefreshButton_Click;
             ContactsTab.GoogleAddButtonCtrl.Click += GoogleAddButton_Click;
             ContactsTab.GoogleContactsSearchChanged += GoogleContactsComboBox_SearchChanged;
-            ContactsTab.ChatContactsSearchChanged += ChatContactsComboBox_SearchChanged;
 
             // Manual add
             ContactsTab.AddManualButtonCtrl.Click += AddManualButton_Click;
@@ -178,8 +175,15 @@ namespace WhatsAppSimHubPlugin.UI
         {
             DisplayTab.VoCoreEnabledCheckboxCtrl.Checked += VoCoreEnabledCheckbox_Changed;
             DisplayTab.VoCoreEnabledCheckboxCtrl.Unchecked += VoCoreEnabledCheckbox_Changed;
-            DisplayTab.TargetDeviceComboBoxCtrl.SelectionChanged += TargetDeviceCombo_SelectionChanged;
-            DisplayTab.TestOverlayButtonCtrl.Click += TestOverlayButton_Click;
+            DisplayTab.TestVoCoresButtonCtrl.Click += TestVoCoresButton_Click;
+
+            // VoCore 1
+            DisplayTab.VoCore1ComboBoxCtrl.SelectionChanged += VoCore1Combo_SelectionChanged;
+            DisplayTab.RemoveVoCore1ButtonCtrl.Click += RemoveVoCore1Button_Click;
+
+            // VoCore 2
+            DisplayTab.VoCore2ComboBoxCtrl.SelectionChanged += VoCore2Combo_SelectionChanged;
+            DisplayTab.RemoveVoCore2ButtonCtrl.Click += RemoveVoCore2Button_Click;
         }
 
         /// <summary>
@@ -252,91 +256,49 @@ namespace WhatsAppSimHubPlugin.UI
         {
             try
             {
-                // Obter VoCores CONECTADOS do plugin
+                // Get connected VoCores from plugin
                 var devices = _plugin.GetAvailableDevices();
 
-                // 🔥 OTIMIZAÇÃO: Só atualizar UI se houver NOVOS devices OU primeira vez
-                var currentDeviceIds = new HashSet<string>(devices.Select(d => d.Id));
+                // Optimization: Only update UI if there are NEW devices OR first time
+                var currentDeviceIds = new HashSet<string>(devices.Select(d => d.Serial));
 
-                // Verificar se houve mudanças OU se é a primeira vez (ComboBox vazio)
+                // Check if there were changes OR if this is first time (ComboBox empty)
                 bool hasNewDevices = !currentDeviceIds.SetEquals(_knownDeviceIds);
-                bool isFirstTime = DisplayTab.TargetDeviceComboBoxCtrl.Items.Count == 0;
+                bool isFirstTime = DisplayTab.VoCore1ComboBoxCtrl.Items.Count == 0;
 
                 if (!hasNewDevices && !isFirstTime)
                 {
-                    // Nenhum device novo E não é primeira vez → Não fazer nada!
+                    // No new devices AND not first time → Do nothing!
                     return;
                 }
 
-                // ✅ Há devices novos ou primeira vez → Atualizar lista conhecida
+                // There are new devices or first time → Update known list
                 _knownDeviceIds = currentDeviceIds;
 
-                _isLoadingDevices = true; // 🔥 Bloquear SelectionChanged
+                _isLoadingDevices = true; // Block SelectionChanged
 
-                // Limpar ComboBox
-                DisplayTab.TargetDeviceComboBoxCtrl.Items.Clear();
+                // Populate VoCore 1 ComboBox
+                PopulateVoCoreComboBox(
+                    DisplayTab.VoCore1ComboBoxCtrl,
+                    devices,
+                    _settings.VoCore1_Serial,
+                    _settings.VoCore1_Name,
+                    _settings.VoCore2_Serial, // Exclude VoCore2 from VoCore1 list
+                    (serial, name) => { _settings.VoCore1_Serial = serial; _settings.VoCore1_Name = name; }
+                );
 
-                // 🎯 PRIMEIRO ITEM: Sempre mostrar o dispositivo selecionado (ou placeholder)
-                if (!string.IsNullOrEmpty(_settings.TargetDevice))
-                {
-                    // Há um dispositivo guardado - verificar se está online
-                    var savedDevice = devices.FirstOrDefault(d => d.Id == _settings.TargetDevice);
-                    var savedDeviceOnline = savedDevice != null;
+                // Populate VoCore 2 ComboBox
+                PopulateVoCoreComboBox(
+                    DisplayTab.VoCore2ComboBoxCtrl,
+                    devices,
+                    _settings.VoCore2_Serial,
+                    _settings.VoCore2_Name,
+                    _settings.VoCore1_Serial, // Exclude VoCore1 from VoCore2 list
+                    (serial, name) => { _settings.VoCore2_Serial = serial; _settings.VoCore2_Name = name; }
+                );
 
-                    string displayName;
-                    if (savedDeviceOnline)
-                    {
-                        displayName = savedDevice.Name; // Sem emoji quando selecionado e online
-
-                        // 🎯 Atualizar nome guardado se device está online
-                        if (_settings.TargetDeviceName != savedDevice.Name)
-                        {
-                            _settings.TargetDeviceName = savedDevice.Name;
-                            _plugin.SaveSettings();
-                        }
-                    }
-                    else
-                    {
-                        // Device offline - mostrar (Offline)
-                        displayName = !string.IsNullOrEmpty(_settings.TargetDeviceName)
-                            ? $"{_settings.TargetDeviceName} (Offline)"
-                            : $"{_settings.TargetDevice} (Offline)";
-                    }
-
-                    var selectedItem = new ComboBoxItem
-                    {
-                        Content = displayName,
-                        Tag = _settings.TargetDevice
-                    };
-                    DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(selectedItem);
-                }
-                else
-                {
-                    // Nenhum dispositivo guardado - mostrar placeholder
-                    var placeholder = new ComboBoxItem
-                    {
-                        Content = "No VoCore Selected",
-                        Tag = ""
-                    };
-                    DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(placeholder);
-                }
-
-                // Selecionar o primeiro item (sempre)
-                DisplayTab.TargetDeviceComboBoxCtrl.SelectedIndex = 0;
-
-                // 🎯 RESTO DA LISTA: Adicionar outros VoCores online disponíveis
-                foreach (var device in devices.Where(d => d.Id != _settings.TargetDevice))
-                {
-                    var item = new ComboBoxItem
-                    {
-                        Content = device.Name, // Sem emoji - apenas nome
-                        Tag = device.Id
-                    };
-                    DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(item);
-                }
-
-                // 🔥 Atualizar status label
-                UpdateDeviceStatus(devices.Count);
+                // Update Test buttons state
+                UpdateTestButtonState(devices.Count);
             }
             catch (Exception ex)
             {
@@ -345,12 +307,90 @@ namespace WhatsAppSimHubPlugin.UI
                     Content = $"Error: {ex.Message}",
                     IsEnabled = false
                 };
-                DisplayTab.TargetDeviceComboBoxCtrl.Items.Clear();
-                DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(errorItem);
+                DisplayTab.VoCore1ComboBoxCtrl.Items.Clear();
+                DisplayTab.VoCore1ComboBoxCtrl.Items.Add(errorItem);
+                DisplayTab.VoCore2ComboBoxCtrl.Items.Clear();
+                DisplayTab.VoCore2ComboBoxCtrl.Items.Add(errorItem);
             }
             finally
             {
-                _isLoadingDevices = false; // 🔥 Desbloquear SelectionChanged
+                _isLoadingDevices = false; // Unblock SelectionChanged
+            }
+        }
+
+        /// <summary>
+        /// Populate a VoCore ComboBox with available devices
+        /// </summary>
+        private void PopulateVoCoreComboBox(
+            ComboBox comboBox,
+            List<VoCoreDevice> devices,
+            string savedSerial,
+            string savedName,
+            string excludeSerial,
+            Action<string, string> updateSavedName)
+        {
+            comboBox.Items.Clear();
+
+            // FIRST ITEM: Always show selected device (or placeholder)
+            if (!string.IsNullOrEmpty(savedSerial))
+            {
+                // There is a saved device - check if it's online
+                var savedDevice = devices.FirstOrDefault(d => d.Serial == savedSerial);
+                var isOnline = savedDevice != null;
+
+                string displayName;
+                if (isOnline)
+                {
+                    // Online: show name with checkmark
+                    displayName = $"✅ {savedDevice.Name}";
+
+                    // Update saved name if device is online
+                    if (savedName != savedDevice.Name)
+                    {
+                        updateSavedName(savedSerial, savedDevice.Name);
+                        _plugin.SaveSettings();
+                    }
+                }
+                else
+                {
+                    // Offline: show (Offline)
+                    displayName = !string.IsNullOrEmpty(savedName)
+                        ? $"❌ {savedName} (Offline)"
+                        : $"❌ {savedSerial} (Offline)";
+                }
+
+                var selectedItem = new ComboBoxItem
+                {
+                    Content = displayName,
+                    Tag = savedSerial
+                };
+                comboBox.Items.Add(selectedItem);
+            }
+            else
+            {
+                // No saved device - show placeholder
+                var placeholder = new ComboBoxItem
+                {
+                    Content = "No VoCore Selected",
+                    Tag = ""
+                };
+                comboBox.Items.Add(placeholder);
+            }
+
+            // Select first item (always)
+            comboBox.SelectedIndex = 0;
+
+            // REST OF LIST: Add other online VoCores available (excluding saved and other VoCore)
+            foreach (var device in devices.Where(d =>
+                d.Serial != savedSerial &&
+                d.Serial != excludeSerial))
+            {
+                var item = new ComboBoxItem
+                {
+                    Content = device.Name,
+                    Tag = device.Serial
+                };
+                comboBox.Items.Add(item);
             }
         }
 
@@ -363,7 +403,7 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 // Run the reflection-heavy GetAvailableDevices on background thread
                 var devices = await Task.Run(() => _plugin.GetAvailableDevices()).ConfigureAwait(false);
-                var currentDeviceIds = new HashSet<string>(devices.Select(d => d.Id));
+                var currentDeviceIds = new HashSet<string>(devices.Select(d => d.Serial));
 
                 // Check if there are changes before updating UI
                 bool hasNewDevices = !currentDeviceIds.SetEquals(_knownDeviceIds);
@@ -385,87 +425,39 @@ namespace WhatsAppSimHubPlugin.UI
         /// <summary>
         /// Helper method to update device list UI (must be called on UI thread)
         /// </summary>
-        private void UpdateDeviceListUI(List<WhatsAppPlugin.DeviceInfo> devices)
+        private void UpdateDeviceListUI(List<VoCoreDevice> devices)
         {
             _isLoadingDevices = true;
             try
             {
-                DisplayTab.TargetDeviceComboBoxCtrl.Items.Clear();
+                _knownDeviceIds = new HashSet<string>(devices.Select(d => d.Serial));
 
-                // 🎯 PRIMEIRO ITEM: Sempre mostrar o dispositivo selecionado (ou placeholder)
-                if (!string.IsNullOrEmpty(_settings.TargetDevice))
-                {
-                    // Há um dispositivo guardado - verificar se está online
-                    var savedDevice = devices.FirstOrDefault(d => d.Id == _settings.TargetDevice);
-                    var savedDeviceOnline = savedDevice != null;
+                // Populate VoCore 1 ComboBox
+                PopulateVoCoreComboBox(
+                    DisplayTab.VoCore1ComboBoxCtrl,
+                    devices,
+                    _settings.VoCore1_Serial,
+                    _settings.VoCore1_Name,
+                    _settings.VoCore2_Serial,
+                    (serial, name) => { _settings.VoCore1_Serial = serial; _settings.VoCore1_Name = name; }
+                );
 
-                    string displayName;
-                    if (savedDeviceOnline)
-                    {
-                        displayName = savedDevice.Name; // Sem emoji quando selecionado e online
+                // Populate VoCore 2 ComboBox
+                PopulateVoCoreComboBox(
+                    DisplayTab.VoCore2ComboBoxCtrl,
+                    devices,
+                    _settings.VoCore2_Serial,
+                    _settings.VoCore2_Name,
+                    _settings.VoCore1_Serial,
+                    (serial, name) => { _settings.VoCore2_Serial = serial; _settings.VoCore2_Name = name; }
+                );
 
-                        // 🎯 Atualizar nome guardado se device está online
-                        if (_settings.TargetDeviceName != savedDevice.Name)
-                        {
-                            _settings.TargetDeviceName = savedDevice.Name;
-                            _plugin.SaveSettings();
-                        }
-                    }
-                    else
-                    {
-                        // Device offline - mostrar (Offline)
-                        displayName = !string.IsNullOrEmpty(_settings.TargetDeviceName)
-                            ? $"{_settings.TargetDeviceName} (Offline)"
-                            : $"{_settings.TargetDevice} (Offline)";
-                    }
-
-                    var selectedItem = new ComboBoxItem
-                    {
-                        Content = displayName,
-                        Tag = _settings.TargetDevice
-                    };
-                    DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(selectedItem);
-                }
-                else
-                {
-                    // Nenhum dispositivo guardado - mostrar placeholder
-                    var placeholder = new ComboBoxItem
-                    {
-                        Content = "No VoCore Selected",
-                        Tag = ""
-                    };
-                    DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(placeholder);
-                }
-
-                // Selecionar o primeiro item (sempre)
-                DisplayTab.TargetDeviceComboBoxCtrl.SelectedIndex = 0;
-
-                // 🎯 RESTO DA LISTA: Adicionar outros VoCores online disponíveis
-                foreach (var device in devices.Where(d => d.Id != _settings.TargetDevice))
-                {
-                    var item = new ComboBoxItem
-                    {
-                        Content = $"{device.Name} ✅",
-                        Tag = device.Id
-                    };
-                    DisplayTab.TargetDeviceComboBoxCtrl.Items.Add(item);
-                }
-
-                UpdateDeviceStatus(devices.Count);
+                UpdateTestButtonState(devices.Count);
             }
             finally
             {
                 _isLoadingDevices = false;
             }
-        }
-
-        private void UpdateDeviceStatus(int connectedCount)
-        {
-            // Enable Test button only if VoCore is enabled AND has connected devices
-            Dispatcher.Invoke(() =>
-            {
-                UpdateTestButtonState(connectedCount);
-            });
         }
 
         private void UpdateTestButtonState(int connectedCount = -1)
@@ -478,9 +470,14 @@ namespace WhatsAppSimHubPlugin.UI
 
             bool vocoreEnabled = DisplayTab.VoCoreEnabledCheckboxCtrl.IsChecked == true;
             bool hasDevices = connectedCount > 0;
-            bool hasSelectedDevice = !string.IsNullOrEmpty(_settings.TargetDevice);
+            bool hasAnyVoCore = !string.IsNullOrEmpty(_settings.VoCore1_Serial) || !string.IsNullOrEmpty(_settings.VoCore2_Serial);
 
-            DisplayTab.TestOverlayButtonCtrl.IsEnabled = vocoreEnabled && hasDevices && hasSelectedDevice;
+            // Test VoCores button - enabled if VoCores enabled AND has devices AND at least one VoCore selected
+            DisplayTab.TestVoCoresButtonCtrl.IsEnabled = vocoreEnabled && hasDevices && hasAnyVoCore;
+
+            // Enable/disable ComboBoxes based on VoCore enabled state
+            DisplayTab.VoCore1ComboBoxCtrl.IsEnabled = vocoreEnabled;
+            DisplayTab.VoCore2ComboBoxCtrl.IsEnabled = vocoreEnabled;
         }
 
         private void VoCoreEnabledCheckbox_Changed(object sender, RoutedEventArgs e)
@@ -493,8 +490,7 @@ namespace WhatsAppSimHubPlugin.UI
             _plugin.SetVoCoreEnabled(isEnabled);
             _plugin.SaveSettings();
 
-            // Update UI state
-            DisplayTab.TargetDeviceComboBoxCtrl.IsEnabled = isEnabled;
+            // Update UI state (ComboBoxes and Test buttons)
             UpdateTestButtonState();
         }
 
@@ -515,22 +511,12 @@ namespace WhatsAppSimHubPlugin.UI
                 // 🔧 Carregar Debug Logging state
                 ConnectionTab.DebugLoggingCheckBoxCtrl.IsChecked = LoadDebugLoggingState();
 
-                // 🔧 Carregar VoCore Enabled state
+                // Load VoCore Enabled state
                 DisplayTab.VoCoreEnabledCheckboxCtrl.IsChecked = _settings.VoCoreEnabled;
-                DisplayTab.TargetDeviceComboBoxCtrl.IsEnabled = _settings.VoCoreEnabled;
 
-                // 🔧 Carregar Target Device (se salvo)
-                if (!string.IsNullOrEmpty(_settings.TargetDevice))
-                {
-                    foreach (ComboBoxItem item in DisplayTab.TargetDeviceComboBoxCtrl.Items)
-                    {
-                        if (item.Tag?.ToString() == _settings.TargetDevice)
-                        {
-                            DisplayTab.TargetDeviceComboBoxCtrl.SelectedItem = item;
-                            break;
-                        }
-                    }
-                }
+                // VoCore selection is handled by LoadAvailableDevices() which runs before this
+                // Just update UI state based on VoCoreEnabled
+                UpdateTestButtonState();
 
                 // Sliders - converter de ms para segundos onde necessário
                 QueueTab.MaxMessagesPerContactSliderCtrl.Value = _settings.MaxGroupSize;
@@ -552,10 +538,6 @@ namespace WhatsAppSimHubPlugin.UI
                 QuickRepliesTab.Reply2TextBoxCtrl.Text = _settings.Reply2Text;
 
                 QuickRepliesTab.ShowConfirmationCheckCtrl.IsChecked = _settings.ShowConfirmation;
-
-                // Atualizar UI da tab Contacts baseado no backend
-                UpdateContactsTabForBackend();
-
             }
             catch (Exception ex)
             {
@@ -732,58 +714,36 @@ namespace WhatsAppSimHubPlugin.UI
 
 
 
-        private async void TestOverlayButton_Click(object sender, RoutedEventArgs e)
+        private async void TestVoCoresButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // Verificar se há device selecionado
-                if (string.IsNullOrEmpty(_settings.TargetDevice))
+                bool hasVoCore1 = !string.IsNullOrEmpty(_settings.VoCore1_Serial);
+                bool hasVoCore2 = !string.IsNullOrEmpty(_settings.VoCore2_Serial);
+
+                if (!hasVoCore1 && !hasVoCore2)
                 {
-                    ShowToast("Please select a VoCore device first!", "⚠️", 5);
+                    ShowToast("Please select at least one VoCore device first!", "⚠️", 5);
                     return;
                 }
 
-                // Desactivar botão durante o teste
-                DisplayTab.TestOverlayButtonCtrl.IsEnabled = false;
+                // Disable button during test
+                DisplayTab.TestVoCoresButtonCtrl.IsEnabled = false;
 
-                // ✅ NOVO TESTE: Não muda VoCore, não muda dashboard, só mostra mensagem
+                // Show test message (uses same dashboard properties for all VoCores)
                 _plugin.ShowTestMessage();
 
-                ShowToast("Testing selected VoCore for 5s", "✅", 5);
+                string testingMsg = hasVoCore1 && hasVoCore2 ? "Testing both VoCores for 5s" : "Testing VoCore for 5s";
+                ShowToast(testingMsg, "✅", 5);
 
-                // Reactivar botão após 5 segundos
+                // Re-enable button after 5 seconds
                 await Task.Delay(5000);
-                DisplayTab.TestOverlayButtonCtrl.IsEnabled = true;
+                DisplayTab.TestVoCoresButtonCtrl.IsEnabled = true;
             }
             catch (Exception ex)
             {
-                DisplayTab.TestOverlayButtonCtrl.IsEnabled = true; // Garantir que reactiva em caso de erro
-                ShowToast($"Error testing overlay: {ex.Message}", "❌", 10);
-            }
-        }
-
-        /// <summary>
-        /// Salvar display settings sem UI feedback
-        /// </summary>
-        private void SaveDisplaySettingsInternal()
-        {
-            try
-            {
-                // Salvar device selecionado
-                if (DisplayTab.TargetDeviceComboBoxCtrl.SelectedItem is ComboBoxItem selectedItem)
-                {
-                    var deviceId = selectedItem.Tag?.ToString();
-                    if (!string.IsNullOrEmpty(deviceId))
-                    {
-                        _settings.TargetDevice = deviceId;
-                    }
-                }
-
-                _plugin.SaveSettings();
-            }
-            catch
-            {
-                // Silent fail - no action needed
+                DisplayTab.TestVoCoresButtonCtrl.IsEnabled = true; // Ensure re-enable on error
+                ShowToast($"Error testing VoCores: {ex.Message}", "❌", 10);
             }
         }
 
@@ -966,104 +926,6 @@ namespace WhatsAppSimHubPlugin.UI
         #endregion
 
         #region Contacts Tab
-
-        /// <summary>
-        /// Atualizar lista de contactos das conversas (chamado pelo plugin)
-        /// </summary>
-        public void UpdateChatContactsList(ObservableCollection<Contact> contacts)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                _chatContacts = contacts;
-                ContactsTab.ChatContactsComboBoxCtrl.ItemsSource = _chatContacts;
-
-                if (contacts != null && contacts.Count > 0)
-                {
-                    ContactsTab.ChatContactsComboBoxCtrl.IsEnabled = true;
-                    ContactsTab.AddFromChatsButtonCtrl.IsEnabled = true;
-                    ContactsTab.RefreshChatsButtonCtrl.IsEnabled = true;
-                    ContactsTab.ChatsStatusTextCtrl.Text = $"✅ {contacts.Count} contacts from active chats";
-                    ContactsTab.ChatsStatusTextCtrl.Foreground = System.Windows.Media.Brushes.LimeGreen;
-                }
-                else
-                {
-                    ContactsTab.ChatContactsComboBoxCtrl.IsEnabled = false;
-                    ContactsTab.AddFromChatsButtonCtrl.IsEnabled = false;
-                    ContactsTab.RefreshChatsButtonCtrl.IsEnabled = false;
-                    ContactsTab.ChatsStatusTextCtrl.Text = "⚠️ No active chats found";
-                    ContactsTab.ChatsStatusTextCtrl.Foreground = System.Windows.Media.Brushes.Orange;
-                }
-            });
-        }
-
-        /// <summary>
-        /// Adicionar contacto das conversas à lista de allowed
-        /// </summary>
-        private void AddFromChatsButton_Click(object sender, RoutedEventArgs e)
-        {
-            // Try to get selected item first, then try to find by text (for editable ComboBox)
-            var selected = ContactsTab.ChatContactsComboBoxCtrl.SelectedItem as Contact;
-
-            if (selected == null)
-            {
-                // Try to find contact by the text in the ComboBox
-                var searchText = ContactsTab.ChatContactsComboBoxCtrl.Text?.Trim();
-                if (!string.IsNullOrEmpty(searchText))
-                {
-                    selected = _chatContacts.FirstOrDefault(c =>
-                        c.DisplayText.Equals(searchText, StringComparison.OrdinalIgnoreCase) ||
-                        c.Name.Equals(searchText, StringComparison.OrdinalIgnoreCase));
-                }
-            }
-
-            if (selected == null)
-            {
-                ShowToast("Please select a contact from the list.", "⚠️", 5);
-                return;
-            }
-
-            // Verificar se já existe
-            var existing = _contacts.FirstOrDefault(c =>
-                c.Number.Replace("+", "").Replace(" ", "").Replace("-", "") ==
-                selected.Number.Replace("+", "").Replace(" ", "").Replace("-", ""));
-
-            if (existing != null)
-            {
-                ShowToast($"{existing.Name} is already in your allowed contacts list.", "ℹ️", 5);
-                return;
-            }
-
-            // Adicionar novo contacto
-            var newContact = new Contact
-            {
-                Name = selected.Name,
-                Number = selected.Number,
-                IsVip = false  // Por defeito não é VIP
-            };
-
-            _contacts.Add(newContact);
-
-            ContactsTab.ChatContactsComboBoxCtrl.SelectedIndex = -1;
-
-            ShowToast($"{newContact.Name} added to allowed contacts!", "✅");
-        }
-
-        /// <summary>
-        /// Refresh lista de contactos das conversas
-        /// </summary>
-        private void RefreshChatsButton_Click(object sender, RoutedEventArgs e)
-        {
-            // Atualizar UI para mostrar que está a refreshar
-            ContactsTab.ChatsStatusTextCtrl.Text = "🔄 Refreshing contacts...";
-            ContactsTab.ChatsStatusTextCtrl.Foreground = System.Windows.Media.Brushes.Orange;
-
-            ContactsTab.RefreshChatsButtonCtrl.IsEnabled = false;
-
-            // Pedir ao plugin para refresh
-            _plugin.RefreshChatContacts();
-
-            // O botão será reativado quando UpdateChatContactsList() for chamado
-        }
 
         #region Google Contacts
 
@@ -1319,39 +1181,6 @@ namespace WhatsAppSimHubPlugin.UI
             }
         }
 
-        /// <summary>
-        /// Handle Chat Contacts search/filter text changed
-        /// </summary>
-        private void ChatContactsComboBox_SearchChanged(object sender, string searchText)
-        {
-            if (_chatContacts == null || _chatContacts.Count == 0)
-                return;
-
-            // If search text is empty, show all contacts
-            if (string.IsNullOrWhiteSpace(searchText))
-            {
-                ContactsTab.ChatContactsComboBoxCtrl.ItemsSource = _chatContacts;
-                return;
-            }
-
-            // Filter contacts by name or number (case-insensitive)
-            var searchLower = searchText.ToLowerInvariant();
-            var filtered = _chatContacts
-                .Where(c =>
-                    (c.Name != null && c.Name.ToLowerInvariant().Contains(searchLower)) ||
-                    (c.Number != null && c.Number.Contains(searchText)))
-                .ToList();
-
-            // Update ItemsSource with filtered results
-            ContactsTab.ChatContactsComboBoxCtrl.ItemsSource = filtered;
-
-            // Keep dropdown open while typing
-            if (!ContactsTab.ChatContactsComboBoxCtrl.IsDropDownOpen && filtered.Count > 0)
-            {
-                ContactsTab.ChatContactsComboBoxCtrl.IsDropDownOpen = true;
-            }
-        }
-
         #endregion
 
         #endregion
@@ -1417,30 +1246,83 @@ namespace WhatsAppSimHubPlugin.UI
 
         #region Display Tab
 
-        private void TargetDeviceCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void VoCore1Combo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // 🔥 Ignorar se está carregando devices (evita trigger a cada 5s)
+            HandleVoCoreSelection(
+                DisplayTab.VoCore1ComboBoxCtrl,
+                _settings.VoCore1_Serial,
+                (serial, name) => { _settings.VoCore1_Serial = serial; _settings.VoCore1_Name = name; }
+            );
+        }
+
+        private void VoCore2Combo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            HandleVoCoreSelection(
+                DisplayTab.VoCore2ComboBoxCtrl,
+                _settings.VoCore2_Serial,
+                (serial, name) => { _settings.VoCore2_Serial = serial; _settings.VoCore2_Name = name; }
+            );
+        }
+
+        private void HandleVoCoreSelection(ComboBox comboBox, string currentSerial, Action<string, string> updateSettings)
+        {
+            // Ignore if loading devices (prevents trigger during refresh)
             if (_isLoadingDevices) return;
 
-            // Null check: evento pode disparar antes de _plugin/_settings serem inicializados
+            // Null check: event may fire before _plugin/_settings are initialized
             if (_plugin == null || _settings == null) return;
 
-            if (DisplayTab.TargetDeviceComboBoxCtrl.SelectedItem is ComboBoxItem item && item.Tag != null)
+            if (comboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
             {
-                string newDevice = item.Tag.ToString();
-                string newDeviceName = item.Content?.ToString() ?? "";
+                string newSerial = item.Tag.ToString();
+                // Clean name: remove emojis and status indicators
+                string newName = item.Content?.ToString()
+                    ?.Replace("✅ ", "")
+                    ?.Replace("❌ ", "")
+                    ?.Replace(" (Offline)", "")
+                    ?.Trim() ?? "";
 
-                // 🔥 Só reattach se device REALMENTE mudou
-                if (_settings.TargetDevice != newDevice)
+                // Save selected VoCore if changed
+                if (currentSerial != newSerial)
                 {
-                    _settings.TargetDevice = newDevice;
-                    _settings.TargetDeviceName = newDeviceName; // Guardar o nome também
+                    updateSettings(newSerial, newName);
                     _plugin.SaveSettings();
                     _plugin.ApplyDisplaySettings();
+
+                    // Configure VoCore if it has a serial
+                    if (!string.IsNullOrEmpty(newSerial))
+                    {
+                        _plugin.ConfigureVoCore(newSerial);
+                    }
+
+                    // Update Test buttons state
+                    UpdateTestButtonState();
+
+                    // Refresh device lists to update exclusions
+                    RefreshDeviceList();
                 }
             }
         }
 
+        private void RemoveVoCore1Button_Click(object sender, RoutedEventArgs e)
+        {
+            _settings.VoCore1_Serial = "";
+            _settings.VoCore1_Name = "";
+            _plugin.SaveSettings();
+            _knownDeviceIds.Clear(); // Force UI refresh
+            RefreshDeviceList();
+            UpdateTestButtonState();
+        }
+
+        private void RemoveVoCore2Button_Click(object sender, RoutedEventArgs e)
+        {
+            _settings.VoCore2_Serial = "";
+            _settings.VoCore2_Name = "";
+            _plugin.SaveSettings();
+            _knownDeviceIds.Clear(); // Force UI refresh
+            RefreshDeviceList();
+            UpdateTestButtonState();
+        }
 
         #endregion
 
@@ -1709,9 +1591,6 @@ namespace WhatsAppSimHubPlugin.UI
             _settings.BackendMode = newMode;
             _plugin.SaveSettings();
 
-            // Atualizar UI da tab Contacts
-            UpdateContactsTabForBackend();
-
             // Fazer switch automático do backend
             try
             {
@@ -1905,32 +1784,6 @@ namespace WhatsAppSimHubPlugin.UI
                 File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {message}\n");
             }
             catch { }
-        }
-
-        /// <summary>
-        /// Atualizar UI da tab Contacts baseado no backend ativo
-        /// </summary>
-        private void UpdateContactsTabForBackend()
-        {
-            bool isBaileys = _settings.BackendMode == "baileys";
-
-            // Desativar funcionalidade de chats se for Baileys
-            ContactsTab.ChatContactsComboBoxCtrl.IsEnabled = !isBaileys;
-            ContactsTab.RefreshChatsButtonCtrl.IsEnabled = !isBaileys;
-            ContactsTab.AddFromChatsButtonCtrl.IsEnabled = !isBaileys;
-
-            // Atualizar texto de status
-            if (isBaileys)
-            {
-                ContactsTab.ChatsStatusTextCtrl.Text = "⚠️ Chat contacts list is not supported with Baileys backend. Please use WhatsApp-Web.js.";
-                ContactsTab.ChatsStatusTextCtrl.Foreground = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // Orange
-            }
-            else
-            {
-                // Restaurar texto original (será atualizado quando carregar contactos)
-                ContactsTab.ChatsStatusTextCtrl.Text = "Click Refresh to load contacts from active chats";
-                ContactsTab.ChatsStatusTextCtrl.Foreground = new SolidColorBrush(Color.FromRgb(133, 133, 133)); // Gray
-            }
         }
 
         #region Backend Libraries Management

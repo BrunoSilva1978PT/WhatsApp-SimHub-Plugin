@@ -10,11 +10,16 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
             InitializeComponent();
         }
 
-        // VoCore Enable/Disable
+        // VoCore Enable/Disable + Test button
         public ToggleButton VoCoreEnabledCheckboxCtrl => VoCoreEnabledCheckbox;
+        public Button TestVoCoresButtonCtrl => TestVoCoresButton;
 
-        // Device selection
-        public ComboBox TargetDeviceComboBoxCtrl => TargetDeviceComboBox;
-        public Button TestOverlayButtonCtrl => TestOverlayButton;
+        // VoCore 1 controls
+        public ComboBox VoCore1ComboBoxCtrl => VoCore1ComboBox;
+        public Button RemoveVoCore1ButtonCtrl => RemoveVoCore1Button;
+
+        // VoCore 2 controls
+        public ComboBox VoCore2ComboBoxCtrl => VoCore2ComboBox;
+        public Button RemoveVoCore2ButtonCtrl => RemoveVoCore2Button;
     }
 }

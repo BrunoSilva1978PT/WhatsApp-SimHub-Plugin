@@ -540,18 +540,47 @@ async function startWhatsApp() {
       // MESSAGES
       if (events["messages.upsert"]) {
         const upsert = events["messages.upsert"];
-        if (upsert.type !== "notify") return;
+        console.log(
+          "[MSG-IN] messages.upsert event, type: " +
+            upsert.type +
+            ", count: " +
+            upsert.messages?.length,
+        );
+
+        if (upsert.type !== "notify") {
+          console.log("[MSG-IN] SKIP: type is not 'notify'");
+          return;
+        }
 
         for (const msg of upsert.messages) {
-          if (!msg.message) continue;
-          if (msg.key.remoteJid === "status@broadcast") continue;
-          if (msg.key.fromMe) continue;
-          if (seenMessages.has(msg.key.id)) continue;
+          console.log(
+            "[MSG-IN] Processing message from: " +
+              (msg.key?.remoteJid || "unknown"),
+          );
+
+          if (!msg.message) {
+            console.log("[MSG-IN] SKIP: No message content");
+            continue;
+          }
+          if (msg.key.remoteJid === "status@broadcast") {
+            console.log("[MSG-IN] SKIP: Status broadcast");
+            continue;
+          }
+          if (msg.key.fromMe) {
+            console.log("[MSG-IN] SKIP: From me");
+            continue;
+          }
+          if (seenMessages.has(msg.key.id)) {
+            console.log("[MSG-IN] SKIP: Already seen");
+            continue;
+          }
           if (
             readyTimestamp > 0 &&
             msg.messageTimestamp * 1000 < readyTimestamp
-          )
+          ) {
+            console.log("[MSG-IN] SKIP: Old message (before ready)");
             continue;
+          }
 
           seenMessages.add(msg.key.id);
 
@@ -614,7 +643,10 @@ async function startWhatsApp() {
             continue;
           }
 
-          log(`[MSG] From: ${senderName} (${phoneNumber})`);
+          // ALWAYS log (for debugging)
+          console.log(
+            `[MSG-IN] ✅ ACCEPTED: ${senderName} (${phoneNumber}) - ${messageContent.substring(0, 30)}`,
+          );
 
           const messageData = {
             id: msg.key.id,
@@ -632,6 +664,7 @@ async function startWhatsApp() {
           }
 
           sendToPlugin({ type: "message", message: messageData });
+          console.log("[MSG-IN] → Sent to C#");
         }
       }
     });
