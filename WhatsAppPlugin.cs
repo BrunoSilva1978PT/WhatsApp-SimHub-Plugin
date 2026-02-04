@@ -36,19 +36,10 @@ namespace WhatsAppSimHubPlugin
         private MessageQueue _messageQueue;
 
         private VOCORESettings _vocoreSettings; // VoCore settings (typed!)
-        private DateTime _lastDashboardCheck = DateTime.MinValue; // Throttle dashboard verification
         private bool _isTestingMessage = false; // Flag to block queues during test
 
         private DashboardInstaller _dashboardInstaller; // Installer to reinstall dashboard
         private DashboardMerger _dashboardMerger; // Merger to combine dashboards
-
-        // Auto-detection state tracking (DataUpdate 1x per second)
-        private DateTime _lastAutoCheck = DateTime.MinValue;
-        private bool _lastDeviceOnline = false;
-        private bool _lastOverlayActive = false;
-        private string _lastDashboardName = null;
-        private bool _firstDataUpdateCheck = true; // Flag para forçar verificação inicial
-        private int _lastKnownDeviceCount = 0; // Track device count changes when no device selected
 
         // QUICK REPLIES: Now work via registered Actions
         // See RegisterActions() and SendQuickReply(int)
@@ -262,18 +253,7 @@ namespace WhatsAppSimHubPlugin
         /// </summary>
         public void ReattachAndActivateOverlay()
         {
-            // Re-attach to VoCore settings
-            AttachToVoCoreSettings();
-
-            // Activate overlay if attach was successful (in background to not block UI)
-            if (_vocoreSettings != null)
-            {
-                _ = Task.Run(() => EnsureOverlayActive());
-            }
-            else
-            {
-                WriteLog("❌ Could not reattach to VoCore - overlay not activated");
-            }
+            // TODO: Rewrite VoCore logic from scratch
         }
 
         // Class for device information
@@ -2107,8 +2087,7 @@ del ""%~f0""
             _messageQueue.OnGroupDisplay += MessageQueue_OnGroupDisplay;
             _messageQueue.OnMessageRemoved += MessageQueue_OnMessageRemoved;
 
-            // Attach overlay ao VoCore selecionado
-            AttachToVoCoreSettings();
+            // TODO: VoCore setup will be rewritten
         }
 
         /// <summary>
@@ -2154,157 +2133,7 @@ del ""%~f0""
         /// </summary>
         public void DataUpdate(PluginManager pluginManager, ref GameData data)
         {
-            // Verificar mudanças apenas 1x a cada 5 segundos (não a cada frame!)
-            var timeSinceLastCheck = (DateTime.Now - _lastAutoCheck).TotalSeconds;
-            if (timeSinceLastCheck < 5.0)
-                return;
-
-            _lastAutoCheck = DateTime.Now;
-
-            try
-            {
-                bool changeDetected = false;
-
-                // ===== 0. SE NÃO HÁ DEVICE SELECIONADO, VERIFICAR SE APARECERAM DEVICES NOVOS =====
-                if (string.IsNullOrEmpty(_settings.TargetDevice))
-                {
-                    // Verificar se há devices disponíveis
-                    var devices = GetAvailableDevices();
-                    if (devices.Count > 0 && devices.Count != _lastKnownDeviceCount)
-                    {
-                        // Apareceram devices novos - atualizar UI
-                        _settingsControl?.RefreshDeviceList();
-                        _lastKnownDeviceCount = devices.Count;
-                    }
-                    return; // Não há mais nada a fazer sem device selecionado
-                }
-
-                // ===== 1. VERIFICAR SE DEVICE ESTÁ ONLINE =====
-                bool deviceOnline = IsDeviceOnline(_settings.TargetDevice);
-
-                // 🔥 PRIMEIRA VEZ: Forçar verificação inicial se device já está online
-                if (_firstDataUpdateCheck && deviceOnline && _vocoreSettings != null)
-                {
-                    _lastDeviceOnline = deviceOnline;
-                    _lastOverlayActive = _vocoreSettings.UseOverlayDashboard;
-                    _lastDashboardName = _vocoreSettings.CurrentOverlayDashboard?.Dashboard;
-                    _firstDataUpdateCheck = false;
-                    changeDetected = true; // Forçar VerifySetup() no startup!
-                }
-                else if (_lastDeviceOnline != deviceOnline)
-                {
-                    if (deviceOnline)
-                    {
-                        WriteLog("✅ VoCore device reconnected - obtaining settings...");
-
-                        // Obter settings AGORA (não em background!)
-                        AttachToVoCoreSettings();
-
-                        // Atualizar UI device list
-                        _settingsControl?.RefreshDeviceList();
-
-                        // Se conseguiu obter settings, marca mudança para VerifySetup() correr
-                        if (_vocoreSettings != null)
-                        {
-                            changeDetected = true;
-                        }
-                    }
-                    else
-                    {
-                        WriteLog("⚠️ VoCore device disconnected!");
-                        // Limpar referência
-                        _vocoreSettings = null;
-
-                        // Atualizar UI device list
-                        _settingsControl?.RefreshDeviceList();
-                    }
-
-                    _lastDeviceOnline = deviceOnline;
-                }
-
-                // Só verificar overlay/dashboard se device está online E settings disponíveis
-                if (!deviceOnline || _vocoreSettings == null)
-                    return;
-
-                // ===== 2. VERIFICAR SE OVERLAY MUDOU (ON/OFF) - ACESSO DIRETO! =====
-                bool overlayActive = _vocoreSettings.UseOverlayDashboard;
-
-                if (_lastOverlayActive != overlayActive)
-                {
-                    WriteLog($"ℹ️ Information Overlay changed: {_lastOverlayActive} → {overlayActive}");
-                    _lastOverlayActive = overlayActive;
-                    changeDetected = true;
-                }
-
-                // ===== 3. VERIFICAR SE DASHBOARD MUDOU - ACESSO DIRETO! =====
-                if (_vocoreSettings.CurrentOverlayDashboard != null)
-                {
-                    string currentDashboard = _vocoreSettings.CurrentOverlayDashboard.Dashboard;
-
-                    if (_lastDashboardName != currentDashboard)
-                    {
-                        WriteLog($"ℹ️ Dashboard changed: \"{_lastDashboardName ?? "null"}\" → \"{currentDashboard ?? "null"}\"");
-                        _lastDashboardName = currentDashboard;
-                        changeDetected = true;
-                    }
-                }
-
-                // ===== 4. SE ALGO MUDOU, VERIFICAR SETUP =====
-                if (changeDetected)
-                {
-                    WriteLog("🔄 Change detected - running VerifySetup()...");
-                    VerifySetup();
-
-                    // 🔥 IMPORTANTE: Atualizar _lastDashboardName DEPOIS do VerifySetup()
-                    // para não detectar a própria mudança como mudança externa!
-                    if (_vocoreSettings?.CurrentOverlayDashboard != null)
-                    {
-                        _lastDashboardName = _vocoreSettings.CurrentOverlayDashboard.Dashboard;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                WriteLog($"⚠️ DataUpdate auto-check error: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Verifica se um device específico está online (existe na lista do SimHub)
-        /// </summary>
-        private bool IsDeviceOnline(string targetDevice)
-        {
-            if (string.IsNullOrEmpty(targetDevice))
-                return false;
-
-            try
-            {
-                // GetAllDevices é público!
-                var devicesEnumerable = PluginManager.GetAllDevices(true);
-                if (devicesEnumerable == null)
-                    return false;
-
-                // ZERO REFLECTION!
-                foreach (var device in devicesEnumerable)
-                {
-                    // ✅ CAST para DeviceInstance (classe base pública)
-                    var deviceInstance = device as DeviceInstance;
-                    if (deviceInstance == null) continue;
-
-                    // ✅ ACESSO DIRETO às propriedades!
-                    var mainName = deviceInstance.MainDisplayName;
-                    var instanceId = deviceInstance.InstanceId.ToString();
-
-                    if (mainName == targetDevice || instanceId == targetDevice)
-                        return true; // ✅ Device encontrado!
-                }
-
-                return false; // ❌ Device não encontrado
-            }
-            catch
-            {
-                return false;
-            }
+            // Empty - VoCore logic will be rewritten from scratch
         }
 
         /// <summary>
@@ -2489,17 +2318,7 @@ del ""%~f0""
                 {
                     WriteLog("❌ ERROR: VoCore settings not attached!");
                     WriteLog("   Please select a VoCore in settings.");
-                    WriteLog("   Attempting to attach now...");
-
-                    AttachToVoCoreSettings();
-
-                    if (_vocoreSettings == null)
-                    {
-                        WriteLog("❌ FAILED: Could not attach to VoCore settings");
-                        return;
-                    }
-
-                    WriteLog("✅ SUCCESS: Attached to VoCore settings!");
+                    return;
                 }
 
                 // Criar mensagem de teste
@@ -3002,19 +2821,7 @@ del ""%~f0""
                 // Agora sim, arrancar Node.js!
                 await StartNodeJs().ConfigureAwait(false);
 
-                // Tentar anexar ao VoCore se já configurado
-                if (!string.IsNullOrEmpty(_settings.TargetDevice))
-                {
-                    AttachToVoCoreSettings();
-
-                    // Auto-ativar overlay (em background para não bloquear)
-                    if (_vocoreSettings != null)
-                    {
-                        WriteLog("🎯 Auto-activating overlay...");
-                        await Task.Delay(1000).ConfigureAwait(false);
-                        _ = Task.Run(() => EnsureOverlayActive());
-                    }
-                }
+                // TODO: VoCore setup will be rewritten
 
                 WriteLog("🎉 Plugin ready to use!");
             }
