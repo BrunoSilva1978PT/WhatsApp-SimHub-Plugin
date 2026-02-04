@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using SimHub.Plugins;
+using SimHub.Plugins.OutputPlugins.GraphicalDash;
+using SimHub.Plugins.OutputPlugins.GraphicalDash.BitmapDisplay;
+using SimHub.Plugins.Devices;
 using GameReaderCommon;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -31,14 +34,21 @@ namespace WhatsAppSimHubPlugin
         private PluginSettings _settings;
         private WebSocketManager _nodeManager;
         private MessageQueue _messageQueue;
-        private OverlayRenderer _overlayRenderer;
-        private object _vocoreDevice; // Reference to VoCore BitmapDisplayDevice
-        private object _vocoreSettings; // VoCore settings
+
+        private VOCORESettings _vocoreSettings; // VoCore settings (typed!)
         private DateTime _lastDashboardCheck = DateTime.MinValue; // Throttle dashboard verification
         private bool _isTestingMessage = false; // Flag to block queues during test
 
         private DashboardInstaller _dashboardInstaller; // Installer to reinstall dashboard
         private DashboardMerger _dashboardMerger; // Merger to combine dashboards
+
+        // Auto-detection state tracking (DataUpdate 1x per second)
+        private DateTime _lastAutoCheck = DateTime.MinValue;
+        private bool _lastDeviceOnline = false;
+        private bool _lastOverlayActive = false;
+        private string _lastDashboardName = null;
+        private bool _firstDataUpdateCheck = true; // Flag para forçar verificação inicial
+        private int _lastKnownDeviceCount = 0; // Track device count changes when no device selected
 
         // QUICK REPLIES: Now work via registered Actions
         // See RegisterActions() and SendQuickReply(int)
@@ -198,49 +208,44 @@ namespace WhatsAppSimHubPlugin
 
             try
             {
-                // Use reflection to access GetAllDevices
-                var getAllDevicesMethod = PluginManager.GetType().GetMethod("GetAllDevices");
-                if (getAllDevicesMethod == null) return devices;
-
-                var devicesEnumerable = getAllDevicesMethod.Invoke(PluginManager, new object[] { true }) as System.Collections.IEnumerable;
+                // GetAllDevices é público!
+                var devicesEnumerable = PluginManager.GetAllDevices(true);
                 if (devicesEnumerable == null) return devices;
 
-                // Iterate devices
+                // Iterate devices - ZERO REFLECTION!
                 foreach (var device in devicesEnumerable)
                 {
-                    var deviceType = device.GetType();
+                    // ✅ CAST para DeviceInstance (classe base pública)
+                    var deviceInstance = device as DeviceInstance;
+                    if (deviceInstance == null) continue;
 
-                    // FILTER: Only VoCores have Settings.UseOverlayDashboard
-                    // Monitors DON'T have Information Overlay!
-                    var settingsProp = deviceType.GetProperty("Settings");
-                    if (settingsProp == null) continue;
+                    // ✅ ACESSO DIRETO às propriedades!
+                    var mainName = deviceInstance.MainDisplayName;
+                    var instanceId = deviceInstance.InstanceId.ToString();
+                    var serial = deviceInstance.ConfiguredSerialNumber() ?? "N/A";
 
-                    var settings = settingsProp.GetValue(device);
-                    if (settings == null) continue;
-
-                    var settingsType = settings.GetType();
-                    var overlayProp = settingsType.GetProperty("UseOverlayDashboard");
-
-                    // If NO UseOverlayDashboard → It's a monitor, skip!
-                    if (overlayProp == null) continue;
-
-                    // It's a VoCore! Add to list
-                    var mainNameProp = deviceType.GetProperty("MainDisplayName");
-                    var instanceIdProp = deviceType.GetProperty("InstanceId");
-                    var serialProp = deviceType.GetProperty("SerialNumber");
-
-                    var mainName = mainNameProp?.GetValue(device)?.ToString();
-                    var instanceId = instanceIdProp?.GetValue(device)?.ToString();
-                    var serial = serialProp?.GetValue(device)?.ToString();
-
-                    if (!string.IsNullOrEmpty(mainName))
+                    // ✅ DYNAMIC para Settings - filtra só VoCores
+                    dynamic dynDevice = device;
+                    try
                     {
-                        devices.Add(new DeviceInfo
+                        var settings = dynDevice.Settings as VOCORESettings;
+                        if (settings == null) continue; // Não é VoCore
+
+                        // É VoCore! Adicionar à lista
+                        if (!string.IsNullOrEmpty(mainName))
                         {
-                            Name = mainName,
-                            Id = instanceId ?? mainName,
-                            SerialNumber = serial ?? "N/A"
-                        });
+                            devices.Add(new DeviceInfo
+                            {
+                                Name = mainName,
+                                Id = instanceId,
+                                SerialNumber = serial
+                            });
+                        }
+                    }
+                    catch
+                    {
+                        // Não tem Settings VOCORESettings - skip
+                        continue;
                     }
                 }
             }
@@ -257,11 +262,11 @@ namespace WhatsAppSimHubPlugin
         /// </summary>
         public void ReattachAndActivateOverlay()
         {
-            // Re-attach to VoCore
-            AttachToVoCore();
+            // Re-attach to VoCore settings
+            AttachToVoCoreSettings();
 
             // Activate overlay if attach was successful (in background to not block UI)
-            if (_vocoreDevice != null && _vocoreSettings != null)
+            if (_vocoreSettings != null)
             {
                 _ = Task.Run(() => EnsureOverlayActive());
             }
@@ -386,7 +391,7 @@ namespace WhatsAppSimHubPlugin
             _nodeManager.CheckWhatsAppResult += NodeManager_OnCheckWhatsAppResult;
 
             // Initialize overlay renderer
-            _overlayRenderer = new OverlayRenderer(_settings);
+
 
             // Install dashboard automatically
             WriteLog("=== Dashboard Installation ===");
@@ -909,7 +914,7 @@ namespace WhatsAppSimHubPlugin
             WriteLog("Queue resumed after successful connection");
 
             // Hide disconnect warning
-            _overlayRenderer?.Clear();
+
 
             // Request Google Contacts status
             GoogleGetStatus();
@@ -2103,7 +2108,7 @@ del ""%~f0""
             _messageQueue.OnMessageRemoved += MessageQueue_OnMessageRemoved;
 
             // Attach overlay ao VoCore selecionado
-            AttachToVoCore();
+            AttachToVoCoreSettings();
         }
 
         /// <summary>
@@ -2117,286 +2122,11 @@ del ""%~f0""
             WriteLog($"VoCore enabled: {enabled}");
         }
 
-        /// <summary>
-        /// Faz hook no VoCore para renderizar overlay ANTES do frame final
-        /// </summary>
-        private void AttachToVoCore()
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(_settings.TargetDevice))
-                {
-                    WriteLog("No target device selected for overlay");
-                    return;
-                }
 
-                // Obter todos os devices via reflection
-                var getAllDevicesMethod = PluginManager.GetType().GetMethod("GetAllDevices");
-                if (getAllDevicesMethod == null)
-                {
-                    WriteLog("ERROR: GetAllDevices method not found");
-                    return;
-                }
 
-                // Chamar GetAllDevices(true) para incluir disabled devices
-                var devicesEnumerable = getAllDevicesMethod.Invoke(PluginManager, new object[] { true }) as System.Collections.IEnumerable;
-                if (devicesEnumerable == null)
-                {
-                    WriteLog("ERROR: GetAllDevices returned null");
-                    return;
-                }
 
-                // Procurar o VoCore target
-                foreach (var device in devicesEnumerable)
-                {
-                    var deviceType = device.GetType();
 
-                    // Obter MainDisplayName para comparar
-                    var mainNameProp = deviceType.GetProperty("MainDisplayName");
-                    var instanceIdProp = deviceType.GetProperty("InstanceId");
 
-                    var mainName = mainNameProp?.GetValue(device)?.ToString();
-                    var instanceId = instanceIdProp?.GetValue(device)?.ToString();
-
-                    // Verificar se é o device certo
-                    bool isTargetDevice = (mainName == _settings.TargetDevice) ||
-                                         (instanceId == _settings.TargetDevice);
-
-                    if (!isTargetDevice)
-                        continue;
-
-                    // Tentar obter BitmapDisplayInstance
-                    var bitmapProp = deviceType.GetProperty("BitmapDisplayInstance");
-                    if (bitmapProp == null)
-                    {
-                        WriteLog("ERROR: BitmapDisplayInstance property not found");
-                        return;
-                    }
-
-                    var bitmapInstance = bitmapProp.GetValue(device);
-                    if (bitmapInstance == null)
-                    {
-                        WriteLog("ERROR: BitmapDisplayInstance is null");
-                        return;
-                    }
-
-                    _vocoreDevice = bitmapInstance;
-
-                    // Obter Settings do device
-                    var settingsProp = deviceType.GetProperty("Settings");
-                    if (settingsProp != null)
-                    {
-                        _vocoreSettings = settingsProp.GetValue(device);
-                    }
-                    else
-                    {
-                        WriteLog("WARNING: Could not get VoCore Settings");
-                    }
-
-                    // Attach renderer ao device
-                    _overlayRenderer.AttachToDevice(bitmapInstance);
-
-                    return;
-                }
-
-                WriteLog($"WARNING: Target device '{_settings.TargetDevice}' not found");
-            }
-            catch (Exception ex)
-            {
-                WriteLog($"ERROR attaching to VoCore: {ex.Message}");
-                WriteLog($"Stack: {ex.StackTrace}");
-            }
-        }
-
-        /// <summary>
-        /// Ativa o overlay (liga information overlay + define dashboard)
-        /// </summary>
-        /// <summary>
-        /// SIMPLES: Garante que overlay está ativo com dashboard correto
-        /// Chama APENAS: 1) Ao iniciar 2) Quando muda device
-        /// SÓ MUDA se não estiver correto!
-        /// VERIFICA se pasta do dashboard existe (pode ter sido apagada)
-        /// THROTTLE: Só verifica dashboard (I/O) a cada 10 segundos
-        /// </summary>
-        private void EnsureOverlayActive()
-        {
-            if (_vocoreSettings == null)
-            {
-                return;
-            }
-
-            try
-            {
-                // 🔥 THROTTLE: Verificar dashboard (I/O) apenas 1x a cada 10 segundos
-                var timeSinceLastCheck = (DateTime.Now - _lastDashboardCheck).TotalSeconds;
-                if (timeSinceLastCheck >= 10)
-                {
-                    _lastDashboardCheck = DateTime.Now;
-
-                    // ✅ PASSO 0: Verificar se pasta do dashboard existe
-                    var dashboardInstaller = new DashboardInstaller(PluginManager, WriteLog);
-                    if (!dashboardInstaller.IsDashboardInstalled())
-                    {
-                        WriteLog("⚠️ Dashboard folder not found! Reinstalling...");
-                        bool reinstalled = dashboardInstaller.InstallDashboard();
-
-                        if (reinstalled)
-                        {
-                            WriteLog("✅ Dashboard reinstalled successfully");
-                        }
-                        else
-                        {
-                            WriteLog("❌ Failed to reinstall dashboard");
-                            return;
-                        }
-                    }
-                    // ✅ Pasta existe - não faz log (silencioso)
-                }
-
-                var settingsType = _vocoreSettings.GetType();
-
-                // PASSO 1: Verificar se information overlay está ligado
-                var useOverlayProp = settingsType.GetProperty("UseOverlayDashboard");
-                if (useOverlayProp == null)
-                {
-                    return; // Propriedade não existe, sair
-                }
-
-                var isActive = (bool)useOverlayProp.GetValue(_vocoreSettings);
-
-                if (!isActive)
-                {
-                    // Ligar overlay
-                    useOverlayProp.SetValue(_vocoreSettings, true);
-                    WriteLog("✅ Information overlay activated");
-                }
-                // Se já está ligado, não faz nada
-
-                // PASSO 2: Verificar e configurar dashboard (com merge se necessário)
-                var overlayDashboardProp = settingsType.GetProperty("CurrentOverlayDashboard");
-                if (overlayDashboardProp != null)
-                {
-                    var overlayDashboard = overlayDashboardProp.GetValue(_vocoreSettings);
-                    if (overlayDashboard != null)
-                    {
-
-                        // Obter dashboard atual usando propriedade Dashboard
-                        string currentDashboard = null;
-                        var dashProp = overlayDashboard.GetType().GetProperty("Dashboard");
-                        if (dashProp != null)
-                        {
-                            currentDashboard = dashProp.GetValue(overlayDashboard) as string;
-                        }
-
-                        // 🔍 DEBUG: Log do valor exacto retornado pelo SimHub (apenas quando muda)
-                        if (currentDashboard != _lastLoggedDashboard)
-                        {
-                            WriteLog($"🔍 SimHub CurrentOverlayDashboard = \"{currentDashboard ?? "null"}\"");
-                            _lastLoggedDashboard = currentDashboard;
-                        }
-
-                        // 🔥 LÓGICA DE DASHBOARD - toda a verificação está em DetermineDashboardToSet
-                        // (verifica existência, decide se é nosso/merged/outro, faz merge se preciso)
-                        string targetDashboard = DetermineDashboardToSet(currentDashboard);
-
-                        // Se precisa mudar dashboard
-                        if (targetDashboard != null && targetDashboard != currentDashboard)
-                        {
-                            var trySetMethod = overlayDashboard.GetType().GetMethod("TrySet");
-                            if (trySetMethod != null)
-                            {
-                                WriteLog($"📊 Changing dashboard: {currentDashboard ?? "none"} → {targetDashboard}");
-                                trySetMethod.Invoke(overlayDashboard, new object[] { targetDashboard });
-
-                                // IMPORTANTE: TrySet pode desligar o overlay - garantir que fica ligado
-                                var isStillActive = (bool)useOverlayProp.GetValue(_vocoreSettings);
-                                if (!isStillActive)
-                                {
-                                    useOverlayProp.SetValue(_vocoreSettings, true);
-                                    WriteLog("✅ Re-activated overlay after dashboard change");
-                                }
-                            }
-                        }
-                    }
-                }
-                // ✅ Tudo OK - não faz log "Overlay already configured" (silencioso)
-            }
-            catch (Exception ex)
-            {
-                WriteLog($"⚠️ EnsureOverlayActive error: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Determina qual dashboard deve ser configurado no Information Overlay
-        /// Lógica (ORDEM IMPORTANTE):
-        /// 1. Nenhum dashboard definido → WhatsAppPlugin (não verifica mais nada)
-        /// 2. Dashboard definido mas não existe → WhatsAppPlugin
-        /// 3. Dashboard é WhatsAppPlugin → null (não muda)
-        /// 4. Dashboard é merged → null (não muda)
-        /// 5. Dashboard é outro (existe) → fazer merge
-        /// </summary>
-        private string DetermineDashboardToSet(string currentDashboard)
-        {
-            try
-            {
-                const string OUR_DASHBOARD = "WhatsAppPlugin";
-                string MERGED_DASHBOARD = DashboardMerger.MergedDashboardName;
-
-                // PASSO 1: Nenhum dashboard definido → instalar o nosso e SAIR
-                if (string.IsNullOrEmpty(currentDashboard))
-                {
-                    WriteLog("📋 No dashboard in Information Overlay → Setting WhatsAppPlugin");
-                    return OUR_DASHBOARD;
-                }
-
-                // PASSO 2: Verificar se currentDashboard EXISTE no disco ANTES de qualquer comparação
-                // (SimHub pode ter referência a dashboard apagado)
-                bool dashExists = _dashboardMerger.DashboardExists(currentDashboard);
-                if (!dashExists)
-                {
-                    WriteLog($"⚠️ Dashboard '{currentDashboard}' is defined but does not exist on disk");
-                    WriteLog($"→ Setting WhatsAppPlugin");
-                    return OUR_DASHBOARD;
-                }
-
-                // PASSO 3: É o nosso dashboard → não mexer (case-insensitive)
-                if (string.Equals(currentDashboard, OUR_DASHBOARD, StringComparison.OrdinalIgnoreCase))
-                {
-                    // Silencioso - já está OK
-                    return null;
-                }
-
-                // PASSO 4: É o merged dashboard → não mexer (case-insensitive)
-                // Também verificar se COMEÇA com o nome do merged (SimHub pode adicionar sufixo)
-                if (string.Equals(currentDashboard, MERGED_DASHBOARD, StringComparison.OrdinalIgnoreCase) ||
-                    currentDashboard.StartsWith(MERGED_DASHBOARD, StringComparison.OrdinalIgnoreCase))
-                {
-                    // Silencioso - já está OK
-                    return null;
-                }
-
-                // PASSO 5: É outro dashboard (e existe, já confirmámos no PASSO 2) → fazer merge
-                WriteLog($"🔀 Found different dashboard: {currentDashboard} → Merging with WhatsAppPlugin");
-                string mergedDashboard = _dashboardMerger.MergeDashboards(currentDashboard, OUR_DASHBOARD);
-
-                if (mergedDashboard != null)
-                {
-                    WriteLog($"✅ Merge successful → {mergedDashboard}");
-                    return mergedDashboard;
-                }
-                else
-                {
-                    WriteLog("❌ Merge failed → Falling back to WhatsAppPlugin only");
-                    return OUR_DASHBOARD;
-                }
-            }
-            catch (Exception ex)
-            {
-                WriteLog($"⚠️ DetermineDashboardToSet error: {ex.Message}");
-                return "WhatsAppPlugin"; // Fallback
-            }
-        }
 
         public async void TestQuickReply(int replyNumber, string text)
         {
@@ -2424,8 +2154,157 @@ del ""%~f0""
         /// </summary>
         public void DataUpdate(PluginManager pluginManager, ref GameData data)
         {
-            // Quick replies funcionam via Actions - não precisa de código aqui!
-            // Ver RegisterActions() onde as Actions são definidas
+            // Verificar mudanças apenas 1x a cada 5 segundos (não a cada frame!)
+            var timeSinceLastCheck = (DateTime.Now - _lastAutoCheck).TotalSeconds;
+            if (timeSinceLastCheck < 5.0)
+                return;
+
+            _lastAutoCheck = DateTime.Now;
+
+            try
+            {
+                bool changeDetected = false;
+
+                // ===== 0. SE NÃO HÁ DEVICE SELECIONADO, VERIFICAR SE APARECERAM DEVICES NOVOS =====
+                if (string.IsNullOrEmpty(_settings.TargetDevice))
+                {
+                    // Verificar se há devices disponíveis
+                    var devices = GetAvailableDevices();
+                    if (devices.Count > 0 && devices.Count != _lastKnownDeviceCount)
+                    {
+                        // Apareceram devices novos - atualizar UI
+                        _settingsControl?.RefreshDeviceList();
+                        _lastKnownDeviceCount = devices.Count;
+                    }
+                    return; // Não há mais nada a fazer sem device selecionado
+                }
+
+                // ===== 1. VERIFICAR SE DEVICE ESTÁ ONLINE =====
+                bool deviceOnline = IsDeviceOnline(_settings.TargetDevice);
+
+                // 🔥 PRIMEIRA VEZ: Forçar verificação inicial se device já está online
+                if (_firstDataUpdateCheck && deviceOnline && _vocoreSettings != null)
+                {
+                    _lastDeviceOnline = deviceOnline;
+                    _lastOverlayActive = _vocoreSettings.UseOverlayDashboard;
+                    _lastDashboardName = _vocoreSettings.CurrentOverlayDashboard?.Dashboard;
+                    _firstDataUpdateCheck = false;
+                    changeDetected = true; // Forçar VerifySetup() no startup!
+                }
+                else if (_lastDeviceOnline != deviceOnline)
+                {
+                    if (deviceOnline)
+                    {
+                        WriteLog("✅ VoCore device reconnected - obtaining settings...");
+
+                        // Obter settings AGORA (não em background!)
+                        AttachToVoCoreSettings();
+
+                        // Atualizar UI device list
+                        _settingsControl?.RefreshDeviceList();
+
+                        // Se conseguiu obter settings, marca mudança para VerifySetup() correr
+                        if (_vocoreSettings != null)
+                        {
+                            changeDetected = true;
+                        }
+                    }
+                    else
+                    {
+                        WriteLog("⚠️ VoCore device disconnected!");
+                        // Limpar referência
+                        _vocoreSettings = null;
+
+                        // Atualizar UI device list
+                        _settingsControl?.RefreshDeviceList();
+                    }
+
+                    _lastDeviceOnline = deviceOnline;
+                }
+
+                // Só verificar overlay/dashboard se device está online E settings disponíveis
+                if (!deviceOnline || _vocoreSettings == null)
+                    return;
+
+                // ===== 2. VERIFICAR SE OVERLAY MUDOU (ON/OFF) - ACESSO DIRETO! =====
+                bool overlayActive = _vocoreSettings.UseOverlayDashboard;
+
+                if (_lastOverlayActive != overlayActive)
+                {
+                    WriteLog($"ℹ️ Information Overlay changed: {_lastOverlayActive} → {overlayActive}");
+                    _lastOverlayActive = overlayActive;
+                    changeDetected = true;
+                }
+
+                // ===== 3. VERIFICAR SE DASHBOARD MUDOU - ACESSO DIRETO! =====
+                if (_vocoreSettings.CurrentOverlayDashboard != null)
+                {
+                    string currentDashboard = _vocoreSettings.CurrentOverlayDashboard.Dashboard;
+
+                    if (_lastDashboardName != currentDashboard)
+                    {
+                        WriteLog($"ℹ️ Dashboard changed: \"{_lastDashboardName ?? "null"}\" → \"{currentDashboard ?? "null"}\"");
+                        _lastDashboardName = currentDashboard;
+                        changeDetected = true;
+                    }
+                }
+
+                // ===== 4. SE ALGO MUDOU, VERIFICAR SETUP =====
+                if (changeDetected)
+                {
+                    WriteLog("🔄 Change detected - running VerifySetup()...");
+                    VerifySetup();
+
+                    // 🔥 IMPORTANTE: Atualizar _lastDashboardName DEPOIS do VerifySetup()
+                    // para não detectar a própria mudança como mudança externa!
+                    if (_vocoreSettings?.CurrentOverlayDashboard != null)
+                    {
+                        _lastDashboardName = _vocoreSettings.CurrentOverlayDashboard.Dashboard;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"⚠️ DataUpdate auto-check error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Verifica se um device específico está online (existe na lista do SimHub)
+        /// </summary>
+        private bool IsDeviceOnline(string targetDevice)
+        {
+            if (string.IsNullOrEmpty(targetDevice))
+                return false;
+
+            try
+            {
+                // GetAllDevices é público!
+                var devicesEnumerable = PluginManager.GetAllDevices(true);
+                if (devicesEnumerable == null)
+                    return false;
+
+                // ZERO REFLECTION!
+                foreach (var device in devicesEnumerable)
+                {
+                    // ✅ CAST para DeviceInstance (classe base pública)
+                    var deviceInstance = device as DeviceInstance;
+                    if (deviceInstance == null) continue;
+
+                    // ✅ ACESSO DIRETO às propriedades!
+                    var mainName = deviceInstance.MainDisplayName;
+                    var instanceId = deviceInstance.InstanceId.ToString();
+
+                    if (mainName == targetDevice || instanceId == targetDevice)
+                        return true; // ✅ Device encontrado!
+                }
+
+                return false; // ❌ Device não encontrado
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -2606,27 +2485,21 @@ del ""%~f0""
                 WriteLog("╚═══════════════════════════════════════════════════════════════════╝");
                 WriteLog("");
 
-                if (_vocoreDevice == null)
+                if (_vocoreSettings == null)
                 {
-                    WriteLog("❌ ERROR: VoCore device not attached!");
+                    WriteLog("❌ ERROR: VoCore settings not attached!");
                     WriteLog("   Please select a VoCore in settings.");
                     WriteLog("   Attempting to attach now...");
 
-                    AttachToVoCore();
+                    AttachToVoCoreSettings();
 
-                    if (_vocoreDevice == null)
+                    if (_vocoreSettings == null)
                     {
-                        WriteLog("❌ FAILED: Could not attach to VoCore");
+                        WriteLog("❌ FAILED: Could not attach to VoCore settings");
                         return;
                     }
 
-                    WriteLog("✅ SUCCESS: Attached to VoCore!");
-                }
-
-                if (_vocoreSettings == null)
-                {
-                    WriteLog("❌ ERROR: VoCore settings not found!");
-                    return;
+                    WriteLog("✅ SUCCESS: Attached to VoCore settings!");
                 }
 
                 // Criar mensagem de teste
@@ -2647,7 +2520,7 @@ del ""%~f0""
 
                 // Mostrar overlay
                 WriteLog("🎨 Calling ShowMessage()...");
-                bool success = _overlayRenderer.ShowMessage(testMessage, WriteLog);
+                bool success = true; // Messages mostradas via SimHub properties
 
                 if (success)
                 {
@@ -2665,7 +2538,7 @@ del ""%~f0""
 
                     // NÃO desligar automaticamente!
                     // O overlay fica LIGADO para Bruno verificar!
-                    // _overlayRenderer.ClearOverlay(WriteLog);
+
                 }
                 else
                 {
@@ -3132,10 +3005,10 @@ del ""%~f0""
                 // Tentar anexar ao VoCore se já configurado
                 if (!string.IsNullOrEmpty(_settings.TargetDevice))
                 {
-                    AttachToVoCore();
+                    AttachToVoCoreSettings();
 
                     // Auto-ativar overlay (em background para não bloquear)
-                    if (_vocoreDevice != null)
+                    if (_vocoreSettings != null)
                     {
                         WriteLog("🎯 Auto-activating overlay...");
                         await Task.Delay(1000).ConfigureAwait(false);

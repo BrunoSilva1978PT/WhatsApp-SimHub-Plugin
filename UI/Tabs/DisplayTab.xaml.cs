@@ -15,8 +15,6 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
 
         // Device selection
         public ComboBox TargetDeviceComboBoxCtrl => TargetDeviceComboBox;
-        public Button RefreshDevicesButtonCtrl => RefreshDevicesButton;
         public Button TestOverlayButtonCtrl => TestOverlayButton;
-        public TextBlock DeviceStatusLabelCtrl => DeviceStatusLabel;
     }
 }

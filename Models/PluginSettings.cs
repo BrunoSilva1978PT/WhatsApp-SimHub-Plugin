@@ -19,6 +19,7 @@ namespace WhatsAppSimHubPlugin.Models
         // Display
         public bool VoCoreEnabled { get; set; } = true; // Enable/disable VoCore output (disable for VR-only users)
         public string TargetDevice { get; set; } = "";
+        public string TargetDeviceName { get; set; } = ""; // Nome do dispositivo (guardado para mostrar quando offline)
 
         // Queue
         public int MaxGroupSize { get; set; } = 5; // Max messages per contact in queue

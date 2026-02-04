@@ -128,47 +128,69 @@ namespace WhatsAppSimHubPlugin.Core
                 const int OVERLAY_NATIVE_WIDTH = 850;
                 const int OVERLAY_NATIVE_HEIGHT = 480;
 
-                // Resolução final é SEMPRE a do base dash (1º dash nunca se mexe)
-                int finalWidth = baseWidth;
-                int finalHeight = baseHeight;
+                // ✅ NOVA LÓGICA: Resolução final é SEMPRE a MAIOR entre base e overlay
+                int finalWidth = Math.Max(baseWidth, OVERLAY_NATIVE_WIDTH);
+                int finalHeight = Math.Max(baseHeight, OVERLAY_NATIVE_HEIGHT);
 
-                // Calcular scale apenas se base > overlay nativo
+                _log?.Invoke($"Base dashboard: {baseWidth}x{baseHeight}");
+                _log?.Invoke($"Overlay dashboard: {OVERLAY_NATIVE_WIDTH}x{OVERLAY_NATIVE_HEIGHT}");
+                _log?.Invoke($"Final merged resolution (MAX): {finalWidth}x{finalHeight}");
+
+                // Calcular scale para cada layer
+                double baseScale = 1.0;
+                double baseLeft = 0.0;
+                double baseTop = 0.0;
+
                 double overlayScale = 1.0;
                 double overlayLeft = 0.0;
                 double overlayTop = 0.0;
 
-                if (baseWidth > OVERLAY_NATIVE_WIDTH || baseHeight > OVERLAY_NATIVE_HEIGHT)
+                // Se final > base, escalar base dashboard
+                if (finalWidth > baseWidth || finalHeight > baseHeight)
                 {
-                    // Base é maior - precisamos escalar o overlay para caber
-                    overlayScale = Math.Min(
-                        (double)baseWidth / OVERLAY_NATIVE_WIDTH,
-                        (double)baseHeight / OVERLAY_NATIVE_HEIGHT
+                    baseScale = Math.Min(
+                        (double)finalWidth / baseWidth,
+                        (double)finalHeight / baseHeight
                     );
-
-                    _log?.Invoke($"Base ({baseWidth}x{baseHeight}) > Overlay native ({OVERLAY_NATIVE_WIDTH}x{OVERLAY_NATIVE_HEIGHT})");
-                    _log?.Invoke($"Scaling overlay: {overlayScale:F3}x");
+                    _log?.Invoke($"Scaling base dashboard: {baseScale:F3}x");
                 }
-                else
+
+                // Se final > overlay, escalar overlay dashboard
+                if (finalWidth > OVERLAY_NATIVE_WIDTH || finalHeight > OVERLAY_NATIVE_HEIGHT)
                 {
-                    _log?.Invoke($"Base ({baseWidth}x{baseHeight}) <= Overlay native - no scaling needed");
+                    overlayScale = Math.Min(
+                        (double)finalWidth / OVERLAY_NATIVE_WIDTH,
+                        (double)finalHeight / OVERLAY_NATIVE_HEIGHT
+                    );
+                    _log?.Invoke($"Scaling overlay dashboard: {overlayScale:F3}x");
                 }
+                // Calcular dimensões do base layer (escaladas se necessário)
+                double baseLayerWidth = baseWidth * baseScale;
+                double baseLayerHeight = baseHeight * baseScale;
 
-                _log?.Invoke($"Final merged resolution: {finalWidth}x{finalHeight}");
                 var baseLayer = new JObject();
                 baseLayer["$type"] = "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.Layer, SimHub.Plugins";
                 baseLayer["Name"] = "BaseDashboardLayer";
-                baseLayer["Top"] = 0.0;
-                baseLayer["Left"] = 0.0;
-                baseLayer["Height"] = finalHeight;
-                baseLayer["Width"] = finalWidth;
+                baseLayer["Top"] = baseTop;
+                baseLayer["Left"] = baseLeft;
+                baseLayer["Height"] = baseLayerHeight;
+                baseLayer["Width"] = baseLayerWidth;
                 baseLayer["BackgroundColor"] = baseDash["BackgroundColor"]?.ToString() ?? "#FF000000";
                 baseLayer["Visible"] = true;
                 baseLayer["Group"] = false;
-                // Clonar items com logging detalhado
+
+                // Clonar e escalar base items se necessário
                 var clonedBaseItems = new JArray();
                 foreach (var item in baseItems)
                 {
                     var cloned = item.DeepClone();
+
+                    // Escalar item se base foi escalado
+                    if (baseScale != 1.0)
+                    {
+                        ScaleItem(cloned, baseScale);
+                    }
+
                     clonedBaseItems.Add(cloned);
                 }
                 baseLayer["Childrens"] = clonedBaseItems;

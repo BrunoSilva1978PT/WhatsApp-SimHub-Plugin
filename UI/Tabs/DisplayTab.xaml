@@ -27,21 +27,13 @@
                             ToolTip="Enable or disable VoCore display. Disable if using VR/overlay only."/>
 
                     <ComboBox x:Name="TargetDeviceComboBox"
-                              Width="300"
+                              Width="400"
                               Height="36"
                               Background="#252526"
                               Foreground="White"
                               BorderBrush="#3E3E42">
                         <!-- Devices will be loaded dynamically -->
                     </ComboBox>
-
-                    <styles:SHButtonPrimary x:Name="RefreshDevicesButton" Content="🔄 Refresh"
-                            Width="100" Height="36"
-                            Margin="10,0,0,0"
-                            Background="#007ACC"
-                            Foreground="White"
-                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                            ToolTip="Refresh VoCore device list"/>
 
                     <styles:SHButtonPrimary x:Name="TestOverlayButton" Content="🧪 Test"
                             Width="80" Height="36"
@@ -50,23 +42,31 @@
                             Foreground="White"
                             IsEnabled="False"
                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                            ToolTip="Test overlay on selected VoCore"/>
-
-                    <TextBlock x:Name="DeviceStatusLabel"
-                               Text="Checking..."
-                               VerticalAlignment="Center"
-                               Margin="15,0,0,0"
-                               FontSize="12"
-                               FontWeight="Bold"/>
+                            ToolTip="Send a test message to verify VoCore is working"/>
                 </StackPanel>
 
                 <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,15,0,0">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White"/>
-                        <TextBlock Text="Select a VoCore to display WhatsApp notifications during races."
-                                   Foreground="White"
-                                   FontSize="12"
-                                   TextWrapping="Wrap"/>
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White" VerticalAlignment="Top"/>
+                            <TextBlock Foreground="White" FontSize="12" TextWrapping="Wrap">
+                                <Run Text="Select a VoCore to display WhatsApp notifications during races." FontWeight="SemiBold"/>
+                                <LineBreak/><LineBreak/>
+                                <Run Text="The device list updates automatically every second. If your VoCore is connected, it will appear with a ✅ checkmark. If offline or disconnected, it will show ❌." FontWeight="Normal"/>
+                                <LineBreak/><LineBreak/>
+                                <Run Text="The plugin automatically detects and configures:" FontWeight="SemiBold"/>
+                                <LineBreak/>
+                                <Run Text="  • Device connection status"/>
+                                <LineBreak/>
+                                <Run Text="  • Information Overlay activation"/>
+                                <LineBreak/>
+                                <Run Text="  • Dashboard configuration and merging"/>
+                                <LineBreak/><LineBreak/>
+                                <Run Text="Use the " FontWeight="Normal"/>
+                                <Run Text="Test" FontWeight="SemiBold"/>
+                                <Run Text=" button to send a test message and verify everything is working correctly." FontWeight="Normal"/>
+                            </TextBlock>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
             </StackPanel>
