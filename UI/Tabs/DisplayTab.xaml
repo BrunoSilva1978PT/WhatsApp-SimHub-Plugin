@@ -280,6 +280,10 @@
                         <LineBreak/>
                         <LineBreak/>
                         <Run Text="Click Merge Dashboards after selecting both layers to create the merged dashboard."/>
+                        <LineBreak/>
+                        <LineBreak/>
+                        <Run Text="Important:" FontWeight="SemiBold" Foreground="#FFA500"/>
+                        <Run Text=" Both Layer 1 and Layer 2 dashboards must have a transparent background, otherwise they will cover the Main dashboard."/>
                     </TextBlock>
                 </StackPanel>
             </Border>

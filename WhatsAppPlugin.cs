@@ -1996,11 +1996,14 @@ del ""%~f0""
         /// </summary>
         public void ClearOverlayDashboard(string serialNumber)
         {
+            WriteLog($"[ClearOverlay] Called with serial: '{serialNumber}'");
             if (string.IsNullOrEmpty(serialNumber))
+            {
+                WriteLog($"[ClearOverlay] Serial is empty, skipping");
                 return;
+            }
 
             _vocoreManager?.ClearOverlayDashboard(serialNumber);
-            WriteLog($"[ClearOverlay] Dashboard cleared for '{serialNumber}'");
         }
 
         /// <summary>
