@@ -54,18 +54,8 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         private string _voCore2OriginalLayer1;
         private string _voCore2OriginalLayer2;
 
-        // Allow RadioButton to be deselected by clicking again
-        private void Radio1_PreviewMouseDown(object sender, MouseButtonEventArgs e)
-        {
-            var radio = sender as RadioButton;
-            if (radio != null && radio.IsChecked == true)
-            {
-                radio.IsChecked = false;
-                e.Handled = true;
-            }
-        }
-
-        private void Radio2_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        // Allow RadioButton to be deselected by clicking again (shared handler for both VoCore1 and VoCore2)
+        private void Radio_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             var radio = sender as RadioButton;
             if (radio != null && radio.IsChecked == true)

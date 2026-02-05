@@ -285,7 +285,9 @@
                                         <styles:SHToggleCheckbox x:Name="VipCheckbox"
                                                  IsChecked="{Binding IsVip, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                  HorizontalAlignment="Center"
-                                                 VerticalAlignment="Center"/>
+                                                 VerticalAlignment="Center"
+                                                 Checked="VipCheckbox_Changed"
+                                                 Unchecked="VipCheckbox_Changed"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>

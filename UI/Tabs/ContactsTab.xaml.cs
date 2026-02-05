@@ -11,6 +11,9 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         // Event that parent can subscribe to for Remove button clicks
         public event EventHandler<Contact> RemoveContactRequested;
 
+        // Event for VIP checkbox changed (to save settings)
+        public event Action VipCheckboxChanged;
+
         // Events for search/filter in ComboBoxes
         public event EventHandler<string> GoogleContactsSearchChanged;
 
@@ -66,6 +69,12 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
             {
                 RemoveContactRequested?.Invoke(this, contact);
             }
+        }
+
+        // VIP checkbox changed - notify parent to save settings
+        private void VipCheckbox_Changed(object sender, RoutedEventArgs e)
+        {
+            VipCheckboxChanged?.Invoke();
         }
     }
 }
