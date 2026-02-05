@@ -15,6 +15,8 @@ namespace WhatsAppSimHubPlugin.Core
         private readonly Action<string> _log;
         private readonly string _dashTemplatesPath;
 
+        public string DashTemplatesPath => _dashTemplatesPath;
+
         public DashboardMerger(string dashTemplatesPath, Action<string> log = null)
         {
             _dashTemplatesPath = dashTemplatesPath;

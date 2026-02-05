@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 
 namespace WhatsAppSimHubPlugin.UI.Tabs
 {
@@ -24,6 +26,27 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public StackPanel Dashboard2PanelCtrl => Dashboard2Panel;
         public ComboBox Dashboard1ComboBoxCtrl => Dashboard1ComboBox;
         public ComboBox Dashboard2ComboBoxCtrl => Dashboard2ComboBox;
+
+        // Allow RadioButton to be deselected by clicking again
+        private void Radio1_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            var radio = sender as RadioButton;
+            if (radio != null && radio.IsChecked == true)
+            {
+                radio.IsChecked = false;
+                e.Handled = true;
+            }
+        }
+
+        private void Radio2_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            var radio = sender as RadioButton;
+            if (radio != null && radio.IsChecked == true)
+            {
+                radio.IsChecked = false;
+                e.Handled = true;
+            }
+        }
     }
 
     /// <summary>

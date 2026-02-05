@@ -82,14 +82,16 @@
                                                      GroupName="VoCore1Group"
                                                      HorizontalAlignment="Center"
                                                      IsChecked="{Binding IsVoCore1, Mode=TwoWay}"
-                                                     Tag="{Binding Serial}"/>
+                                                     Tag="{Binding Serial}"
+                                                     PreviewMouseLeftButtonDown="Radio1_PreviewMouseDown"/>
                                         <RadioButton x:Name="Radio2"
                                                      Grid.Column="2"
                                                      GroupName="VoCore2Group"
                                                      HorizontalAlignment="Center"
                                                      IsChecked="{Binding IsVoCore2, Mode=TwoWay}"
                                                      Tag="{Binding Serial}"
-                                                     Visibility="{Binding Column2Visibility}"/>
+                                                     Visibility="{Binding Column2Visibility}"
+                                                     PreviewMouseLeftButtonDown="Radio2_PreviewMouseDown"/>
                                     </Grid>
                                 </Border>
                             </DataTemplate>

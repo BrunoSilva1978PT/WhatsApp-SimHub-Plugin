@@ -1348,6 +1348,8 @@ namespace WhatsAppSimHubPlugin.UI
                 {
                     _settings.VoCore1_CurrentDash = newDash;
                     _plugin.SaveSettings();
+                    _plugin.ConfigureVoCore1(); // Apply immediately
+                    _plugin.DeleteMergedDashboardIfExists(1); // Only deletes if exists, handles flag internally
                     ShowToast($"Dashboard #1 changed to '{selected.Content}'", "OK", 3);
                 }
                 else
@@ -1388,6 +1390,8 @@ namespace WhatsAppSimHubPlugin.UI
                 {
                     _settings.VoCore2_CurrentDash = newDash;
                     _plugin.SaveSettings();
+                    _plugin.ConfigureVoCore2(); // Apply immediately
+                    _plugin.DeleteMergedDashboardIfExists(2); // Only deletes if exists, handles flag internally
                     ShowToast($"Dashboard #2 changed to '{selected.Content}'", "OK", 3);
                 }
                 else

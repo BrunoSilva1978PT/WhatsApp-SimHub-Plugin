@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using SimHub.Plugins;
 using SimHub.Plugins.OutputPlugins.GraphicalDash;
@@ -220,23 +221,24 @@ namespace WhatsAppSimHubPlugin.Core
                     return;
                 }
 
-                // Already using target dashboard (default or custom) → don't touch
+                // Already using target dashboard → don't touch
                 if (simhubCurrentDash == targetDashboard)
                 {
                     _log?.Invoke($"✓ Dashboard already '{targetDashboard}'");
                     return;
                 }
 
-                // Already using merged dashboard for this VoCore → don't touch
+                // Currently using merged dashboard but target is different → switch to target
                 if (simhubCurrentDash == mergedDashboard)
                 {
-                    _log?.Invoke($"✓ Dashboard already merged for VoCore {vocoreNumber}");
+                    vocoreSettings.CurrentOverlayDashboard.TrySet(targetDashboard);
+                    _log?.Invoke($"✓ Dashboard changed from merged to '{targetDashboard}'");
                     return;
                 }
 
-                // User has a different dashboard in SimHub → need to merge
-                // The target is default or custom, but SimHub shows something else (user's own dash)
-                _log?.Invoke($"✓ Found user dashboard '{simhubCurrentDash}' → merging with '{targetDashboard}'...");
+                // SimHub has a different dashboard (user changed it manually in Information Overlay)
+                // Merge it with our target (target goes on top as overlay)
+                _log?.Invoke($"✓ Found different dashboard '{simhubCurrentDash}' → merging with '{targetDashboard}'...");
 
                 // Change dashboard name to merged FIRST (instant)
                 vocoreSettings.CurrentOverlayDashboard.TrySet(mergedDashboard);
@@ -259,6 +261,68 @@ namespace WhatsAppSimHubPlugin.Core
             catch (Exception ex)
             {
                 _log?.Invoke($"ConfigureDevice error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Set dashboard directly without any checks (used when user changes via dropdown)
+        /// </summary>
+        public void SetDashboardDirect(string serialNumber, string dashboardName)
+        {
+            if (string.IsNullOrEmpty(serialNumber) || string.IsNullOrEmpty(dashboardName))
+                return;
+
+            try
+            {
+                VOCORESettings vocoreSettings = FindDeviceBySerial(serialNumber);
+                if (vocoreSettings == null)
+                    return;
+
+                vocoreSettings.CurrentOverlayDashboard.TrySet(dashboardName);
+                _log?.Invoke($"✓ Dashboard set directly to '{dashboardName}'");
+            }
+            catch (Exception ex)
+            {
+                _log?.Invoke($"SetDashboardDirect error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Check if merged dashboard exists for a specific VoCore
+        /// </summary>
+        public bool MergedDashboardExists(int vocoreNumber)
+        {
+            try
+            {
+                string mergedDashboard = DashboardMerger.GetMergedDashboardName(vocoreNumber);
+                string mergedPath = Path.Combine(_dashboardMerger.DashTemplatesPath, mergedDashboard);
+                return Directory.Exists(mergedPath);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Delete merged dashboard for a specific VoCore
+        /// </summary>
+        public void DeleteMergedDashboard(int vocoreNumber)
+        {
+            try
+            {
+                string mergedDashboard = DashboardMerger.GetMergedDashboardName(vocoreNumber);
+                string mergedPath = Path.Combine(_dashboardMerger.DashTemplatesPath, mergedDashboard);
+
+                if (Directory.Exists(mergedPath))
+                {
+                    Directory.Delete(mergedPath, true);
+                    _log?.Invoke($"✓ Deleted merged dashboard: {mergedDashboard}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _log?.Invoke($"Could not delete merged dashboard: {ex.Message}");
             }
         }
 
