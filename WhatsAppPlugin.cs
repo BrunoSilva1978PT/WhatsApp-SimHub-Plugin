@@ -225,8 +225,6 @@ namespace WhatsAppSimHubPlugin
         private bool _voCoreEnabled = true; // Legacy: Controls VoCore display (= vocore1enabled || vocore2enabled)
         private bool _voCore1Enabled = false; // Controls VoCore 1 display
         private bool _voCore2Enabled = false; // Controls VoCore 2 display
-        private bool _changingDashVoCore1 = false; // Flag: user is changing dashboard via dropdown
-        private bool _changingDashVoCore2 = false; // Flag: user is changing dashboard via dropdown
         private string _overlaySender = "";
         private string _overlayTypeMessage = "";
         private int _overlayTotalMessages = 0;
@@ -1967,69 +1965,62 @@ del ""%~f0""
         }
 
         /// <summary>
-        /// Configure VoCore 1 device - sets dashboard directly (called from UI dropdown)
+        /// Apply dashboard directly (1 layer mode) - called from UI
         /// </summary>
-        public void ConfigureVoCore1()
+        public void ApplyDashboardDirect(int vocoreNumber, string dashboardName)
         {
-            if (!string.IsNullOrEmpty(_settings?.VoCore1_Serial))
-            {
-                _vocoreManager?.SetDashboardDirect(_settings.VoCore1_Serial, _settings.VoCore1_CurrentDash);
-            }
-        }
-
-        /// <summary>
-        /// Configure VoCore 2 device - sets dashboard directly (called from UI dropdown)
-        /// </summary>
-        public void ConfigureVoCore2()
-        {
-            if (!string.IsNullOrEmpty(_settings?.VoCore2_Serial))
-            {
-                _vocoreManager?.SetDashboardDirect(_settings.VoCore2_Serial, _settings.VoCore2_CurrentDash);
-            }
-        }
-
-        /// <summary>
-        /// Set flag to indicate dashboard is being changed via dropdown (skips DataUpdate checks)
-        /// </summary>
-        public void SetChangingDashVoCore1(bool changing)
-        {
-            _changingDashVoCore1 = changing;
-        }
-
-        /// <summary>
-        /// Set flag to indicate dashboard is being changed via dropdown (skips DataUpdate checks)
-        /// </summary>
-        public void SetChangingDashVoCore2(bool changing)
-        {
-            _changingDashVoCore2 = changing;
-        }
-
-        /// <summary>
-        /// Delete merged dashboard if it exists, handles flag internally
-        /// </summary>
-        public void DeleteMergedDashboardIfExists(int vocoreNumber)
-        {
-            // Check if merged exists before doing anything
-            if (_vocoreManager == null || !_vocoreManager.MergedDashboardExists(vocoreNumber))
+            string serial = vocoreNumber == 1 ? _settings?.VoCore1_Serial : _settings?.VoCore2_Serial;
+            if (string.IsNullOrEmpty(serial))
                 return;
 
-            // Set flag to skip DataUpdate checks while deleting
+            _vocoreManager?.ApplyDirect(serial, vocoreNumber, dashboardName);
+            WriteLog($"[ApplyDirect] VoCore {vocoreNumber}: '{dashboardName}'");
+        }
+
+        /// <summary>
+        /// Apply merged dashboard (2 layers mode) - called from UI
+        /// </summary>
+        public void ApplyDashboardMerged(int vocoreNumber, string layer1Dashboard, string layer2Dashboard)
+        {
+            string serial = vocoreNumber == 1 ? _settings?.VoCore1_Serial : _settings?.VoCore2_Serial;
+            if (string.IsNullOrEmpty(serial))
+                return;
+
+            _vocoreManager?.ApplyMerged(serial, vocoreNumber, layer1Dashboard, layer2Dashboard);
+            WriteLog($"[ApplyMerged] VoCore {vocoreNumber}: '{layer1Dashboard}' + '{layer2Dashboard}'");
+        }
+
+        /// <summary>
+        /// Get the expected dashboard name for a VoCore based on current settings
+        /// </summary>
+        private string GetExpectedDashboard(int vocoreNumber)
+        {
             if (vocoreNumber == 1)
-                _changingDashVoCore1 = true;
-            else
-                _changingDashVoCore2 = true;
-
-            // Delete in background and reset flag when done
-            Task.Run(() =>
             {
-                _vocoreManager?.DeleteMergedDashboard(vocoreNumber);
-
-                // Reset flag after delete
-                if (vocoreNumber == 1)
-                    _changingDashVoCore1 = false;
+                if (_settings.VoCore1_LayerCount == 2)
+                {
+                    // 2 layers = merged dashboard
+                    return DashboardMerger.GetMergedDashboardName(1);
+                }
                 else
-                    _changingDashVoCore2 = false;
-            });
+                {
+                    // 1 layer = use Layer1 directly
+                    return _settings.VoCore1_Layer1;
+                }
+            }
+            else
+            {
+                if (_settings.VoCore2_LayerCount == 2)
+                {
+                    // 2 layers = merged dashboard
+                    return DashboardMerger.GetMergedDashboardName(2);
+                }
+                else
+                {
+                    // 1 layer = use Layer1 directly
+                    return _settings.VoCore2_Layer1;
+                }
+            }
         }
 
         /// <summary>
@@ -2113,22 +2104,18 @@ del ""%~f0""
                 if (string.IsNullOrEmpty(_settings?.VoCore1_Serial) && string.IsNullOrEmpty(_settings?.VoCore2_Serial))
                     return;
 
-                // Handle VoCore 1 (skip if dashboard change in progress)
-                if (!string.IsNullOrEmpty(_settings?.VoCore1_Serial) && !_changingDashVoCore1)
+                // Ensure VoCore 1 has correct configuration
+                if (!string.IsNullOrEmpty(_settings?.VoCore1_Serial))
                 {
-                    _vocoreManager?.ConfigureDevice(
-                        _settings.VoCore1_Serial,
-                        1,
-                        _settings.VoCore1_CurrentDash);
+                    string expectedDash = GetExpectedDashboard(1);
+                    _vocoreManager?.EnsureConfiguration(_settings.VoCore1_Serial, expectedDash);
                 }
 
-                // Handle VoCore 2 (skip if dashboard change in progress)
-                if (!string.IsNullOrEmpty(_settings?.VoCore2_Serial) && !_changingDashVoCore2)
+                // Ensure VoCore 2 has correct configuration
+                if (!string.IsNullOrEmpty(_settings?.VoCore2_Serial))
                 {
-                    _vocoreManager?.ConfigureDevice(
-                        _settings.VoCore2_Serial,
-                        2,
-                        _settings.VoCore2_CurrentDash);
+                    string expectedDash = GetExpectedDashboard(2);
+                    _vocoreManager?.EnsureConfiguration(_settings.VoCore2_Serial, expectedDash);
                 }
             }
             catch

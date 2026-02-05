@@ -11,6 +11,7 @@ namespace WhatsAppSimHubPlugin.Core
 {
     /// <summary>
     /// Manages VoCore devices configuration (zero reflection, direct property access)
+    /// Simplified: User controls dashboard via UI, backend only ensures overlay is ON and applies correct dashboard
     /// </summary>
     public class VoCoreManager
     {
@@ -31,28 +32,16 @@ namespace WhatsAppSimHubPlugin.Core
         public bool DoesDashboardExist(string dashboardName)
         {
             if (string.IsNullOrEmpty(dashboardName))
-            {
-                _log?.Invoke($"[DashboardCheck] Dashboard name is empty");
                 return false;
-            }
 
             try
             {
-                _log?.Invoke($"[DashboardCheck] Checking if dashboard '{dashboardName}' exists...");
-
-                // Use SimHub public API (fast, no I/O, always up-to-date)
                 var metadata = _pluginManager?.GetDashboardMetadata(dashboardName);
-
-                bool exists = metadata != null;
-                _log?.Invoke($"[DashboardCheck] Dashboard '{dashboardName}' exists: {exists}");
-
-                return exists;
+                return metadata != null;
             }
             catch (Exception ex)
             {
-                _log?.Invoke($"[DashboardCheck] Error checking dashboard '{dashboardName}': {ex.Message}");
-                _log?.Invoke($"[DashboardCheck] Exception type: {ex.GetType().Name}");
-                _log?.Invoke($"[DashboardCheck] Stack: {ex.StackTrace}");
+                _log?.Invoke($"[DashboardCheck] Error: {ex.Message}");
                 return false;
             }
         }
@@ -66,51 +55,26 @@ namespace WhatsAppSimHubPlugin.Core
 
             try
             {
-                _log?.Invoke("[VoCoreManager] Getting all devices...");
                 var devicesEnumerable = _pluginManager.GetAllDevices(true);
                 if (devicesEnumerable == null)
-                {
-                    _log?.Invoke("[VoCoreManager] GetAllDevices returned null!");
                     return devices;
-                }
-
-                _log?.Invoke($"[VoCoreManager] GetAllDevices returned enumerable (type: {devicesEnumerable.GetType().Name})");
-
-                int totalDevices = 0;
-
-                // Try to enumerate
-                var enumerator = devicesEnumerable.GetEnumerator();
-                _log?.Invoke($"[VoCoreManager] Got enumerator: {enumerator != null}");
 
                 foreach (var device in devicesEnumerable)
                 {
-                    totalDevices++;
                     var deviceInstance = device as DeviceInstance;
                     if (deviceInstance == null)
-                    {
-                        _log?.Invoke($"[VoCoreManager] Device #{totalDevices} - Not DeviceInstance");
                         continue;
-                    }
 
-                    // Get basic device info
                     string name = deviceInstance.MainDisplayName;
                     string serial = deviceInstance.ConfiguredSerialNumber();
                     string instanceId = deviceInstance.InstanceId.ToString();
 
-                    _log?.Invoke($"[VoCoreManager] Device #{totalDevices} - Name: '{name}', Serial: '{serial}', InstanceId: '{instanceId}'");
-
                     if (string.IsNullOrEmpty(name))
-                    {
-                        _log?.Invoke($"[VoCoreManager] Device #{totalDevices} - Skipped (empty name)");
                         continue;
-                    }
 
-                    // Use InstanceId if serial is empty (VoCore doesn't always have serial configured)
+                    // Use InstanceId if serial is empty
                     if (string.IsNullOrEmpty(serial))
-                    {
-                        _log?.Invoke($"[VoCoreManager] Device #{totalDevices} - Serial empty, using InstanceId as identifier");
                         serial = instanceId;
-                    }
 
                     // Try to get VOCORESettings (filters only VoCores)
                     dynamic dynDevice = device;
@@ -120,25 +84,16 @@ namespace WhatsAppSimHubPlugin.Core
                     {
                         vocoreSettings = dynDevice.Settings as VOCORESettings;
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        _log?.Invoke($"[VoCoreManager] Device #{totalDevices} - Settings error: {ex.Message}");
                         continue; // Not a VoCore
                     }
 
                     if (vocoreSettings == null)
-                    {
-                        _log?.Invoke($"[VoCoreManager] Device #{totalDevices} - Not a VoCore (Settings is not VOCORESettings)");
-                        continue; // Not a VoCore
-                    }
+                        continue;
 
-                    _log?.Invoke($"[VoCoreManager] ✓ VoCore found: '{name}'");
-
-                    // Read current state
                     bool overlayEnabled = vocoreSettings.UseOverlayDashboard;
                     string currentDash = vocoreSettings.CurrentOverlayDashboard?.Dashboard;
-
-                    _log?.Invoke($"[VoCoreManager]   Overlay: {overlayEnabled}, Dashboard: '{currentDash}'");
 
                     devices.Add(new VoCoreDevice
                     {
@@ -148,8 +103,6 @@ namespace WhatsAppSimHubPlugin.Core
                         CurrentDashboard = currentDash
                     });
                 }
-
-                _log?.Invoke($"[VoCoreManager] Total: {totalDevices} devices, {devices.Count} VoCores");
             }
             catch (Exception ex)
             {
@@ -160,130 +113,117 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Configure a specific VoCore device (overlay + dashboard)
+        /// Ensure VoCore has Information Overlay ON and correct dashboard
+        /// Called periodically from DataUpdate()
         /// </summary>
         /// <param name="serialNumber">Device serial number</param>
-        /// <param name="vocoreNumber">VoCore number (1 or 2)</param>
-        /// <param name="targetDashboard">Target dashboard from settings (CurrentDash)</param>
-        public void ConfigureDevice(string serialNumber, int vocoreNumber, string targetDashboard)
+        /// <param name="expectedDashboard">Dashboard that should be active (from settings)</param>
+        public void EnsureConfiguration(string serialNumber, string expectedDashboard)
         {
-            if (string.IsNullOrEmpty(serialNumber))
-            {
-                _log?.Invoke("ConfigureDevice: serial number is empty");
+            if (string.IsNullOrEmpty(serialNumber) || string.IsNullOrEmpty(expectedDashboard))
                 return;
-            }
-
-            // Default dashboards for each VoCore
-            string defaultDashboard = vocoreNumber == 1 ? "WhatsAppPluginVocore1" : "WhatsAppPluginVocore2";
-            string mergedDashboard = DashboardMerger.GetMergedDashboardName(vocoreNumber);
-
-            // If no target specified, use default
-            if (string.IsNullOrEmpty(targetDashboard))
-            {
-                targetDashboard = defaultDashboard;
-            }
 
             try
             {
-                // Find device by serial
                 VOCORESettings vocoreSettings = FindDeviceBySerial(serialNumber);
                 if (vocoreSettings == null)
-                {
-                    _log?.Invoke($"ConfigureDevice: device with serial '{serialNumber}' not found");
                     return;
-                }
 
-                _log?.Invoke($"Configuring VoCore {vocoreNumber} (serial: {serialNumber})...");
-
-                // STEP 1: Information Overlay must be ON
+                // Ensure Information Overlay is ON
                 if (!vocoreSettings.UseOverlayDashboard)
                 {
                     vocoreSettings.UseOverlayDashboard = true;
-                    _log?.Invoke("✓ Information Overlay enabled");
+                    _log?.Invoke($"[EnsureConfig] Information Overlay enabled for '{serialNumber}'");
                 }
 
-                // STEP 2: Get current dashboard in SimHub
-                string simhubCurrentDash = vocoreSettings.CurrentOverlayDashboard?.Dashboard;
-
-                // Empty/null → set target dashboard
-                if (string.IsNullOrEmpty(simhubCurrentDash))
+                // Ensure correct dashboard is set
+                string currentDash = vocoreSettings.CurrentOverlayDashboard?.Dashboard;
+                if (currentDash != expectedDashboard)
                 {
-                    vocoreSettings.CurrentOverlayDashboard.TrySet(targetDashboard);
-                    _log?.Invoke($"✓ Dashboard set to '{targetDashboard}' (was empty)");
-                    return;
-                }
-
-                // Check if current dashboard still exists (user may have deleted it)
-                if (!DoesDashboardExist(simhubCurrentDash))
-                {
-                    _log?.Invoke($"⚠️ Dashboard '{simhubCurrentDash}' no longer exists → setting to '{targetDashboard}'");
-                    vocoreSettings.CurrentOverlayDashboard.TrySet(targetDashboard);
-                    return;
-                }
-
-                // Already using target dashboard → don't touch
-                if (simhubCurrentDash == targetDashboard)
-                {
-                    _log?.Invoke($"✓ Dashboard already '{targetDashboard}'");
-                    return;
-                }
-
-                // Currently using merged dashboard but target is different → switch to target
-                if (simhubCurrentDash == mergedDashboard)
-                {
-                    vocoreSettings.CurrentOverlayDashboard.TrySet(targetDashboard);
-                    _log?.Invoke($"✓ Dashboard changed from merged to '{targetDashboard}'");
-                    return;
-                }
-
-                // SimHub has a different dashboard (user changed it manually in Information Overlay)
-                // Merge it with our target (target goes on top as overlay)
-                _log?.Invoke($"✓ Found different dashboard '{simhubCurrentDash}' → merging with '{targetDashboard}'...");
-
-                // Change dashboard name to merged FIRST (instant)
-                vocoreSettings.CurrentOverlayDashboard.TrySet(mergedDashboard);
-                _log?.Invoke($"✓ Dashboard changed to '{mergedDashboard}'");
-
-                // Do actual merge in background (don't wait)
-                _ = Task.Run(() =>
-                {
-                    try
+                    // Only change if the expected dashboard exists
+                    if (DoesDashboardExist(expectedDashboard))
                     {
-                        _dashboardMerger.MergeDashboards(simhubCurrentDash, targetDashboard, vocoreNumber);
-                        _log?.Invoke($"✓ Dashboard merge completed in background for VoCore {vocoreNumber}");
+                        vocoreSettings.CurrentOverlayDashboard.TrySet(expectedDashboard);
+                        _log?.Invoke($"[EnsureConfig] Dashboard set to '{expectedDashboard}' for '{serialNumber}'");
                     }
-                    catch (Exception ex)
-                    {
-                        _log?.Invoke($"Dashboard merge error: {ex.Message}");
-                    }
-                });
+                }
             }
             catch (Exception ex)
             {
-                _log?.Invoke($"ConfigureDevice error: {ex.Message}");
+                _log?.Invoke($"EnsureConfiguration error: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Set dashboard directly without any checks (used when user changes via dropdown)
+        /// Apply a dashboard directly (1 layer mode)
+        /// Deletes merged dashboard if exists
         /// </summary>
-        public void SetDashboardDirect(string serialNumber, string dashboardName)
+        public void ApplyDirect(string serialNumber, int vocoreNumber, string dashboardName)
         {
             if (string.IsNullOrEmpty(serialNumber) || string.IsNullOrEmpty(dashboardName))
                 return;
 
             try
             {
+                // Delete merged dashboard if exists
+                DeleteMergedDashboard(vocoreNumber);
+
+                // Set dashboard directly
                 VOCORESettings vocoreSettings = FindDeviceBySerial(serialNumber);
                 if (vocoreSettings == null)
                     return;
 
+                vocoreSettings.UseOverlayDashboard = true;
                 vocoreSettings.CurrentOverlayDashboard.TrySet(dashboardName);
-                _log?.Invoke($"✓ Dashboard set directly to '{dashboardName}'");
+                _log?.Invoke($"[ApplyDirect] VoCore {vocoreNumber}: Dashboard set to '{dashboardName}'");
             }
             catch (Exception ex)
             {
-                _log?.Invoke($"SetDashboardDirect error: {ex.Message}");
+                _log?.Invoke($"ApplyDirect error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Apply merged dashboard (2 layers mode)
+        /// Creates merge of Layer1 (base) + Layer2 (overlay on top)
+        /// </summary>
+        public void ApplyMerged(string serialNumber, int vocoreNumber, string layer1Dashboard, string layer2Dashboard)
+        {
+            if (string.IsNullOrEmpty(serialNumber) ||
+                string.IsNullOrEmpty(layer1Dashboard) ||
+                string.IsNullOrEmpty(layer2Dashboard))
+                return;
+
+            try
+            {
+                string mergedDashboard = DashboardMerger.GetMergedDashboardName(vocoreNumber);
+
+                // Set merged dashboard name first (instant)
+                VOCORESettings vocoreSettings = FindDeviceBySerial(serialNumber);
+                if (vocoreSettings != null)
+                {
+                    vocoreSettings.UseOverlayDashboard = true;
+                    vocoreSettings.CurrentOverlayDashboard.TrySet(mergedDashboard);
+                    _log?.Invoke($"[ApplyMerged] VoCore {vocoreNumber}: Dashboard set to '{mergedDashboard}'");
+                }
+
+                // Do merge in background
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        _dashboardMerger.MergeDashboards(layer1Dashboard, layer2Dashboard, vocoreNumber);
+                        _log?.Invoke($"[ApplyMerged] VoCore {vocoreNumber}: Merge completed ('{layer1Dashboard}' + '{layer2Dashboard}')");
+                    }
+                    catch (Exception ex)
+                    {
+                        _log?.Invoke($"[ApplyMerged] Merge error: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _log?.Invoke($"ApplyMerged error: {ex.Message}");
             }
         }
 
@@ -317,12 +257,29 @@ namespace WhatsAppSimHubPlugin.Core
                 if (Directory.Exists(mergedPath))
                 {
                     Directory.Delete(mergedPath, true);
-                    _log?.Invoke($"✓ Deleted merged dashboard: {mergedDashboard}");
+                    _log?.Invoke($"[DeleteMerged] Deleted: {mergedDashboard}");
                 }
             }
             catch (Exception ex)
             {
-                _log?.Invoke($"Could not delete merged dashboard: {ex.Message}");
+                _log?.Invoke($"DeleteMergedDashboard error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Get the expected dashboard name for a VoCore based on settings
+        /// </summary>
+        public string GetExpectedDashboard(int vocoreNumber, int layerCount)
+        {
+            if (layerCount == 2)
+            {
+                // 2 layers = use merged dashboard
+                return DashboardMerger.GetMergedDashboardName(vocoreNumber);
+            }
+            else
+            {
+                // 1 layer = return null, caller should use Layer1 from settings
+                return null;
             }
         }
 

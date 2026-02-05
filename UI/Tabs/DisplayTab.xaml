@@ -108,39 +108,170 @@
                     Background="#0E7A0D"
                     Foreground="White"
                     IsEnabled="False"
-                    Margin="0,0,0,15"
+                    Margin="0,0,0,20"
                     ToolTip="Send a test notification to selected VoCore devices"/>
 
-            <!-- Dashboard Selection -->
-            <StackPanel x:Name="DashboardSelectionPanel" Margin="0,0,0,15" Visibility="Collapsed">
-                <!-- Dashboard #1 -->
-                <StackPanel x:Name="Dashboard1Panel" Orientation="Horizontal" Margin="0,0,0,10">
-                    <TextBlock Text="Dashboard #1:"
-                               Width="100"
+            <!-- ============================================ -->
+            <!-- VoCore #1 Configuration -->
+            <!-- ============================================ -->
+            <StackPanel x:Name="VoCore1ConfigPanel" Visibility="Collapsed" Margin="0,0,0,20">
+                <TextBlock Text="VoCore #1"
+                           FontSize="16"
+                           FontWeight="Bold"
+                           Foreground="#AAAAAA"
+                           Margin="0,0,0,10"/>
+
+                <!-- Layer Count Selection -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="Layers:"
+                               Width="60"
                                FontSize="13"
-                               Foreground="#DDDDDD"
+                               Foreground="#888888"
                                VerticalAlignment="Center"/>
-                    <ComboBox x:Name="Dashboard1ComboBox"
-                              Width="250"
-                              Height="28"
-                              Background="#252526"
-                              Foreground="White"
-                              BorderBrush="#3E3E42"/>
+                    <RadioButton x:Name="Dash1_Layer1Radio"
+                                 Content="1"
+                                 GroupName="Dash1Layers"
+                                 Foreground="#AAAAAA"
+                                 Margin="0,0,20,0"
+                                 IsChecked="True"
+                                 Checked="Dash1_LayerChanged"/>
+                    <RadioButton x:Name="Dash1_Layer2Radio"
+                                 Content="2"
+                                 GroupName="Dash1Layers"
+                                 Foreground="#AAAAAA"
+                                 Checked="Dash1_LayerChanged"/>
                 </StackPanel>
 
-                <!-- Dashboard #2 -->
-                <StackPanel x:Name="Dashboard2Panel" Orientation="Horizontal" Visibility="Collapsed">
-                    <TextBlock Text="Dashboard #2:"
-                               Width="100"
+                <!-- Layer 1 Dropdown (Base dashboard) -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <TextBlock Text="Layer 1:"
+                               Width="60"
                                FontSize="13"
-                               Foreground="#DDDDDD"
+                               Foreground="#888888"
                                VerticalAlignment="Center"/>
-                    <ComboBox x:Name="Dashboard2ComboBox"
-                              Width="250"
+                    <ComboBox x:Name="Dash1_Layer1ComboBox"
+                              Width="280"
                               Height="28"
                               Background="#252526"
                               Foreground="White"
-                              BorderBrush="#3E3E42"/>
+                              BorderBrush="#3E3E42"
+                              SelectionChanged="Dash1_Layer1_SelectionChanged"/>
+                </StackPanel>
+
+                <!-- Layer 2 Panel (only visible when 2 layers selected) -->
+                <StackPanel x:Name="Dash1_Layer2Panel" Visibility="Collapsed">
+                    <!-- Layer 2 Dropdown -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="Layer 2:"
+                                   Width="60"
+                                   FontSize="13"
+                                   Foreground="#888888"
+                                   VerticalAlignment="Center"/>
+                        <ComboBox x:Name="Dash1_Layer2ComboBox"
+                                  Width="280"
+                                  Height="28"
+                                  Background="#252526"
+                                  Foreground="White"
+                                  BorderBrush="#3E3E42"/>
+                    </StackPanel>
+
+                    <!-- Apply Button and Status (only for 2 layers - merge) -->
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                        <styles:SHButtonPrimary x:Name="VoCore1ApplyButton"
+                                Content="Merge"
+                                Width="80" Height="28"
+                                Background="#0E7A0D"
+                                Foreground="White"
+                                Click="VoCore1Apply_Click"/>
+                        <TextBlock x:Name="VoCore1StatusText"
+                                   Text=""
+                                   FontSize="12"
+                                   Foreground="#888888"
+                                   VerticalAlignment="Center"
+                                   Margin="15,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- ============================================ -->
+            <!-- VoCore #2 Configuration -->
+            <!-- ============================================ -->
+            <StackPanel x:Name="VoCore2ConfigPanel" Visibility="Collapsed" Margin="0,0,0,20">
+                <TextBlock Text="VoCore #2"
+                           FontSize="16"
+                           FontWeight="Bold"
+                           Foreground="#AAAAAA"
+                           Margin="0,0,0,10"/>
+
+                <!-- Layer Count Selection -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="Layers:"
+                               Width="60"
+                               FontSize="13"
+                               Foreground="#888888"
+                               VerticalAlignment="Center"/>
+                    <RadioButton x:Name="Dash2_Layer1Radio"
+                                 Content="1"
+                                 GroupName="Dash2Layers"
+                                 Foreground="#AAAAAA"
+                                 Margin="0,0,20,0"
+                                 IsChecked="True"
+                                 Checked="Dash2_LayerChanged"/>
+                    <RadioButton x:Name="Dash2_Layer2Radio"
+                                 Content="2"
+                                 GroupName="Dash2Layers"
+                                 Foreground="#AAAAAA"
+                                 Checked="Dash2_LayerChanged"/>
+                </StackPanel>
+
+                <!-- Layer 1 Dropdown (Base dashboard) -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <TextBlock Text="Layer 1:"
+                               Width="60"
+                               FontSize="13"
+                               Foreground="#888888"
+                               VerticalAlignment="Center"/>
+                    <ComboBox x:Name="Dash2_Layer1ComboBox"
+                              Width="280"
+                              Height="28"
+                              Background="#252526"
+                              Foreground="White"
+                              BorderBrush="#3E3E42"
+                              SelectionChanged="Dash2_Layer1_SelectionChanged"/>
+                </StackPanel>
+
+                <!-- Layer 2 Panel (only visible when 2 layers selected) -->
+                <StackPanel x:Name="Dash2_Layer2Panel" Visibility="Collapsed">
+                    <!-- Layer 2 Dropdown -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="Layer 2:"
+                                   Width="60"
+                                   FontSize="13"
+                                   Foreground="#888888"
+                                   VerticalAlignment="Center"/>
+                        <ComboBox x:Name="Dash2_Layer2ComboBox"
+                                  Width="280"
+                                  Height="28"
+                                  Background="#252526"
+                                  Foreground="White"
+                                  BorderBrush="#3E3E42"/>
+                    </StackPanel>
+
+                    <!-- Apply Button and Status (only for 2 layers - merge) -->
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                        <styles:SHButtonPrimary x:Name="VoCore2ApplyButton"
+                                Content="Merge"
+                                Width="80" Height="28"
+                                Background="#0E7A0D"
+                                Foreground="White"
+                                Click="VoCore2Apply_Click"/>
+                        <TextBlock x:Name="VoCore2StatusText"
+                                   Text=""
+                                   FontSize="12"
+                                   Foreground="#888888"
+                                   VerticalAlignment="Center"
+                                   Margin="15,0,0,0"/>
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
 
@@ -148,10 +279,15 @@
             <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,0,0,20">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="i" FontSize="14" FontWeight="Bold" Margin="0,0,10,0" Foreground="White" VerticalAlignment="Top"/>
-                    <TextBlock Foreground="White" FontSize="12" TextWrapping="Wrap">
-                        <Run Text="Select devices using #1 and #2 columns. Click again to deselect." FontWeight="SemiBold"/>
+                    <TextBlock Foreground="#CCCCCC" FontSize="12" TextWrapping="Wrap" Width="450">
+                        <Run Text="Layer Configuration:" FontWeight="SemiBold" Foreground="White"/>
                         <LineBreak/>
-                        <Run Text="Each device can only be assigned to one slot. Use custom dashboards to replace the default overlay."/>
+                        <Run Text="1 Layer: Uses the selected dashboard directly"/>
+                        <LineBreak/>
+                        <Run Text="2 Layers: Merges your dashboard (Layer 1) with the WhatsApp overlay (Layer 2)"/>
+                        <LineBreak/>
+                        <LineBreak/>
+                        <Run Text="Click Merge after selecting 2 layers to create the merged dashboard."/>
                     </TextBlock>
                 </StackPanel>
             </Border>
@@ -175,25 +311,25 @@
                                    VerticalAlignment="Center"/>
                     </StackPanel>
                     <TextBlock Text="A separate overlay dashboard 'Simhub WhatsApp Plugin Overlay' is automatically installed and available for use in VR headsets or as a screen overlay on your monitor."
-                               Foreground="#CCCCCC"
+                               Foreground="#888888"
                                FontSize="12"
                                TextWrapping="Wrap"
                                Margin="0,0,0,10"/>
                     <TextBlock Text="To use it:"
-                               Foreground="White"
+                               Foreground="#AAAAAA"
                                FontSize="12"
                                FontWeight="SemiBold"
                                Margin="0,0,0,5"/>
                     <TextBlock Text="1. Go to SimHub - Dash Studio - Overlay settings"
-                               Foreground="#CCCCCC"
+                               Foreground="#888888"
                                FontSize="12"
                                Margin="15,0,0,3"/>
                     <TextBlock Text="2. Add 'Simhub WhatsApp Plugin Overlay' as an overlay"
-                               Foreground="#CCCCCC"
+                               Foreground="#888888"
                                FontSize="12"
                                Margin="15,0,0,3"/>
                     <TextBlock Text="3. Configure position and size as needed"
-                               Foreground="#CCCCCC"
+                               Foreground="#888888"
                                FontSize="12"
                                Margin="15,0,0,0"/>
                 </StackPanel>

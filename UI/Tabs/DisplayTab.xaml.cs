@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 
 namespace WhatsAppSimHubPlugin.UI.Tabs
@@ -21,11 +20,33 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
 
         public Button TestVoCoresButtonCtrl => TestVoCoresButton;
 
-        public StackPanel DashboardSelectionPanelCtrl => DashboardSelectionPanel;
-        public StackPanel Dashboard1PanelCtrl => Dashboard1Panel;
-        public StackPanel Dashboard2PanelCtrl => Dashboard2Panel;
-        public ComboBox Dashboard1ComboBoxCtrl => Dashboard1ComboBox;
-        public ComboBox Dashboard2ComboBoxCtrl => Dashboard2ComboBox;
+        // VoCore #1 Config accessors
+        public StackPanel VoCore1ConfigPanelCtrl => VoCore1ConfigPanel;
+        public RadioButton Dash1_Layer1RadioCtrl => Dash1_Layer1Radio;
+        public RadioButton Dash1_Layer2RadioCtrl => Dash1_Layer2Radio;
+        public StackPanel Dash1_Layer2PanelCtrl => Dash1_Layer2Panel;
+        public ComboBox Dash1_Layer1ComboBoxCtrl => Dash1_Layer1ComboBox;
+        public ComboBox Dash1_Layer2ComboBoxCtrl => Dash1_Layer2ComboBox;
+        public Button VoCore1ApplyButtonCtrl => VoCore1ApplyButton;
+        public TextBlock VoCore1StatusTextCtrl => VoCore1StatusText;
+
+        // VoCore #2 Config accessors
+        public StackPanel VoCore2ConfigPanelCtrl => VoCore2ConfigPanel;
+        public RadioButton Dash2_Layer1RadioCtrl => Dash2_Layer1Radio;
+        public RadioButton Dash2_Layer2RadioCtrl => Dash2_Layer2Radio;
+        public StackPanel Dash2_Layer2PanelCtrl => Dash2_Layer2Panel;
+        public ComboBox Dash2_Layer1ComboBoxCtrl => Dash2_Layer1ComboBox;
+        public ComboBox Dash2_Layer2ComboBoxCtrl => Dash2_Layer2ComboBox;
+        public Button VoCore2ApplyButtonCtrl => VoCore2ApplyButton;
+        public TextBlock VoCore2StatusTextCtrl => VoCore2StatusText;
+
+        // Events - will be wired up from SettingsControl
+        public event System.Action VoCore1ApplyEvent;
+        public event System.Action VoCore2ApplyEvent;
+        public event System.Action VoCore1LayerChangedEvent;
+        public event System.Action VoCore2LayerChangedEvent;
+        public event System.Action VoCore1Layer1SelectionChangedEvent;
+        public event System.Action VoCore2Layer1SelectionChangedEvent;
 
         // Allow RadioButton to be deselected by clicking again
         private void Radio1_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -46,6 +67,51 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
                 radio.IsChecked = false;
                 e.Handled = true;
             }
+        }
+
+        // Layer count changed handlers - show/hide Layer 2 panel and notify
+        private void Dash1_LayerChanged(object sender, RoutedEventArgs e)
+        {
+            if (Dash1_Layer2Panel != null)
+            {
+                Dash1_Layer2Panel.Visibility = Dash1_Layer2Radio.IsChecked == true
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+            VoCore1LayerChangedEvent?.Invoke();
+        }
+
+        private void Dash2_LayerChanged(object sender, RoutedEventArgs e)
+        {
+            if (Dash2_Layer2Panel != null)
+            {
+                Dash2_Layer2Panel.Visibility = Dash2_Layer2Radio.IsChecked == true
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+            VoCore2LayerChangedEvent?.Invoke();
+        }
+
+        // Apply button click handlers
+        private void VoCore1Apply_Click(object sender, RoutedEventArgs e)
+        {
+            VoCore1ApplyEvent?.Invoke();
+        }
+
+        private void VoCore2Apply_Click(object sender, RoutedEventArgs e)
+        {
+            VoCore2ApplyEvent?.Invoke();
+        }
+
+        // Layer 1 selection changed handlers
+        private void Dash1_Layer1_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            VoCore1Layer1SelectionChangedEvent?.Invoke();
+        }
+
+        private void Dash2_Layer1_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            VoCore2Layer1SelectionChangedEvent?.Invoke();
         }
     }
 
