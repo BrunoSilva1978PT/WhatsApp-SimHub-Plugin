@@ -1991,6 +1991,61 @@ del ""%~f0""
         }
 
         /// <summary>
+        /// Clear the overlay dashboard for a VoCore (set to empty)
+        /// Called when user deselects a VoCore from a slot
+        /// </summary>
+        public void ClearOverlayDashboard(string serialNumber)
+        {
+            if (string.IsNullOrEmpty(serialNumber))
+                return;
+
+            _vocoreManager?.ClearOverlayDashboard(serialNumber);
+            WriteLog($"[ClearOverlay] Dashboard cleared for '{serialNumber}'");
+        }
+
+        /// <summary>
+        /// Apply the correct dashboard based on saved settings for a VoCore slot
+        /// Called when user selects a VoCore for a slot
+        /// </summary>
+        public void ApplyDashboardFromSettings(int vocoreNumber)
+        {
+            string serial = vocoreNumber == 1 ? _settings?.VoCore1_Serial : _settings?.VoCore2_Serial;
+            if (string.IsNullOrEmpty(serial))
+                return;
+
+            int layerCount = vocoreNumber == 1 ? _settings.VoCore1_LayerCount : _settings.VoCore2_LayerCount;
+
+            if (layerCount == 2)
+            {
+                // 2 layers - apply merged dashboard if it exists
+                string mergedDash = DashboardMerger.GetMergedDashboardName(vocoreNumber);
+                if (_vocoreManager.DoesDashboardExist(mergedDash))
+                {
+                    _vocoreManager.ApplyDirect(serial, vocoreNumber, mergedDash);
+                    WriteLog($"[ApplyFromSettings] VoCore {vocoreNumber}: Applied merged dashboard '{mergedDash}'");
+                }
+                else
+                {
+                    // Merged doesn't exist, apply Layer1 as fallback
+                    string layer1 = vocoreNumber == 1 ? _settings.VoCore1_Layer1 : _settings.VoCore2_Layer1;
+                    string defaultDash = vocoreNumber == 1 ? "WhatsAppPluginVocore1" : "WhatsAppPluginVocore2";
+                    string dashToApply = string.IsNullOrEmpty(layer1) ? defaultDash : layer1;
+                    _vocoreManager.ApplyDirect(serial, vocoreNumber, dashToApply);
+                    WriteLog($"[ApplyFromSettings] VoCore {vocoreNumber}: Merged not found, applied '{dashToApply}'");
+                }
+            }
+            else
+            {
+                // 1 layer - apply Layer1 directly
+                string layer1 = vocoreNumber == 1 ? _settings.VoCore1_Layer1 : _settings.VoCore2_Layer1;
+                string defaultDash = vocoreNumber == 1 ? "WhatsAppPluginVocore1" : "WhatsAppPluginVocore2";
+                string dashToApply = string.IsNullOrEmpty(layer1) ? defaultDash : layer1;
+                _vocoreManager.ApplyDirect(serial, vocoreNumber, dashToApply);
+                WriteLog($"[ApplyFromSettings] VoCore {vocoreNumber}: Applied '{dashToApply}'");
+            }
+        }
+
+        /// <summary>
         /// Get the expected dashboard name for a VoCore based on current settings
         /// </summary>
         private string GetExpectedDashboard(int vocoreNumber)

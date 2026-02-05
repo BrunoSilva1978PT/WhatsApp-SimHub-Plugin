@@ -571,6 +571,7 @@ namespace WhatsAppSimHubPlugin.UI
                 if (row.IsVoCore2)
                 {
                     row.IsVoCore2 = false;
+                    _plugin.ClearOverlayDashboard(_settings.VoCore2_Serial);
                     _settings.VoCore2_Serial = "";
                     _settings.VoCore2_Name = "";
                     _plugin.SetVoCore2Enabled(false);
@@ -580,16 +581,23 @@ namespace WhatsAppSimHubPlugin.UI
                 _settings.VoCore1_Serial = row.Serial;
                 _settings.VoCore1_Name = row.Name;
                 _plugin.SetVoCore1Enabled(true);
+
+                // Apply dashboard from saved settings
+                _plugin.SaveSettings();
+                _plugin.ApplyDashboardFromSettings(1);
             }
             else
             {
-                // Deselecting - clear VoCore1
+                // Deselecting - clear overlay dashboard first
+                _plugin.ClearOverlayDashboard(_settings.VoCore1_Serial);
+
+                // Then clear settings
                 _settings.VoCore1_Serial = "";
                 _settings.VoCore1_Name = "";
                 _plugin.SetVoCore1Enabled(false);
+                _plugin.SaveSettings();
             }
 
-            _plugin.SaveSettings();
             UpdateTestButtonState();
             UpdateDeviceTableVisibility(_knownDeviceIds.Count, _deviceRows.Count);
         }
@@ -613,6 +621,7 @@ namespace WhatsAppSimHubPlugin.UI
                 if (row.IsVoCore1)
                 {
                     row.IsVoCore1 = false;
+                    _plugin.ClearOverlayDashboard(_settings.VoCore1_Serial);
                     _settings.VoCore1_Serial = "";
                     _settings.VoCore1_Name = "";
                     _plugin.SetVoCore1Enabled(false);
@@ -622,16 +631,23 @@ namespace WhatsAppSimHubPlugin.UI
                 _settings.VoCore2_Serial = row.Serial;
                 _settings.VoCore2_Name = row.Name;
                 _plugin.SetVoCore2Enabled(true);
+
+                // Apply dashboard from saved settings
+                _plugin.SaveSettings();
+                _plugin.ApplyDashboardFromSettings(2);
             }
             else
             {
-                // Deselecting - clear VoCore2
+                // Deselecting - clear overlay dashboard first
+                _plugin.ClearOverlayDashboard(_settings.VoCore2_Serial);
+
+                // Then clear settings
                 _settings.VoCore2_Serial = "";
                 _settings.VoCore2_Name = "";
                 _plugin.SetVoCore2Enabled(false);
+                _plugin.SaveSettings();
             }
 
-            _plugin.SaveSettings();
             UpdateTestButtonState();
             UpdateDeviceTableVisibility(_knownDeviceIds.Count, _deviceRows.Count);
         }

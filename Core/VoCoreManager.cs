@@ -343,6 +343,30 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
+        /// Clear the Information Overlay dashboard (set to empty)
+        /// Called when user deselects a VoCore from a slot
+        /// </summary>
+        public void ClearOverlayDashboard(string serialNumber)
+        {
+            if (string.IsNullOrEmpty(serialNumber))
+                return;
+
+            try
+            {
+                VOCORESettings vocoreSettings = FindDeviceBySerial(serialNumber);
+                if (vocoreSettings == null)
+                    return;
+
+                vocoreSettings.CurrentOverlayDashboard.TrySet("");
+                _log?.Invoke($"[ClearOverlay] Dashboard cleared for '{serialNumber}'");
+            }
+            catch (Exception ex)
+            {
+                _log?.Invoke($"ClearOverlayDashboard error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Find VoCore device by serial number
         /// </summary>
         private VOCORESettings FindDeviceBySerial(string serialNumber)
