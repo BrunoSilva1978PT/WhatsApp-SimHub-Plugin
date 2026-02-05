@@ -276,10 +276,10 @@
                         <LineBreak/>
                         <Run Text="1 Layer: Uses the selected dashboard directly"/>
                         <LineBreak/>
-                        <Run Text="2 Layers: Merges your dashboard (Layer 1) with the WhatsApp overlay (Layer 2)"/>
+                        <Run Text="2 Layers: Merges Layer 1 (base dashboard) with Layer 2 (overlay on top)"/>
                         <LineBreak/>
                         <LineBreak/>
-                        <Run Text="Click Merge after selecting 2 layers to create the merged dashboard."/>
+                        <Run Text="Click Merge Dashboards after selecting both layers to create the merged dashboard."/>
                     </TextBlock>
                 </StackPanel>
             </Border>
