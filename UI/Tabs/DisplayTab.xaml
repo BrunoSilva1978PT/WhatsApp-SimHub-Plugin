@@ -327,6 +327,74 @@
                 </StackPanel>
             </Border>
 
+            <!-- Custom Overlay Properties -->
+            <Border Background="#252526" Padding="15" CornerRadius="6" Margin="0,10,0,10">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Custom Overlay Properties"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="White"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Text="These SimHub properties can be used to create your own custom overlay dashboards:"
+                               Foreground="#888888"
+                               FontSize="12"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,10"/>
+
+                    <TextBlock Text="WhatsAppPlugin.showmessage"
+                               Foreground="#4EC9B0"
+                               FontSize="12"
+                               FontFamily="Consolas"
+                               Margin="0,0,0,2"/>
+                    <TextBlock Text="Boolean - True when a message should be displayed"
+                               Foreground="#888888"
+                               FontSize="11"
+                               Margin="15,0,0,8"/>
+
+                    <TextBlock Text="WhatsAppPlugin.sender"
+                               Foreground="#4EC9B0"
+                               FontSize="12"
+                               FontFamily="Consolas"
+                               Margin="0,0,0,2"/>
+                    <TextBlock Text="String - Name of the message sender (contact name)"
+                               Foreground="#888888"
+                               FontSize="11"
+                               Margin="15,0,0,8"/>
+
+                    <TextBlock Text="WhatsAppPlugin.typemessage"
+                               Foreground="#4EC9B0"
+                               FontSize="12"
+                               FontFamily="Consolas"
+                               Margin="0,0,0,2"/>
+                    <TextBlock Text="String - Message priority: 'VIP', 'URGENT', or empty for normal"
+                               Foreground="#888888"
+                               FontSize="11"
+                               Margin="15,0,0,8"/>
+
+                    <TextBlock Text="WhatsAppPlugin.totalmessages"
+                               Foreground="#4EC9B0"
+                               FontSize="12"
+                               FontFamily="Consolas"
+                               Margin="0,0,0,2"/>
+                    <TextBlock Text="Integer - Total number of lines in the current message"
+                               Foreground="#888888"
+                               FontSize="11"
+                               Margin="15,0,0,8"/>
+
+                    <TextBlock Text="WhatsAppPlugin.message[0] to message[9]"
+                               Foreground="#4EC9B0"
+                               FontSize="12"
+                               FontFamily="Consolas"
+                               Margin="0,0,0,2"/>
+                    <TextBlock Text="String array - Message text split into lines (max 10 lines)"
+                               Foreground="#888888"
+                               FontSize="11"
+                               Margin="15,0,0,0"/>
+                </StackPanel>
+            </Border>
+
         </StackPanel>
     </ScrollViewer>
 </UserControl>
