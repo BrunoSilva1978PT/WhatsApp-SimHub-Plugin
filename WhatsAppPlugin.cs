@@ -339,7 +339,11 @@ namespace WhatsAppSimHubPlugin
             bool dashExists = _dashboardInstaller.IsDashboardInstalled();
             WriteLog($"Dashboard accessible: {dashExists}");
 
-
+            // Apply saved VoCore dashboards on startup
+            if (!string.IsNullOrEmpty(_settings?.VoCore1_Serial))
+                ApplyDashboardFromSettings(1);
+            if (!string.IsNullOrEmpty(_settings?.VoCore2_Serial))
+                ApplyDashboardFromSettings(2);
 
             // IDataPlugin will call DataUpdate() automatically at 60 FPS!
             // No need for manual timer for buttons!
@@ -1973,7 +1977,7 @@ del ""%~f0""
             if (string.IsNullOrEmpty(serial))
                 return;
 
-            _vocoreManager?.ApplyDirect(serial, vocoreNumber, dashboardName);
+            _vocoreManager?.SetDashboard(serial, vocoreNumber, dashboardName);
             WriteLog($"[ApplyDirect] VoCore {vocoreNumber}: '{dashboardName}'");
         }
 
@@ -1988,6 +1992,14 @@ del ""%~f0""
 
             _vocoreManager?.ApplyMerged(serial, vocoreNumber, layer1Dashboard, layer2Dashboard);
             WriteLog($"[ApplyMerged] VoCore {vocoreNumber}: '{layer1Dashboard}' + '{layer2Dashboard}'");
+        }
+
+        /// <summary>
+        /// Check if merged dashboard exists for a VoCore
+        /// </summary>
+        public bool DoesMergedDashboardExist(int vocoreNumber)
+        {
+            return _vocoreManager?.MergedDashboardExists(vocoreNumber) ?? false;
         }
 
         /// <summary>
@@ -2018,66 +2030,24 @@ del ""%~f0""
 
             int layerCount = vocoreNumber == 1 ? _settings.VoCore1_LayerCount : _settings.VoCore2_LayerCount;
 
+            string layer1 = vocoreNumber == 1 ? _settings.VoCore1_Layer1 : _settings.VoCore2_Layer1;
+            string layer2 = vocoreNumber == 1 ? _settings.VoCore1_Layer2 : _settings.VoCore2_Layer2;
+            string defaultDash = vocoreNumber == 1 ? "WhatsAppPluginVocore1" : "WhatsAppPluginVocore2";
+
+            if (string.IsNullOrEmpty(layer1)) layer1 = defaultDash;
+
             if (layerCount == 2)
             {
-                // 2 layers - apply merged dashboard if it exists
+                // 2 layers - set merged dashboard
                 string mergedDash = DashboardMerger.GetMergedDashboardName(vocoreNumber);
-                if (_vocoreManager.DoesDashboardExist(mergedDash))
-                {
-                    _vocoreManager.ApplyDirect(serial, vocoreNumber, mergedDash);
-                    WriteLog($"[ApplyFromSettings] VoCore {vocoreNumber}: Applied merged dashboard '{mergedDash}'");
-                }
-                else
-                {
-                    // Merged doesn't exist, apply Layer1 as fallback
-                    string layer1 = vocoreNumber == 1 ? _settings.VoCore1_Layer1 : _settings.VoCore2_Layer1;
-                    string defaultDash = vocoreNumber == 1 ? "WhatsAppPluginVocore1" : "WhatsAppPluginVocore2";
-                    string dashToApply = string.IsNullOrEmpty(layer1) ? defaultDash : layer1;
-                    _vocoreManager.ApplyDirect(serial, vocoreNumber, dashToApply);
-                    WriteLog($"[ApplyFromSettings] VoCore {vocoreNumber}: Merged not found, applied '{dashToApply}'");
-                }
+                _vocoreManager.SetDashboard(serial, vocoreNumber, mergedDash);
+                WriteLog($"[ApplyFromSettings] VoCore {vocoreNumber}: Dashboard set to '{mergedDash}'");
             }
             else
             {
-                // 1 layer - apply Layer1 directly
-                string layer1 = vocoreNumber == 1 ? _settings.VoCore1_Layer1 : _settings.VoCore2_Layer1;
-                string defaultDash = vocoreNumber == 1 ? "WhatsAppPluginVocore1" : "WhatsAppPluginVocore2";
-                string dashToApply = string.IsNullOrEmpty(layer1) ? defaultDash : layer1;
-                _vocoreManager.ApplyDirect(serial, vocoreNumber, dashToApply);
-                WriteLog($"[ApplyFromSettings] VoCore {vocoreNumber}: Applied '{dashToApply}'");
-            }
-        }
-
-        /// <summary>
-        /// Get the expected dashboard name for a VoCore based on current settings
-        /// </summary>
-        private string GetExpectedDashboard(int vocoreNumber)
-        {
-            if (vocoreNumber == 1)
-            {
-                if (_settings.VoCore1_LayerCount == 2)
-                {
-                    // 2 layers = merged dashboard
-                    return DashboardMerger.GetMergedDashboardName(1);
-                }
-                else
-                {
-                    // 1 layer = use Layer1 directly
-                    return _settings.VoCore1_Layer1;
-                }
-            }
-            else
-            {
-                if (_settings.VoCore2_LayerCount == 2)
-                {
-                    // 2 layers = merged dashboard
-                    return DashboardMerger.GetMergedDashboardName(2);
-                }
-                else
-                {
-                    // 1 layer = use Layer1 directly
-                    return _settings.VoCore2_Layer1;
-                }
+                // 1 layer - set Layer1
+                _vocoreManager.SetDashboard(serial, vocoreNumber, layer1);
+                WriteLog($"[ApplyFromSettings] VoCore {vocoreNumber}: Dashboard set to '{layer1}'");
             }
         }
 
@@ -2158,23 +2128,14 @@ del ""%~f0""
                 // Install default dashboards if missing (uses SimHub API - zero I/O check)
                 EnsureDashboardsInstalled();
 
-                // If no VoCores configured, nothing to do
-                if (string.IsNullOrEmpty(_settings?.VoCore1_Serial) && string.IsNullOrEmpty(_settings?.VoCore2_Serial))
-                    return;
-
-                // Ensure VoCore 1 has correct configuration
+                // Ensure overlay is ON for configured VoCores
                 if (!string.IsNullOrEmpty(_settings?.VoCore1_Serial))
-                {
-                    string expectedDash = GetExpectedDashboard(1);
-                    _vocoreManager?.EnsureConfiguration(_settings.VoCore1_Serial, expectedDash);
-                }
+                    _vocoreManager?.EnsureOverlayEnabled(_settings.VoCore1_Serial);
 
-                // Ensure VoCore 2 has correct configuration
                 if (!string.IsNullOrEmpty(_settings?.VoCore2_Serial))
-                {
-                    string expectedDash = GetExpectedDashboard(2);
-                    _vocoreManager?.EnsureConfiguration(_settings.VoCore2_Serial, expectedDash);
-                }
+                    _vocoreManager?.EnsureOverlayEnabled(_settings.VoCore2_Serial);
+
+
             }
             catch
             {

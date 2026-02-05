@@ -13,6 +13,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using SimHub.Plugins.OutputPlugins.GraphicalDash;
 using System.Windows.Threading;
 using Newtonsoft.Json.Linq;
 using WhatsAppSimHubPlugin.Models;
@@ -407,29 +408,18 @@ namespace WhatsAppSimHubPlugin.UI
                 DisplayTab.VoCore2Layer2SelectionChangedEvent -= OnVoCore2Layer2SelectionChanged;
                 var allDashboards = new List<string>();
 
-                // Get DashTemplates path
-                string dashTemplatesPath = _plugin.GetDashboardsPath();
-                if (!string.IsNullOrEmpty(dashTemplatesPath) && Directory.Exists(dashTemplatesPath))
+                // Get dashboard list from SimHub API (zero I/O)
+                var dashSettings = GraphicalDashPlugin.GetSettings();
+                if (dashSettings?.Items != null)
                 {
-                    // Each subfolder is a dashboard
-                    foreach (var dir in Directory.GetDirectories(dashTemplatesPath))
+                    foreach (var item in dashSettings.Items)
                     {
-                        string dashName = Path.GetFileName(dir);
-                        // Skip merged dashboards (they are auto-generated)
-                        if (!dashName.StartsWith("WhatsApp_merged_"))
-                        {
-                            allDashboards.Add(dashName);
-                        }
-                    }
-
-                    // Also check for .djson files (single-file dashboards)
-                    foreach (var file in Directory.GetFiles(dashTemplatesPath, "*.djson"))
-                    {
-                        string dashName = Path.GetFileNameWithoutExtension(file);
-                        if (!dashName.StartsWith("WhatsApp_merged_") && !allDashboards.Contains(dashName))
-                        {
-                            allDashboards.Add(dashName);
-                        }
+                        string dashName = item.Code;
+                        if (string.IsNullOrEmpty(dashName)) continue;
+                        // Skip merged dashboards and overlay dashboards
+                        if (dashName.StartsWith("WhatsApp_merged_")) continue;
+                        if (item.Metadata?.IsOverlay == true) continue;
+                        allDashboards.Add(dashName);
                     }
                 }
 
@@ -1462,9 +1452,30 @@ namespace WhatsAppSimHubPlugin.UI
             }
             else
             {
+                string layer1 = GetLayer1ComboBox(vocoreNumber).SelectedItem?.ToString();
+                string layer2 = GetLayer2ComboBox(vocoreNumber).SelectedItem?.ToString();
+                if (layer1 == "Default") layer1 = defaultDash;
+                if (layer2 == "Default") layer2 = defaultDash;
+
                 SetLayerCount(vocoreNumber, 2);
                 _plugin.SaveSettings();
-                GetApplyButton(vocoreNumber).IsEnabled = true;
+
+                if (!string.IsNullOrEmpty(layer1) && !string.IsNullOrEmpty(layer2) && layer1 != layer2)
+                {
+                    if (_plugin.DoesMergedDashboardExist(vocoreNumber))
+                    {
+                        // Merged exists, just switch to it
+                        string mergedDash = Core.DashboardMerger.GetMergedDashboardName(vocoreNumber);
+                        _plugin.ApplyDashboardDirect(vocoreNumber, mergedDash);
+                    }
+                    else
+                    {
+                        // Merged doesn't exist, create it (ApplyDashboardMerged handles everything)
+                        _plugin.ApplyDashboardMerged(vocoreNumber, layer1, layer2);
+                    }
+                }
+
+                GetApplyButton(vocoreNumber).IsEnabled = false;
             }
         }
 

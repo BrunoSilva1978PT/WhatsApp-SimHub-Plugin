@@ -118,9 +118,9 @@ namespace WhatsAppSimHubPlugin.Core
         /// </summary>
         /// <param name="serialNumber">Device serial number</param>
         /// <param name="expectedDashboard">Dashboard that should be active (from settings)</param>
-        public void EnsureConfiguration(string serialNumber, string expectedDashboard)
+        public void EnsureOverlayEnabled(string serialNumber)
         {
-            if (string.IsNullOrEmpty(serialNumber) || string.IsNullOrEmpty(expectedDashboard))
+            if (string.IsNullOrEmpty(serialNumber))
                 return;
 
             try
@@ -129,57 +129,40 @@ namespace WhatsAppSimHubPlugin.Core
                 if (vocoreSettings == null)
                     return;
 
-                // Ensure Information Overlay is ON
+                // Only ensure Information Overlay is ON - don't touch the dashboard
                 if (!vocoreSettings.UseOverlayDashboard)
                 {
                     vocoreSettings.UseOverlayDashboard = true;
-                    _log?.Invoke($"[EnsureConfig] Information Overlay enabled for '{serialNumber}'");
-                }
-
-                // Ensure correct dashboard is set
-                string currentDash = vocoreSettings.CurrentOverlayDashboard?.Dashboard;
-                if (currentDash != expectedDashboard)
-                {
-                    // Only change if the expected dashboard exists
-                    if (DoesDashboardExist(expectedDashboard))
-                    {
-                        vocoreSettings.CurrentOverlayDashboard.TrySet(expectedDashboard);
-                        _log?.Invoke($"[EnsureConfig] Dashboard set to '{expectedDashboard}' for '{serialNumber}'");
-                    }
+                    _log?.Invoke($"[EnsureOverlay] Information Overlay enabled for '{serialNumber}'");
                 }
             }
             catch (Exception ex)
             {
-                _log?.Invoke($"EnsureConfiguration error: {ex.Message}");
+                _log?.Invoke($"EnsureOverlayEnabled error: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Apply a dashboard directly (1 layer mode)
-        /// Deletes merged dashboard if exists
+        /// Set a dashboard on a VoCore and enable overlay
         /// </summary>
-        public void ApplyDirect(string serialNumber, int vocoreNumber, string dashboardName)
+        public void SetDashboard(string serialNumber, int vocoreNumber, string dashboardName)
         {
             if (string.IsNullOrEmpty(serialNumber) || string.IsNullOrEmpty(dashboardName))
                 return;
 
             try
             {
-                // Delete merged dashboard if exists
-                DeleteMergedDashboard(vocoreNumber);
-
-                // Set dashboard directly
                 VOCORESettings vocoreSettings = FindDeviceBySerial(serialNumber);
                 if (vocoreSettings == null)
                     return;
 
                 vocoreSettings.UseOverlayDashboard = true;
-                vocoreSettings.CurrentOverlayDashboard.TrySet(dashboardName);
-                _log?.Invoke($"[ApplyDirect] VoCore {vocoreNumber}: Dashboard set to '{dashboardName}'");
+                vocoreSettings.CurrentOverlayDashboard.Dashboard = dashboardName;
+                _log?.Invoke($"[SetDashboard] VoCore {vocoreNumber}: Dashboard set to '{dashboardName}'");
             }
             catch (Exception ex)
             {
-                _log?.Invoke($"ApplyDirect error: {ex.Message}");
+                _log?.Invoke($"SetDashboard error: {ex.Message}");
             }
         }
 
@@ -251,7 +234,7 @@ namespace WhatsAppSimHubPlugin.Core
 
                 // STEP 5: Turn overlay back ON with the merged dashboard
                 vocoreSettings.UseOverlayDashboard = true;
-                vocoreSettings.CurrentOverlayDashboard.TrySet(mergedDashboard);
+                vocoreSettings.CurrentOverlayDashboard.Dashboard = mergedDashboard;
                 _log?.Invoke($"[ApplyMerged] VoCore {vocoreNumber}: Overlay enabled with '{mergedDashboard}'");
             }
             catch (Exception ex)
@@ -326,23 +309,6 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Get the expected dashboard name for a VoCore based on settings
-        /// </summary>
-        public string GetExpectedDashboard(int vocoreNumber, int layerCount)
-        {
-            if (layerCount == 2)
-            {
-                // 2 layers = use merged dashboard
-                return DashboardMerger.GetMergedDashboardName(vocoreNumber);
-            }
-            else
-            {
-                // 1 layer = return null, caller should use Layer1 from settings
-                return null;
-            }
-        }
-
-        /// <summary>
         /// Clear the Information Overlay dashboard (set to empty)
         /// Called when user deselects a VoCore from a slot
         /// Only clears the dashboard - does not disable overlay or change any other settings
@@ -364,9 +330,10 @@ namespace WhatsAppSimHubPlugin.Core
                     return;
                 }
 
-                // Only clear dashboard - nothing else
-                vocoreSettings.CurrentOverlayDashboard.TrySet("");
-                _log?.Invoke($"[ClearOverlay] Dashboard cleared for '{serialNumber}'");
+                // Disable overlay and clear dashboard directly
+                vocoreSettings.UseOverlayDashboard = false;
+                vocoreSettings.CurrentOverlayDashboard.Dashboard = null;
+                _log?.Invoke($"[ClearOverlay] Overlay disabled and dashboard set to null for '{serialNumber}'");
             }
             catch (Exception ex)
             {
