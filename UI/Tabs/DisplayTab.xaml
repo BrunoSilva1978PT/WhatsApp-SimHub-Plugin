@@ -172,23 +172,19 @@
                                   Height="28"
                                   Background="#252526"
                                   Foreground="White"
-                                  BorderBrush="#3E3E42"/>
+                                  BorderBrush="#3E3E42"
+                                  SelectionChanged="Dash1_Layer2_SelectionChanged"/>
                     </StackPanel>
 
-                    <!-- Apply Button and Status (only for 2 layers - merge) -->
+                    <!-- Apply Button (only for 2 layers - merge) -->
                     <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                         <styles:SHButtonPrimary x:Name="VoCore1ApplyButton"
-                                Content="Merge"
-                                Width="80" Height="28"
+                                Content="Merge Dashboards"
+                                Width="140" Height="28"
                                 Background="#0E7A0D"
                                 Foreground="White"
-                                Click="VoCore1Apply_Click"/>
-                        <TextBlock x:Name="VoCore1StatusText"
-                                   Text=""
-                                   FontSize="12"
-                                   Foreground="#888888"
-                                   VerticalAlignment="Center"
-                                   Margin="15,0,0,0"/>
+                                Click="VoCore1Apply_Click"
+                                IsEnabled="False"/>
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
@@ -254,23 +250,19 @@
                                   Height="28"
                                   Background="#252526"
                                   Foreground="White"
-                                  BorderBrush="#3E3E42"/>
+                                  BorderBrush="#3E3E42"
+                                  SelectionChanged="Dash2_Layer2_SelectionChanged"/>
                     </StackPanel>
 
-                    <!-- Apply Button and Status (only for 2 layers - merge) -->
+                    <!-- Apply Button (only for 2 layers - merge) -->
                     <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
                         <styles:SHButtonPrimary x:Name="VoCore2ApplyButton"
-                                Content="Merge"
-                                Width="80" Height="28"
+                                Content="Merge Dashboards"
+                                Width="140" Height="28"
                                 Background="#0E7A0D"
                                 Foreground="White"
-                                Click="VoCore2Apply_Click"/>
-                        <TextBlock x:Name="VoCore2StatusText"
-                                   Text=""
-                                   FontSize="12"
-                                   Foreground="#888888"
-                                   VerticalAlignment="Center"
-                                   Margin="15,0,0,0"/>
+                                Click="VoCore2Apply_Click"
+                                IsEnabled="False"/>
                     </StackPanel>
                 </StackPanel>
             </StackPanel>

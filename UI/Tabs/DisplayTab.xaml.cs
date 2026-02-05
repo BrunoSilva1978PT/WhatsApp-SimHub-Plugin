@@ -28,7 +28,6 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public ComboBox Dash1_Layer1ComboBoxCtrl => Dash1_Layer1ComboBox;
         public ComboBox Dash1_Layer2ComboBoxCtrl => Dash1_Layer2ComboBox;
         public Button VoCore1ApplyButtonCtrl => VoCore1ApplyButton;
-        public TextBlock VoCore1StatusTextCtrl => VoCore1StatusText;
 
         // VoCore #2 Config accessors
         public StackPanel VoCore2ConfigPanelCtrl => VoCore2ConfigPanel;
@@ -38,7 +37,6 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public ComboBox Dash2_Layer1ComboBoxCtrl => Dash2_Layer1ComboBox;
         public ComboBox Dash2_Layer2ComboBoxCtrl => Dash2_Layer2ComboBox;
         public Button VoCore2ApplyButtonCtrl => VoCore2ApplyButton;
-        public TextBlock VoCore2StatusTextCtrl => VoCore2StatusText;
 
         // Events - will be wired up from SettingsControl
         public event System.Action VoCore1ApplyEvent;
@@ -47,6 +45,14 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public event System.Action VoCore2LayerChangedEvent;
         public event System.Action VoCore1Layer1SelectionChangedEvent;
         public event System.Action VoCore2Layer1SelectionChangedEvent;
+        public event System.Action VoCore1Layer2SelectionChangedEvent;
+        public event System.Action VoCore2Layer2SelectionChangedEvent;
+
+        // Track original selections to detect real changes
+        private string _voCore1OriginalLayer1;
+        private string _voCore1OriginalLayer2;
+        private string _voCore2OriginalLayer1;
+        private string _voCore2OriginalLayer2;
 
         // Allow RadioButton to be deselected by clicking again
         private void Radio1_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -112,6 +118,45 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         private void Dash2_Layer1_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
             VoCore2Layer1SelectionChangedEvent?.Invoke();
+        }
+
+        // Layer 2 selection changed handlers
+        private void Dash1_Layer2_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            VoCore1Layer2SelectionChangedEvent?.Invoke();
+        }
+
+        private void Dash2_Layer2_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            VoCore2Layer2SelectionChangedEvent?.Invoke();
+        }
+
+        // Methods to update original values (called from SettingsControl)
+        public void UpdateVoCore1OriginalValues(string layer1, string layer2)
+        {
+            _voCore1OriginalLayer1 = layer1;
+            _voCore1OriginalLayer2 = layer2;
+        }
+
+        public void UpdateVoCore2OriginalValues(string layer1, string layer2)
+        {
+            _voCore2OriginalLayer1 = layer1;
+            _voCore2OriginalLayer2 = layer2;
+        }
+
+        // Check if selections have changed from original
+        public bool HasVoCore1Changed()
+        {
+            string current1 = Dash1_Layer1ComboBox.SelectedItem?.ToString();
+            string current2 = Dash1_Layer2ComboBox.SelectedItem?.ToString();
+            return current1 != _voCore1OriginalLayer1 || current2 != _voCore1OriginalLayer2;
+        }
+
+        public bool HasVoCore2Changed()
+        {
+            string current1 = Dash2_Layer1ComboBox.SelectedItem?.ToString();
+            string current2 = Dash2_Layer2ComboBox.SelectedItem?.ToString();
+            return current1 != _voCore2OriginalLayer1 || current2 != _voCore2OriginalLayer2;
         }
     }
 

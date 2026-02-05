@@ -197,33 +197,92 @@ namespace WhatsAppSimHubPlugin.Core
             try
             {
                 string mergedDashboard = DashboardMerger.GetMergedDashboardName(vocoreNumber);
+                string mergedDashboardPath = Path.Combine(_dashboardMerger.DashTemplatesPath, mergedDashboard);
 
-                // Set merged dashboard name first (instant)
                 VOCORESettings vocoreSettings = FindDeviceBySerial(serialNumber);
-                if (vocoreSettings != null)
+                if (vocoreSettings == null)
                 {
-                    vocoreSettings.UseOverlayDashboard = true;
-                    vocoreSettings.CurrentOverlayDashboard.TrySet(mergedDashboard);
-                    _log?.Invoke($"[ApplyMerged] VoCore {vocoreNumber}: Dashboard set to '{mergedDashboard}'");
+                    _log?.Invoke($"[ApplyMerged] VoCore {vocoreNumber}: Device not found!");
+                    return;
                 }
 
-                // Do merge in background
-                _ = Task.Run(() =>
+                // STEP 1: Turn OFF Information Overlay (force SimHub to release cache)
+                bool wasOverlayEnabled = vocoreSettings.UseOverlayDashboard;
+                string currentDashboard = vocoreSettings.CurrentOverlayDashboard.Dashboard;
+
+                vocoreSettings.UseOverlayDashboard = false;
+                _log?.Invoke($"[ApplyMerged] VoCore {vocoreNumber}: Overlay disabled (forcing cache clear)");
+
+                // STEP 2: Delete old merged dashboard (now that cache is cleared)
+                if (Directory.Exists(mergedDashboardPath))
                 {
                     try
                     {
-                        _dashboardMerger.MergeDashboards(layer1Dashboard, layer2Dashboard, vocoreNumber);
-                        _log?.Invoke($"[ApplyMerged] VoCore {vocoreNumber}: Merge completed ('{layer1Dashboard}' + '{layer2Dashboard}')");
+                        Directory.Delete(mergedDashboardPath, true);
+                        _log?.Invoke($"[ApplyMerged] VoCore {vocoreNumber}: Deleted old merged dashboard");
                     }
                     catch (Exception ex)
                     {
-                        _log?.Invoke($"[ApplyMerged] Merge error: {ex.Message}");
+                        _log?.Invoke($"[ApplyMerged] Warning: Could not delete old merged dashboard: {ex.Message}");
                     }
-                });
+                }
+
+                // STEP 3: Copy current dashboard to merged location (assets only, no .djson)
+                if (!string.IsNullOrEmpty(currentDashboard) && currentDashboard != mergedDashboard)
+                {
+                    try
+                    {
+                        string currentDashPath = Path.Combine(_dashboardMerger.DashTemplatesPath, currentDashboard);
+                        if (Directory.Exists(currentDashPath))
+                        {
+                            CopyDirectory(currentDashPath, mergedDashboardPath);
+                            _log?.Invoke($"[ApplyMerged] VoCore {vocoreNumber}: Copied '{currentDashboard}' assets to '{mergedDashboard}'");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _log?.Invoke($"[ApplyMerged] Warning: Could not copy current dashboard: {ex.Message}");
+                    }
+                }
+
+                // STEP 4: Do merge (creates new .djson with correct name)
+                _dashboardMerger.MergeDashboards(layer1Dashboard, layer2Dashboard, vocoreNumber);
+                _log?.Invoke($"[ApplyMerged] VoCore {vocoreNumber}: Merge completed ('{layer1Dashboard}' + '{layer2Dashboard}')");
+
+                // STEP 5: Turn overlay back ON with the merged dashboard
+                vocoreSettings.UseOverlayDashboard = true;
+                vocoreSettings.CurrentOverlayDashboard.TrySet(mergedDashboard);
+                _log?.Invoke($"[ApplyMerged] VoCore {vocoreNumber}: Overlay enabled with '{mergedDashboard}'");
             }
             catch (Exception ex)
             {
                 _log?.Invoke($"ApplyMerged error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Copy directory recursively (excluding .djson files)
+        /// </summary>
+        private void CopyDirectory(string sourceDir, string destDir)
+        {
+            Directory.CreateDirectory(destDir);
+
+            // Copy all files EXCEPT .djson (merge will create the correct .djson)
+            foreach (string file in Directory.GetFiles(sourceDir))
+            {
+                // Skip .djson files - the merge process will create the correct one
+                if (Path.GetExtension(file).Equals(".djson", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string destFile = Path.Combine(destDir, Path.GetFileName(file));
+                File.Copy(file, destFile, true);
+            }
+
+            // Copy subdirectories recursively
+            foreach (string subDir in Directory.GetDirectories(sourceDir))
+            {
+                string destSubDir = Path.Combine(destDir, Path.GetFileName(subDir));
+                CopyDirectory(subDir, destSubDir);
             }
         }
 

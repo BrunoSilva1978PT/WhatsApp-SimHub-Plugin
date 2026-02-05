@@ -187,6 +187,10 @@ namespace WhatsAppSimHubPlugin.UI
             // Layer 1 dropdown changed events (auto-apply when in 1 layer mode)
             DisplayTab.VoCore1Layer1SelectionChangedEvent += OnVoCore1Layer1SelectionChanged;
             DisplayTab.VoCore2Layer1SelectionChangedEvent += OnVoCore2Layer1SelectionChanged;
+
+            // Layer 2 dropdown changed events (check if merge button should be enabled)
+            DisplayTab.VoCore1Layer2SelectionChangedEvent += OnVoCore1Layer2SelectionChanged;
+            DisplayTab.VoCore2Layer2SelectionChangedEvent += OnVoCore2Layer2SelectionChanged;
         }
 
         /// <summary>
@@ -391,6 +395,13 @@ namespace WhatsAppSimHubPlugin.UI
         {
             try
             {
+                // IMPORTANT: Unsubscribe from events during load to prevent them from firing and overwriting settings
+                DisplayTab.VoCore1LayerChangedEvent -= OnVoCore1LayerChanged;
+                DisplayTab.VoCore2LayerChangedEvent -= OnVoCore2LayerChanged;
+                DisplayTab.VoCore1Layer1SelectionChangedEvent -= OnVoCore1Layer1SelectionChanged;
+                DisplayTab.VoCore2Layer1SelectionChangedEvent -= OnVoCore2Layer1SelectionChanged;
+                DisplayTab.VoCore1Layer2SelectionChangedEvent -= OnVoCore1Layer2SelectionChanged;
+                DisplayTab.VoCore2Layer2SelectionChangedEvent -= OnVoCore2Layer2SelectionChanged;
                 var allDashboards = new List<string>();
 
                 // Get DashTemplates path
@@ -436,6 +447,15 @@ namespace WhatsAppSimHubPlugin.UI
                 PopulateLayerComboBox(DisplayTab.Dash2_Layer1ComboBoxCtrl, layer1Dashboards, _settings.VoCore2_Layer1, "WhatsAppPluginVocore2");
                 PopulateLayerComboBox(DisplayTab.Dash2_Layer2ComboBoxCtrl, layer1Dashboards, _settings.VoCore2_Layer2, "WhatsAppPluginVocore2");
 
+                // Update original values for change detection
+                string voCore1Layer1Display = string.IsNullOrEmpty(_settings.VoCore1_Layer1) || _settings.VoCore1_Layer1 == "WhatsAppPluginVocore1" ? "Default" : _settings.VoCore1_Layer1;
+                string voCore1Layer2Display = string.IsNullOrEmpty(_settings.VoCore1_Layer2) || _settings.VoCore1_Layer2 == "WhatsAppPluginVocore1" ? "Default" : _settings.VoCore1_Layer2;
+                DisplayTab.UpdateVoCore1OriginalValues(voCore1Layer1Display, voCore1Layer2Display);
+
+                string voCore2Layer1Display = string.IsNullOrEmpty(_settings.VoCore2_Layer1) || _settings.VoCore2_Layer1 == "WhatsAppPluginVocore2" ? "Default" : _settings.VoCore2_Layer1;
+                string voCore2Layer2Display = string.IsNullOrEmpty(_settings.VoCore2_Layer2) || _settings.VoCore2_Layer2 == "WhatsAppPluginVocore2" ? "Default" : _settings.VoCore2_Layer2;
+                DisplayTab.UpdateVoCore2OriginalValues(voCore2Layer1Display, voCore2Layer2Display);
+
                 // Set layer count radio buttons
                 DisplayTab.Dash1_Layer1RadioCtrl.IsChecked = _settings.VoCore1_LayerCount == 1;
                 DisplayTab.Dash1_Layer2RadioCtrl.IsChecked = _settings.VoCore1_LayerCount == 2;
@@ -444,10 +464,26 @@ namespace WhatsAppSimHubPlugin.UI
                 DisplayTab.Dash2_Layer1RadioCtrl.IsChecked = _settings.VoCore2_LayerCount == 1;
                 DisplayTab.Dash2_Layer2RadioCtrl.IsChecked = _settings.VoCore2_LayerCount == 2;
                 DisplayTab.Dash2_Layer2PanelCtrl.Visibility = _settings.VoCore2_LayerCount == 2 ? Visibility.Visible : Visibility.Collapsed;
+
+                // Re-subscribe to events after loading is complete
+                DisplayTab.VoCore1LayerChangedEvent += OnVoCore1LayerChanged;
+                DisplayTab.VoCore2LayerChangedEvent += OnVoCore2LayerChanged;
+                DisplayTab.VoCore1Layer1SelectionChangedEvent += OnVoCore1Layer1SelectionChanged;
+                DisplayTab.VoCore2Layer1SelectionChangedEvent += OnVoCore2Layer1SelectionChanged;
+                DisplayTab.VoCore1Layer2SelectionChangedEvent += OnVoCore1Layer2SelectionChanged;
+                DisplayTab.VoCore2Layer2SelectionChangedEvent += OnVoCore2Layer2SelectionChanged;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"LoadAvailableDashboards error: {ex.Message}");
+
+                // Make sure to re-subscribe even if there's an error
+                DisplayTab.VoCore1LayerChangedEvent += OnVoCore1LayerChanged;
+                DisplayTab.VoCore2LayerChangedEvent += OnVoCore2LayerChanged;
+                DisplayTab.VoCore1Layer1SelectionChangedEvent += OnVoCore1Layer1SelectionChanged;
+                DisplayTab.VoCore2Layer1SelectionChangedEvent += OnVoCore2Layer1SelectionChanged;
+                DisplayTab.VoCore1Layer2SelectionChangedEvent += OnVoCore1Layer2SelectionChanged;
+                DisplayTab.VoCore2Layer2SelectionChangedEvent += OnVoCore2Layer2SelectionChanged;
             }
         }
 
@@ -1373,6 +1409,13 @@ namespace WhatsAppSimHubPlugin.UI
                     _plugin.ApplyDashboardDirect(1, layer1);
                 }
             }
+            else
+            {
+                // Switching to 2 layers - save setting and enable merge button
+                _settings.VoCore1_LayerCount = 2;
+                _plugin.SaveSettings();
+                DisplayTab.VoCore1ApplyButtonCtrl.IsEnabled = true;
+            }
         }
 
         /// <summary>
@@ -1397,51 +1440,138 @@ namespace WhatsAppSimHubPlugin.UI
                     _plugin.ApplyDashboardDirect(2, layer1);
                 }
             }
+            else
+            {
+                // Switching to 2 layers - save setting and enable merge button
+                _settings.VoCore2_LayerCount = 2;
+                _plugin.SaveSettings();
+                DisplayTab.VoCore2ApplyButtonCtrl.IsEnabled = true;
+            }
         }
 
         /// <summary>
-        /// Handle VoCore #1 Layer 1 dropdown selection changed - auto-apply if 1 layer mode
+        /// Handle VoCore #1 Layer 1 dropdown selection changed - auto-apply if 1 layer mode, save if 2 layer mode
         /// </summary>
         private void OnVoCore1Layer1SelectionChanged()
         {
             if (_plugin == null || _settings == null) return;
 
             bool is1Layer = DisplayTab.Dash1_Layer1RadioCtrl.IsChecked == true;
+
+            string layer1 = DisplayTab.Dash1_Layer1ComboBoxCtrl.SelectedItem?.ToString();
+            if (layer1 == "Default") layer1 = "WhatsAppPluginVocore1";
+
+            if (string.IsNullOrEmpty(layer1)) return;
+
             if (is1Layer)
             {
-                string layer1 = DisplayTab.Dash1_Layer1ComboBoxCtrl.SelectedItem?.ToString();
-                if (layer1 == "Default") layer1 = "WhatsAppPluginVocore1";
-
-                if (!string.IsNullOrEmpty(layer1))
-                {
-                    _settings.VoCore1_LayerCount = 1;
-                    _settings.VoCore1_Layer1 = layer1;
-                    _plugin.SaveSettings();
-                    _plugin.ApplyDashboardDirect(1, layer1);
-                }
+                // 1 layer mode: save and auto-apply
+                _settings.VoCore1_LayerCount = 1;
+                _settings.VoCore1_Layer1 = layer1;
+                _plugin.SaveSettings();
+                _plugin.ApplyDashboardDirect(1, layer1);
+            }
+            else
+            {
+                // 2 layer mode: save Layer 1 and check merge button state
+                _settings.VoCore1_Layer1 = layer1;
+                _plugin.SaveSettings();
+                UpdateVoCore1MergeButtonState();
             }
         }
 
         /// <summary>
-        /// Handle VoCore #2 Layer 1 dropdown selection changed - auto-apply if 1 layer mode
+        /// Handle VoCore #2 Layer 1 dropdown selection changed - auto-apply if 1 layer mode, save if 2 layer mode
         /// </summary>
         private void OnVoCore2Layer1SelectionChanged()
         {
             if (_plugin == null || _settings == null) return;
 
             bool is1Layer = DisplayTab.Dash2_Layer1RadioCtrl.IsChecked == true;
+
+            string layer1 = DisplayTab.Dash2_Layer1ComboBoxCtrl.SelectedItem?.ToString();
+            if (layer1 == "Default") layer1 = "WhatsAppPluginVocore2";
+
+            if (string.IsNullOrEmpty(layer1)) return;
+
             if (is1Layer)
             {
-                string layer1 = DisplayTab.Dash2_Layer1ComboBoxCtrl.SelectedItem?.ToString();
-                if (layer1 == "Default") layer1 = "WhatsAppPluginVocore2";
+                // 1 layer mode: save and auto-apply
+                _settings.VoCore2_LayerCount = 1;
+                _settings.VoCore2_Layer1 = layer1;
+                _plugin.SaveSettings();
+                _plugin.ApplyDashboardDirect(2, layer1);
+            }
+            else
+            {
+                // 2 layer mode: save Layer 1 and check merge button state
+                _settings.VoCore2_Layer1 = layer1;
+                _plugin.SaveSettings();
+                UpdateVoCore2MergeButtonState();
+            }
+        }
 
-                if (!string.IsNullOrEmpty(layer1))
-                {
-                    _settings.VoCore2_LayerCount = 1;
-                    _settings.VoCore2_Layer1 = layer1;
-                    _plugin.SaveSettings();
-                    _plugin.ApplyDashboardDirect(2, layer1);
-                }
+        /// <summary>
+        /// Handle VoCore #1 Layer 2 selection changed - save and check if merge button should be enabled
+        /// </summary>
+        private void OnVoCore1Layer2SelectionChanged()
+        {
+            if (_plugin == null || _settings == null) return;
+
+            // Save Layer 2 selection
+            string layer2 = DisplayTab.Dash1_Layer2ComboBoxCtrl.SelectedItem?.ToString();
+            if (layer2 == "Default") layer2 = "WhatsAppPluginVocore1";
+
+            if (!string.IsNullOrEmpty(layer2))
+            {
+                _settings.VoCore1_Layer2 = layer2;
+                _plugin.SaveSettings();
+            }
+
+            UpdateVoCore1MergeButtonState();
+        }
+
+        /// <summary>
+        /// Handle VoCore #2 Layer 2 selection changed - save and check if merge button should be enabled
+        /// </summary>
+        private void OnVoCore2Layer2SelectionChanged()
+        {
+            if (_plugin == null || _settings == null) return;
+
+            // Save Layer 2 selection
+            string layer2 = DisplayTab.Dash2_Layer2ComboBoxCtrl.SelectedItem?.ToString();
+            if (layer2 == "Default") layer2 = "WhatsAppPluginVocore2";
+
+            if (!string.IsNullOrEmpty(layer2))
+            {
+                _settings.VoCore2_Layer2 = layer2;
+                _plugin.SaveSettings();
+            }
+
+            UpdateVoCore2MergeButtonState();
+        }
+
+        /// <summary>
+        /// Update VoCore #1 merge button enabled state based on whether layers have changed
+        /// </summary>
+        private void UpdateVoCore1MergeButtonState()
+        {
+            bool is2Layers = DisplayTab.Dash1_Layer2RadioCtrl.IsChecked == true;
+            if (is2Layers)
+            {
+                DisplayTab.VoCore1ApplyButtonCtrl.IsEnabled = DisplayTab.HasVoCore1Changed();
+            }
+        }
+
+        /// <summary>
+        /// Update VoCore #2 merge button enabled state based on whether layers have changed
+        /// </summary>
+        private void UpdateVoCore2MergeButtonState()
+        {
+            bool is2Layers = DisplayTab.Dash2_Layer2RadioCtrl.IsChecked == true;
+            if (is2Layers)
+            {
+                DisplayTab.VoCore2ApplyButtonCtrl.IsEnabled = DisplayTab.HasVoCore2Changed();
             }
         }
 
@@ -1465,7 +1595,7 @@ namespace WhatsAppSimHubPlugin.UI
             // Validation - layers must be different
             if (layer1 == layer2)
             {
-                UpdateVoCore1Status("Layers must be different", "#FF6B6B");
+                ShowToast("Layers must be different");
                 return;
             }
 
@@ -1477,7 +1607,15 @@ namespace WhatsAppSimHubPlugin.UI
 
             // Apply merge
             _plugin.ApplyDashboardMerged(1, layer1, layer2);
-            UpdateVoCore1Status("Merged", "#4CAF50");
+
+            // Update original values and disable button
+            string layer1Display = layer1 == "WhatsAppPluginVocore1" ? "Default" : layer1;
+            string layer2Display = layer2 == "WhatsAppPluginVocore1" ? "Default" : layer2;
+            DisplayTab.UpdateVoCore1OriginalValues(layer1Display, layer2Display);
+            DisplayTab.VoCore1ApplyButtonCtrl.IsEnabled = false;
+
+            // Show toast notification
+            ShowToast("Dashboards merged successfully");
         }
 
         /// <summary>
@@ -1500,7 +1638,7 @@ namespace WhatsAppSimHubPlugin.UI
             // Validation - layers must be different
             if (layer1 == layer2)
             {
-                UpdateVoCore2Status("Layers must be different", "#FF6B6B");
+                ShowToast("Layers must be different");
                 return;
             }
 
@@ -1512,27 +1650,15 @@ namespace WhatsAppSimHubPlugin.UI
 
             // Apply merge
             _plugin.ApplyDashboardMerged(2, layer1, layer2);
-            UpdateVoCore2Status("Merged", "#4CAF50");
-        }
 
-        /// <summary>
-        /// Update VoCore #1 status text
-        /// </summary>
-        private void UpdateVoCore1Status(string text, string color)
-        {
-            DisplayTab.VoCore1StatusTextCtrl.Text = text;
-            DisplayTab.VoCore1StatusTextCtrl.Foreground = new SolidColorBrush(
-                (Color)ColorConverter.ConvertFromString(color));
-        }
+            // Update original values and disable button
+            string layer1Display = layer1 == "WhatsAppPluginVocore2" ? "Default" : layer1;
+            string layer2Display = layer2 == "WhatsAppPluginVocore2" ? "Default" : layer2;
+            DisplayTab.UpdateVoCore2OriginalValues(layer1Display, layer2Display);
+            DisplayTab.VoCore2ApplyButtonCtrl.IsEnabled = false;
 
-        /// <summary>
-        /// Update VoCore #2 status text
-        /// </summary>
-        private void UpdateVoCore2Status(string text, string color)
-        {
-            DisplayTab.VoCore2StatusTextCtrl.Text = text;
-            DisplayTab.VoCore2StatusTextCtrl.Foreground = new SolidColorBrush(
-                (Color)ColorConverter.ConvertFromString(color));
+            // Show toast notification
+            ShowToast("Dashboards merged successfully");
         }
 
         #endregion
