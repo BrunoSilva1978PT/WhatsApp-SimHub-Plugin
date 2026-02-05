@@ -8,7 +8,10 @@ namespace WhatsAppSimHubPlugin.Core
 {
     public class DashboardMerger
     {
-        private const string MERGED_DASHBOARD_NAME = "WhatsApp_merged_overlay_dash";
+        // Merged dashboard names for each VoCore
+        public const string MERGED_VOCORE1_NAME = "WhatsApp_merged_vocore1";
+        public const string MERGED_VOCORE2_NAME = "WhatsApp_merged_vocore2";
+
         private readonly Action<string> _log;
         private readonly string _dashTemplatesPath;
 
@@ -16,6 +19,24 @@ namespace WhatsAppSimHubPlugin.Core
         {
             _dashTemplatesPath = dashTemplatesPath;
             _log = log;
+        }
+
+        /// <summary>
+        /// Get the merged dashboard name for a specific VoCore
+        /// </summary>
+        public static string GetMergedDashboardName(int vocoreNumber)
+        {
+            return vocoreNumber == 1 ? MERGED_VOCORE1_NAME : MERGED_VOCORE2_NAME;
+        }
+
+        /// <summary>
+        /// Get the merged dashboard title for a specific VoCore
+        /// </summary>
+        private static string GetMergedDashboardTitle(int vocoreNumber)
+        {
+            return vocoreNumber == 1
+                ? "WhatsApp Plugin Dash Merged Vocore 1"
+                : "WhatsApp Plugin Dash Merged Vocore 2";
         }
 
         public bool DashboardExists(string dashboardName)
@@ -26,11 +47,21 @@ namespace WhatsAppSimHubPlugin.Core
             return Directory.Exists(dashPath) || File.Exists(djsonPath);
         }
 
-        public string MergeDashboards(string baseDashboardName, string overlayDashboardName)
+        /// <summary>
+        /// Merge dashboards for a specific VoCore
+        /// </summary>
+        /// <param name="baseDashboardName">User's existing dashboard (base layer)</param>
+        /// <param name="overlayDashboardName">WhatsApp plugin dashboard (overlay layer)</param>
+        /// <param name="vocoreNumber">VoCore number (1 or 2)</param>
+        /// <returns>Name of the merged dashboard, or null on failure</returns>
+        public string MergeDashboards(string baseDashboardName, string overlayDashboardName, int vocoreNumber)
         {
+            string mergedName = GetMergedDashboardName(vocoreNumber);
+            string mergedTitle = GetMergedDashboardTitle(vocoreNumber);
+
             try
             {
-                _log?.Invoke($"Starting dashboard merge: {baseDashboardName} + {overlayDashboardName}");
+                _log?.Invoke($"Starting dashboard merge for VoCore {vocoreNumber}: {baseDashboardName} + {overlayDashboardName}");
                 if (!DashboardExists(baseDashboardName))
                 {
                     _log?.Invoke($"Base dashboard not found: {baseDashboardName}");
@@ -48,22 +79,22 @@ namespace WhatsAppSimHubPlugin.Core
                     _log?.Invoke("Failed to load dashboards");
                     return null;
                 }
-                var mergedDash = CreateWrapperDashboard(baseDash, overlayDash, baseDashboardName, overlayDashboardName);
+                var mergedDash = CreateWrapperDashboard(baseDash, overlayDash, baseDashboardName, overlayDashboardName, mergedTitle);
                 if (mergedDash == null)
                 {
                     _log?.Invoke("Failed to create wrapper dashboard");
                     return null;
                 }
-                bool saved = SaveMergedDashboard(mergedDash, MERGED_DASHBOARD_NAME);
+                bool saved = SaveMergedDashboard(mergedDash, mergedName);
                 if (!saved)
                 {
                     _log?.Invoke("Failed to save merged dashboard");
                     return null;
                 }
-                CopyDashboardResources(baseDashboardName, MERGED_DASHBOARD_NAME);
-                CopyDashboardResources(overlayDashboardName, MERGED_DASHBOARD_NAME);
-                _log?.Invoke($"Dashboard merge completed: {MERGED_DASHBOARD_NAME}");
-                return MERGED_DASHBOARD_NAME;
+                CopyDashboardResources(baseDashboardName, mergedName);
+                CopyDashboardResources(overlayDashboardName, mergedName);
+                _log?.Invoke($"Dashboard merge completed: {mergedName}");
+                return mergedName;
             }
             catch (Exception ex)
             {
@@ -106,7 +137,7 @@ namespace WhatsAppSimHubPlugin.Core
             }
         }
 
-        private JObject CreateWrapperDashboard(JObject baseDash, JObject overlayDash, string baseDashName, string overlayDashName)
+        private JObject CreateWrapperDashboard(JObject baseDash, JObject overlayDash, string baseDashName, string overlayDashName, string mergedTitle)
         {
             try
             {
@@ -301,7 +332,7 @@ namespace WhatsAppSimHubPlugin.Core
                 metadata["MetadataVersion"] = 2.0;
                 metadata["EnableOnDashboardMessaging"] = true;
                 metadata["PitScreensIndexs"] = new JArray();
-                metadata["Title"] = "WhatsApp SimHub Plugin Merged Dash";
+                metadata["Title"] = mergedTitle;
                 metadata["DashboardVersion"] = "V2.0";
                 wrapper["Metadata"] = metadata;
                 wrapper["ShowOnScreenControls"] = true;
@@ -510,6 +541,5 @@ namespace WhatsAppSimHubPlugin.Core
             // Fallback: if no return, wrap entire expression
             return $"return ({trimmed}) * {scale.ToString(System.Globalization.CultureInfo.InvariantCulture)};";
         }
-        public static string MergedDashboardName => MERGED_DASHBOARD_NAME;
     }
 }

@@ -16,6 +16,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Newtonsoft.Json.Linq;
 using WhatsAppSimHubPlugin.Models;
+using WhatsAppSimHubPlugin.UI.Tabs;
 
 namespace WhatsAppSimHubPlugin.UI
 {
@@ -173,17 +174,9 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         private void WireUpDisplayTabEvents()
         {
-            DisplayTab.VoCoreEnabledCheckboxCtrl.Checked += VoCoreEnabledCheckbox_Changed;
-            DisplayTab.VoCoreEnabledCheckboxCtrl.Unchecked += VoCoreEnabledCheckbox_Changed;
             DisplayTab.TestVoCoresButtonCtrl.Click += TestVoCoresButton_Click;
-
-            // VoCore 1
-            DisplayTab.VoCore1ComboBoxCtrl.SelectionChanged += VoCore1Combo_SelectionChanged;
-            DisplayTab.RemoveVoCore1ButtonCtrl.Click += RemoveVoCore1Button_Click;
-
-            // VoCore 2
-            DisplayTab.VoCore2ComboBoxCtrl.SelectionChanged += VoCore2Combo_SelectionChanged;
-            DisplayTab.RemoveVoCore2ButtonCtrl.Click += RemoveVoCore2Button_Click;
+            DisplayTab.Dashboard1ComboBoxCtrl.SelectionChanged += Dashboard1Combo_SelectionChanged;
+            DisplayTab.Dashboard2ComboBoxCtrl.SelectionChanged += Dashboard2Combo_SelectionChanged;
         }
 
         /// <summary>
@@ -235,7 +228,13 @@ namespace WhatsAppSimHubPlugin.UI
 
             // Devices
             LoadAvailableDevices();
+
+            // Dashboards
+            LoadAvailableDashboards();
         }
+
+        // Device row view models for the table
+        private ObservableCollection<DeviceRowViewModel> _deviceRows = new ObservableCollection<DeviceRowViewModel>();
 
         /// <summary>
         /// Public method to refresh device list (called from DataUpdate auto-detection)
@@ -258,201 +257,116 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 // Get connected VoCores from plugin
                 var devices = _plugin.GetAvailableDevices();
-
-                // Optimization: Only update UI if there are NEW devices OR first time
                 var currentDeviceIds = new HashSet<string>(devices.Select(d => d.Serial));
 
-                // Check if there were changes OR if this is first time (ComboBox empty)
-                bool hasNewDevices = !currentDeviceIds.SetEquals(_knownDeviceIds);
-                bool isFirstTime = DisplayTab.VoCore1ComboBoxCtrl.Items.Count == 0;
+                // Check if there were changes
+                bool hasChanges = !currentDeviceIds.SetEquals(_knownDeviceIds);
 
-                if (!hasNewDevices && !isFirstTime)
+                // Also check if saved devices are not in current list (offline devices)
+                if (!string.IsNullOrEmpty(_settings.VoCore1_Serial) && !currentDeviceIds.Contains(_settings.VoCore1_Serial))
+                    hasChanges = true;
+                if (!string.IsNullOrEmpty(_settings.VoCore2_Serial) && !currentDeviceIds.Contains(_settings.VoCore2_Serial))
+                    hasChanges = true;
+
+                bool isFirstTime = _deviceRows.Count == 0;
+
+                if (!hasChanges && !isFirstTime)
                 {
-                    // No new devices AND not first time → Do nothing!
                     return;
                 }
 
-                // There are new devices or first time → Update known list
                 _knownDeviceIds = currentDeviceIds;
+                _isLoadingDevices = true;
 
-                _isLoadingDevices = true; // Block SelectionChanged
+                // Build list of device rows (online + offline saved devices)
+                var allDevices = new List<DeviceRowViewModel>();
 
-                // Populate VoCore 1 ComboBox
-                PopulateVoCoreComboBox(
-                    DisplayTab.VoCore1ComboBoxCtrl,
-                    devices,
-                    _settings.VoCore1_Serial,
-                    _settings.VoCore1_Name,
-                    _settings.VoCore2_Serial, // Exclude VoCore2 from VoCore1 list
-                    (serial, name) => { _settings.VoCore1_Serial = serial; _settings.VoCore1_Name = name; }
-                );
+                // Calculate total device count to determine if column #2 should be shown
+                int totalDeviceCount = devices.Count;
+                if (!string.IsNullOrEmpty(_settings.VoCore1_Serial) && !devices.Any(d => d.Serial == _settings.VoCore1_Serial))
+                    totalDeviceCount++;
+                if (!string.IsNullOrEmpty(_settings.VoCore2_Serial) &&
+                    _settings.VoCore2_Serial != _settings.VoCore1_Serial &&
+                    !devices.Any(d => d.Serial == _settings.VoCore2_Serial))
+                    totalDeviceCount++;
 
-                // Populate VoCore 2 ComboBox
-                PopulateVoCoreComboBox(
-                    DisplayTab.VoCore2ComboBoxCtrl,
-                    devices,
-                    _settings.VoCore2_Serial,
-                    _settings.VoCore2_Name,
-                    _settings.VoCore1_Serial, // Exclude VoCore1 from VoCore2 list
-                    (serial, name) => { _settings.VoCore2_Serial = serial; _settings.VoCore2_Name = name; }
-                );
+                bool showColumn2 = totalDeviceCount >= 2;
+                var column2Visibility = showColumn2 ? Visibility.Visible : Visibility.Collapsed;
+                var column2Width = showColumn2 ? new GridLength(60) : new GridLength(0);
 
-                // Update Test buttons state
-                UpdateTestButtonState(devices.Count);
+                // Add online devices
+                foreach (var device in devices)
+                {
+                    var row = new DeviceRowViewModel
+                    {
+                        Name = device.Name,
+                        Serial = device.Serial,
+                        IsOnline = true,
+                        IsVoCore1 = device.Serial == _settings.VoCore1_Serial,
+                        IsVoCore2 = device.Serial == _settings.VoCore2_Serial,
+                        Column2Visibility = column2Visibility,
+                        Column2Width = column2Width
+                    };
+                    row.VoCore1Changed += DeviceRow_VoCore1Changed;
+                    row.VoCore2Changed += DeviceRow_VoCore2Changed;
+                    allDevices.Add(row);
+                }
+
+                // Add offline saved device for VoCore1 if not in online list
+                if (!string.IsNullOrEmpty(_settings.VoCore1_Serial) && !devices.Any(d => d.Serial == _settings.VoCore1_Serial))
+                {
+                    var row = new DeviceRowViewModel
+                    {
+                        Name = !string.IsNullOrEmpty(_settings.VoCore1_Name) ? _settings.VoCore1_Name : _settings.VoCore1_Serial,
+                        Serial = _settings.VoCore1_Serial,
+                        IsOnline = false,
+                        IsVoCore1 = true,
+                        IsVoCore2 = false,
+                        Column2Visibility = column2Visibility,
+                        Column2Width = column2Width
+                    };
+                    row.VoCore1Changed += DeviceRow_VoCore1Changed;
+                    row.VoCore2Changed += DeviceRow_VoCore2Changed;
+                    allDevices.Add(row);
+                }
+
+                // Add offline saved device for VoCore2 if not in online list and different from VoCore1
+                if (!string.IsNullOrEmpty(_settings.VoCore2_Serial) &&
+                    _settings.VoCore2_Serial != _settings.VoCore1_Serial &&
+                    !devices.Any(d => d.Serial == _settings.VoCore2_Serial))
+                {
+                    var row = new DeviceRowViewModel
+                    {
+                        Name = !string.IsNullOrEmpty(_settings.VoCore2_Name) ? _settings.VoCore2_Name : _settings.VoCore2_Serial,
+                        Serial = _settings.VoCore2_Serial,
+                        IsOnline = false,
+                        IsVoCore1 = false,
+                        IsVoCore2 = true,
+                        Column2Visibility = column2Visibility,
+                        Column2Width = column2Width
+                    };
+                    row.VoCore1Changed += DeviceRow_VoCore1Changed;
+                    row.VoCore2Changed += DeviceRow_VoCore2Changed;
+                    allDevices.Add(row);
+                }
+
+                // Update UI
+                _deviceRows.Clear();
+                foreach (var row in allDevices)
+                {
+                    _deviceRows.Add(row);
+                }
+
+                DisplayTab.DeviceListContainerCtrl.ItemsSource = _deviceRows;
+
+                // Update UI visibility based on device count
+                int totalOnlineDevices = devices.Count;
+                UpdateDeviceTableVisibility(totalOnlineDevices, allDevices.Count);
+                UpdateTestButtonState();
             }
             catch (Exception ex)
             {
-                var errorItem = new ComboBoxItem
-                {
-                    Content = $"Error: {ex.Message}",
-                    IsEnabled = false
-                };
-                DisplayTab.VoCore1ComboBoxCtrl.Items.Clear();
-                DisplayTab.VoCore1ComboBoxCtrl.Items.Add(errorItem);
-                DisplayTab.VoCore2ComboBoxCtrl.Items.Clear();
-                DisplayTab.VoCore2ComboBoxCtrl.Items.Add(errorItem);
-            }
-            finally
-            {
-                _isLoadingDevices = false; // Unblock SelectionChanged
-            }
-        }
-
-        /// <summary>
-        /// Populate a VoCore ComboBox with available devices
-        /// </summary>
-        private void PopulateVoCoreComboBox(
-            ComboBox comboBox,
-            List<VoCoreDevice> devices,
-            string savedSerial,
-            string savedName,
-            string excludeSerial,
-            Action<string, string> updateSavedName)
-        {
-            comboBox.Items.Clear();
-
-            // FIRST ITEM: Always show selected device (or placeholder)
-            if (!string.IsNullOrEmpty(savedSerial))
-            {
-                // There is a saved device - check if it's online
-                var savedDevice = devices.FirstOrDefault(d => d.Serial == savedSerial);
-                var isOnline = savedDevice != null;
-
-                string displayName;
-                if (isOnline)
-                {
-                    // Online: show name with checkmark
-                    displayName = $"✅ {savedDevice.Name}";
-
-                    // Update saved name if device is online
-                    if (savedName != savedDevice.Name)
-                    {
-                        updateSavedName(savedSerial, savedDevice.Name);
-                        _plugin.SaveSettings();
-                    }
-                }
-                else
-                {
-                    // Offline: show (Offline)
-                    displayName = !string.IsNullOrEmpty(savedName)
-                        ? $"❌ {savedName} (Offline)"
-                        : $"❌ {savedSerial} (Offline)";
-                }
-
-                var selectedItem = new ComboBoxItem
-                {
-                    Content = displayName,
-                    Tag = savedSerial
-                };
-                comboBox.Items.Add(selectedItem);
-            }
-            else
-            {
-                // No saved device - show placeholder
-                var placeholder = new ComboBoxItem
-                {
-                    Content = "No VoCore Selected",
-                    Tag = ""
-                };
-                comboBox.Items.Add(placeholder);
-            }
-
-            // Select first item (always)
-            comboBox.SelectedIndex = 0;
-
-            // REST OF LIST: Add other online VoCores available (excluding saved and other VoCore)
-            foreach (var device in devices.Where(d =>
-                d.Serial != savedSerial &&
-                d.Serial != excludeSerial))
-            {
-                var item = new ComboBoxItem
-                {
-                    Content = device.Name,
-                    Tag = device.Serial
-                };
-                comboBox.Items.Add(item);
-            }
-        }
-
-        /// <summary>
-        /// Async version that runs GetAvailableDevices in background thread to avoid UI freezing
-        /// </summary>
-        private async void LoadAvailableDevicesAsync()
-        {
-            try
-            {
-                // Run the reflection-heavy GetAvailableDevices on background thread
-                var devices = await Task.Run(() => _plugin.GetAvailableDevices()).ConfigureAwait(false);
-                var currentDeviceIds = new HashSet<string>(devices.Select(d => d.Serial));
-
-                // Check if there are changes before updating UI
-                bool hasNewDevices = !currentDeviceIds.SetEquals(_knownDeviceIds);
-                if (!hasNewDevices) return;
-
-                // Update UI on dispatcher thread
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    _knownDeviceIds = currentDeviceIds;
-                    UpdateDeviceListUI(devices);
-                });
-            }
-            catch
-            {
-                // Silently ignore - timer will retry
-            }
-        }
-
-        /// <summary>
-        /// Helper method to update device list UI (must be called on UI thread)
-        /// </summary>
-        private void UpdateDeviceListUI(List<VoCoreDevice> devices)
-        {
-            _isLoadingDevices = true;
-            try
-            {
-                _knownDeviceIds = new HashSet<string>(devices.Select(d => d.Serial));
-
-                // Populate VoCore 1 ComboBox
-                PopulateVoCoreComboBox(
-                    DisplayTab.VoCore1ComboBoxCtrl,
-                    devices,
-                    _settings.VoCore1_Serial,
-                    _settings.VoCore1_Name,
-                    _settings.VoCore2_Serial,
-                    (serial, name) => { _settings.VoCore1_Serial = serial; _settings.VoCore1_Name = name; }
-                );
-
-                // Populate VoCore 2 ComboBox
-                PopulateVoCoreComboBox(
-                    DisplayTab.VoCore2ComboBoxCtrl,
-                    devices,
-                    _settings.VoCore2_Serial,
-                    _settings.VoCore2_Name,
-                    _settings.VoCore1_Serial,
-                    (serial, name) => { _settings.VoCore2_Serial = serial; _settings.VoCore2_Name = name; }
-                );
-
-                UpdateTestButtonState(devices.Count);
+                System.Diagnostics.Debug.WriteLine($"LoadAvailableDevices error: {ex.Message}");
             }
             finally
             {
@@ -460,38 +374,200 @@ namespace WhatsAppSimHubPlugin.UI
             }
         }
 
-        private void UpdateTestButtonState(int connectedCount = -1)
+        /// <summary>
+        /// Load available dashboards into ComboBoxes
+        /// </summary>
+        private void LoadAvailableDashboards()
         {
-            // If connectedCount not provided, use current known count
-            if (connectedCount < 0)
+            try
             {
-                connectedCount = _knownDeviceIds.Count;
+                var dashboards = new List<string>();
+
+                // Get DashTemplates path
+                string dashTemplatesPath = _plugin.GetDashboardsPath();
+                if (!string.IsNullOrEmpty(dashTemplatesPath) && Directory.Exists(dashTemplatesPath))
+                {
+                    // Each subfolder is a dashboard
+                    foreach (var dir in Directory.GetDirectories(dashTemplatesPath))
+                    {
+                        string dashName = Path.GetFileName(dir);
+                        // Skip merged dashboards (they are auto-generated)
+                        if (!dashName.StartsWith("WhatsApp_merged_"))
+                        {
+                            dashboards.Add(dashName);
+                        }
+                    }
+
+                    // Also check for .djson files (single-file dashboards)
+                    foreach (var file in Directory.GetFiles(dashTemplatesPath, "*.djson"))
+                    {
+                        string dashName = Path.GetFileNameWithoutExtension(file);
+                        if (!dashName.StartsWith("WhatsApp_merged_") && !dashboards.Contains(dashName))
+                        {
+                            dashboards.Add(dashName);
+                        }
+                    }
+                }
+
+                // Sort alphabetically
+                dashboards.Sort();
+
+                // Populate Dashboard #1 ComboBox
+                DisplayTab.Dashboard1ComboBoxCtrl.Items.Clear();
+                var default1Item = new ComboBoxItem { Content = "Default (WhatsAppPluginVocore1)", Tag = "WhatsAppPluginVocore1" };
+                DisplayTab.Dashboard1ComboBoxCtrl.Items.Add(default1Item);
+                foreach (var dash in dashboards)
+                {
+                    if (dash != "WhatsAppPluginVocore1" && dash != "WhatsAppPluginVocore2")
+                    {
+                        DisplayTab.Dashboard1ComboBoxCtrl.Items.Add(new ComboBoxItem { Content = dash, Tag = dash });
+                    }
+                }
+
+                // Populate Dashboard #2 ComboBox
+                DisplayTab.Dashboard2ComboBoxCtrl.Items.Clear();
+                var default2Item = new ComboBoxItem { Content = "Default (WhatsAppPluginVocore2)", Tag = "WhatsAppPluginVocore2" };
+                DisplayTab.Dashboard2ComboBoxCtrl.Items.Add(default2Item);
+                foreach (var dash in dashboards)
+                {
+                    if (dash != "WhatsAppPluginVocore1" && dash != "WhatsAppPluginVocore2")
+                    {
+                        DisplayTab.Dashboard2ComboBoxCtrl.Items.Add(new ComboBoxItem { Content = dash, Tag = dash });
+                    }
+                }
+
+                // Select current values
+                SelectDashboardInComboBox(DisplayTab.Dashboard1ComboBoxCtrl, _settings.VoCore1_CurrentDash);
+                SelectDashboardInComboBox(DisplayTab.Dashboard2ComboBoxCtrl, _settings.VoCore2_CurrentDash);
             }
-
-            bool vocoreEnabled = DisplayTab.VoCoreEnabledCheckboxCtrl.IsChecked == true;
-            bool hasDevices = connectedCount > 0;
-            bool hasAnyVoCore = !string.IsNullOrEmpty(_settings.VoCore1_Serial) || !string.IsNullOrEmpty(_settings.VoCore2_Serial);
-
-            // Test VoCores button - enabled if VoCores enabled AND has devices AND at least one VoCore selected
-            DisplayTab.TestVoCoresButtonCtrl.IsEnabled = vocoreEnabled && hasDevices && hasAnyVoCore;
-
-            // Enable/disable ComboBoxes based on VoCore enabled state
-            DisplayTab.VoCore1ComboBoxCtrl.IsEnabled = vocoreEnabled;
-            DisplayTab.VoCore2ComboBoxCtrl.IsEnabled = vocoreEnabled;
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadAvailableDashboards error: {ex.Message}");
+            }
         }
 
-        private void VoCoreEnabledCheckbox_Changed(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Update device table visibility based on device count
+        /// </summary>
+        private void UpdateDeviceTableVisibility(int onlineCount, int totalCount)
         {
-            if (_settings == null || _plugin == null) return;
+            if (totalCount == 0)
+            {
+                // No devices at all
+                DisplayTab.NoDevicesMessageCtrl.Visibility = Visibility.Visible;
+                DisplayTab.DeviceTableBorderCtrl.Visibility = Visibility.Collapsed;
+                DisplayTab.DashboardSelectionPanelCtrl.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                DisplayTab.NoDevicesMessageCtrl.Visibility = Visibility.Collapsed;
+                DisplayTab.DeviceTableBorderCtrl.Visibility = Visibility.Visible;
 
-            bool isEnabled = DisplayTab.VoCoreEnabledCheckboxCtrl.IsChecked == true;
+                // Show #2 column only if 2+ total devices (online + offline)
+                bool showColumn2 = totalCount >= 2;
+                DisplayTab.Column2HeaderCtrl.Width = showColumn2 ? new GridLength(60) : new GridLength(0);
+                DisplayTab.Column2HeaderTextCtrl.Visibility = showColumn2 ? Visibility.Visible : Visibility.Collapsed;
 
-            // Update plugin property (exposed to dashboards as WhatsAppPlugin.vocoreenabled)
-            _plugin.SetVoCoreEnabled(isEnabled);
+                // Show dashboard selection if any VoCore is selected
+                bool hasAnySelection = !string.IsNullOrEmpty(_settings.VoCore1_Serial) || !string.IsNullOrEmpty(_settings.VoCore2_Serial);
+                DisplayTab.DashboardSelectionPanelCtrl.Visibility = hasAnySelection ? Visibility.Visible : Visibility.Collapsed;
+
+                // Show Dashboard #1 if VoCore1 selected
+                DisplayTab.Dashboard1PanelCtrl.Visibility = !string.IsNullOrEmpty(_settings.VoCore1_Serial) ? Visibility.Visible : Visibility.Collapsed;
+
+                // Show Dashboard #2 if VoCore2 selected
+                DisplayTab.Dashboard2PanelCtrl.Visibility = !string.IsNullOrEmpty(_settings.VoCore2_Serial) ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// Handle VoCore1 selection changed from RadioButton
+        /// </summary>
+        private void DeviceRow_VoCore1Changed(DeviceRowViewModel row, bool isSelected)
+        {
+            if (_isLoadingDevices) return;
+
+            if (isSelected)
+            {
+                // Deselect other devices for VoCore1
+                foreach (var otherRow in _deviceRows.Where(r => r != row && r.IsVoCore1))
+                {
+                    otherRow.IsVoCore1 = false;
+                }
+
+                // If this device was VoCore2, remove it
+                if (row.IsVoCore2)
+                {
+                    row.IsVoCore2 = false;
+                    _settings.VoCore2_Serial = "";
+                    _settings.VoCore2_Name = "";
+                    _plugin.SetVoCore2Enabled(false);
+                }
+
+                // Set as VoCore1
+                _settings.VoCore1_Serial = row.Serial;
+                _settings.VoCore1_Name = row.Name;
+                _plugin.SetVoCore1Enabled(true);
+            }
+            else
+            {
+                // Deselecting - clear VoCore1
+                _settings.VoCore1_Serial = "";
+                _settings.VoCore1_Name = "";
+                _plugin.SetVoCore1Enabled(false);
+            }
+
             _plugin.SaveSettings();
-
-            // Update UI state (ComboBoxes and Test buttons)
             UpdateTestButtonState();
+            UpdateDeviceTableVisibility(_knownDeviceIds.Count, _deviceRows.Count);
+        }
+
+        /// <summary>
+        /// Handle VoCore2 selection changed from RadioButton
+        /// </summary>
+        private void DeviceRow_VoCore2Changed(DeviceRowViewModel row, bool isSelected)
+        {
+            if (_isLoadingDevices) return;
+
+            if (isSelected)
+            {
+                // Deselect other devices for VoCore2
+                foreach (var otherRow in _deviceRows.Where(r => r != row && r.IsVoCore2))
+                {
+                    otherRow.IsVoCore2 = false;
+                }
+
+                // If this device was VoCore1, remove it
+                if (row.IsVoCore1)
+                {
+                    row.IsVoCore1 = false;
+                    _settings.VoCore1_Serial = "";
+                    _settings.VoCore1_Name = "";
+                    _plugin.SetVoCore1Enabled(false);
+                }
+
+                // Set as VoCore2
+                _settings.VoCore2_Serial = row.Serial;
+                _settings.VoCore2_Name = row.Name;
+                _plugin.SetVoCore2Enabled(true);
+            }
+            else
+            {
+                // Deselecting - clear VoCore2
+                _settings.VoCore2_Serial = "";
+                _settings.VoCore2_Name = "";
+                _plugin.SetVoCore2Enabled(false);
+            }
+
+            _plugin.SaveSettings();
+            UpdateTestButtonState();
+            UpdateDeviceTableVisibility(_knownDeviceIds.Count, _deviceRows.Count);
+        }
+
+        private void UpdateTestButtonState()
+        {
+            bool hasAnyVoCore = !string.IsNullOrEmpty(_settings.VoCore1_Serial) || !string.IsNullOrEmpty(_settings.VoCore2_Serial);
+            DisplayTab.TestVoCoresButtonCtrl.IsEnabled = hasAnyVoCore;
         }
 
         private void LoadSettings()
@@ -511,11 +587,7 @@ namespace WhatsAppSimHubPlugin.UI
                 // 🔧 Carregar Debug Logging state
                 ConnectionTab.DebugLoggingCheckBoxCtrl.IsChecked = LoadDebugLoggingState();
 
-                // Load VoCore Enabled state
-                DisplayTab.VoCoreEnabledCheckboxCtrl.IsChecked = _settings.VoCoreEnabled;
-
                 // VoCore selection is handled by LoadAvailableDevices() which runs before this
-                // Just update UI state based on VoCoreEnabled
                 UpdateTestButtonState();
 
                 // Sliders - convert from ms to seconds where necessary
@@ -1244,84 +1316,103 @@ namespace WhatsAppSimHubPlugin.UI
 
         #endregion
 
-        #region Display Tab
+        #region Display Tab - Dashboard Selection
 
-        private void VoCore1Combo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private bool _isLoadingDashboards = false;
+
+        /// <summary>
+        /// Handle Dashboard #1 selection changed
+        /// </summary>
+        private void Dashboard1Combo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            HandleVoCoreSelection(
-                DisplayTab.VoCore1ComboBoxCtrl,
-                _settings.VoCore1_Serial,
-                (serial, name) => { _settings.VoCore1_Serial = serial; _settings.VoCore1_Name = name; }
-            );
-        }
+            if (_isLoadingDashboards || _plugin == null || _settings == null) return;
 
-        private void VoCore2Combo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            HandleVoCoreSelection(
-                DisplayTab.VoCore2ComboBoxCtrl,
-                _settings.VoCore2_Serial,
-                (serial, name) => { _settings.VoCore2_Serial = serial; _settings.VoCore2_Name = name; }
-            );
-        }
+            var selected = DisplayTab.Dashboard1ComboBoxCtrl.SelectedItem as ComboBoxItem;
+            if (selected?.Tag == null) return;
 
-        private void HandleVoCoreSelection(ComboBox comboBox, string currentSerial, Action<string, string> updateSettings)
-        {
-            // Ignore if loading devices (prevents trigger during refresh)
-            if (_isLoadingDevices) return;
+            string newDash = selected.Tag.ToString();
+            string currentDash = _settings.VoCore1_CurrentDash;
 
-            // Null check: event may fire before _plugin/_settings are initialized
-            if (_plugin == null || _settings == null) return;
-
-            if (comboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
+            if (newDash != currentDash)
             {
-                string newSerial = item.Tag.ToString();
-                // Clean name: remove emojis and status indicators
-                string newName = item.Content?.ToString()
-                    ?.Replace("✅ ", "")
-                    ?.Replace("❌ ", "")
-                    ?.Replace(" (Offline)", "")
-                    ?.Trim() ?? "";
+                // Ask for confirmation
+                var confirmed = ConfirmDialog.Show(
+                    $"Change Dashboard #1 to '{selected.Content}'?",
+                    null,
+                    "Change Dashboard",
+                    "Apply",
+                    "Cancel",
+                    false);
 
-                // Save selected VoCore if changed
-                if (currentSerial != newSerial)
+                if (confirmed)
                 {
-                    updateSettings(newSerial, newName);
+                    _settings.VoCore1_CurrentDash = newDash;
                     _plugin.SaveSettings();
-                    _plugin.ApplyDisplaySettings();
-
-                    // Configure VoCore if it has a serial
-                    if (!string.IsNullOrEmpty(newSerial))
-                    {
-                        _plugin.ConfigureVoCore(newSerial);
-                    }
-
-                    // Update Test buttons state
-                    UpdateTestButtonState();
-
-                    // Refresh device lists to update exclusions
-                    RefreshDeviceList();
+                    ShowToast($"Dashboard #1 changed to '{selected.Content}'", "OK", 3);
+                }
+                else
+                {
+                    // Revert to previous selection
+                    _isLoadingDashboards = true;
+                    SelectDashboardInComboBox(DisplayTab.Dashboard1ComboBoxCtrl, currentDash);
+                    _isLoadingDashboards = false;
                 }
             }
         }
 
-        private void RemoveVoCore1Button_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Handle Dashboard #2 selection changed
+        /// </summary>
+        private void Dashboard2Combo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            _settings.VoCore1_Serial = "";
-            _settings.VoCore1_Name = "";
-            _plugin.SaveSettings();
-            _knownDeviceIds.Clear(); // Force UI refresh
-            RefreshDeviceList();
-            UpdateTestButtonState();
+            if (_isLoadingDashboards || _plugin == null || _settings == null) return;
+
+            var selected = DisplayTab.Dashboard2ComboBoxCtrl.SelectedItem as ComboBoxItem;
+            if (selected?.Tag == null) return;
+
+            string newDash = selected.Tag.ToString();
+            string currentDash = _settings.VoCore2_CurrentDash;
+
+            if (newDash != currentDash)
+            {
+                // Ask for confirmation
+                var confirmed = ConfirmDialog.Show(
+                    $"Change Dashboard #2 to '{selected.Content}'?",
+                    null,
+                    "Change Dashboard",
+                    "Apply",
+                    "Cancel",
+                    false);
+
+                if (confirmed)
+                {
+                    _settings.VoCore2_CurrentDash = newDash;
+                    _plugin.SaveSettings();
+                    ShowToast($"Dashboard #2 changed to '{selected.Content}'", "OK", 3);
+                }
+                else
+                {
+                    // Revert to previous selection
+                    _isLoadingDashboards = true;
+                    SelectDashboardInComboBox(DisplayTab.Dashboard2ComboBoxCtrl, currentDash);
+                    _isLoadingDashboards = false;
+                }
+            }
         }
 
-        private void RemoveVoCore2Button_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Select a dashboard in the ComboBox by its tag value
+        /// </summary>
+        private void SelectDashboardInComboBox(ComboBox comboBox, string dashboardName)
         {
-            _settings.VoCore2_Serial = "";
-            _settings.VoCore2_Name = "";
-            _plugin.SaveSettings();
-            _knownDeviceIds.Clear(); // Force UI refresh
-            RefreshDeviceList();
-            UpdateTestButtonState();
+            foreach (ComboBoxItem item in comboBox.Items)
+            {
+                if (item.Tag?.ToString() == dashboardName)
+                {
+                    comboBox.SelectedItem = item;
+                    return;
+                }
+            }
         }
 
         #endregion

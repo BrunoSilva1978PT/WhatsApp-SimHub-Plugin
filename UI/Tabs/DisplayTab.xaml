@@ -13,96 +13,149 @@
                        Margin="0,0,0,5"/>
             <Border Height="1" Background="#00BCD4" Margin="0,0,0,15"/>
 
-            <!-- Enable VoCores Toggle + Test Button -->
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-                <styles:SHToggleCheckbox x:Name="VoCoreEnabledCheckbox"
-                        Content="Enable VoCores"
-                        VerticalAlignment="Center"
-                        Margin="0,0,20,0"
-                        ToolTip="Enable or disable VoCore displays. Disable if using VR/overlay only."/>
-                <styles:SHButtonPrimary x:Name="TestVoCoresButton"
-                        Content="🔧 Test VoCores"
-                        Width="120" Height="32"
-                        Background="#0E7A0D"
-                        Foreground="White"
-                        IsEnabled="False"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        ToolTip="Send a test message to verify VoCores are working"/>
-            </StackPanel>
+            <!-- No Devices Message (shown when no VoCores detected) -->
+            <TextBlock x:Name="NoDevicesMessage"
+                       Text="No VoCore devices detected"
+                       Foreground="#888888"
+                       FontSize="14"
+                       FontStyle="Italic"
+                       Margin="0,0,0,20"
+                       Visibility="Collapsed"/>
 
-            <!-- VoCore Device 1 -->
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                <TextBlock Text="VoCore Device 1:"
-                           Width="130"
-                           FontSize="14"
-                           FontWeight="SemiBold"
-                           Foreground="#DDDDDD"
-                           VerticalAlignment="Center"/>
-                <ComboBox x:Name="VoCore1ComboBox"
-                          Width="250"
-                          Height="32"
-                          Background="#252526"
-                          Foreground="White"
-                          BorderBrush="#3E3E42"/>
-                <styles:SHButtonPrimary x:Name="RemoveVoCore1Button"
-                        Content="🗑️ Remove"
-                        Width="110" Height="32"
-                        Margin="10,0,0,0"
-                        Background="#C42B1C"
-                        Foreground="White"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        ToolTip="Remove VoCore 1 selection"/>
-            </StackPanel>
+            <!-- Device Selection Table -->
+            <Border x:Name="DeviceTableBorder"
+                    Background="#252526"
+                    BorderBrush="#3E3E42"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Margin="0,0,0,15"
+                    Visibility="Collapsed">
+                <StackPanel>
+                    <!-- Table Header -->
+                    <Border Background="#1E1E1E" CornerRadius="4,4,0,0">
+                        <Grid Margin="10,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="60"/>
+                                <ColumnDefinition x:Name="Column2Header" Width="60"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Device"
+                                       Grid.Column="0"
+                                       Foreground="#AAAAAA"
+                                       FontWeight="SemiBold"
+                                       FontSize="12"/>
+                            <TextBlock Text="#1"
+                                       Grid.Column="1"
+                                       Foreground="#AAAAAA"
+                                       FontWeight="SemiBold"
+                                       FontSize="12"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="Column2HeaderText"
+                                       Text="#2"
+                                       Grid.Column="2"
+                                       Foreground="#AAAAAA"
+                                       FontWeight="SemiBold"
+                                       FontSize="12"
+                                       HorizontalAlignment="Center"/>
+                        </Grid>
+                    </Border>
 
-            <!-- VoCore Device 2 -->
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-                <TextBlock Text="VoCore Device 2:"
-                           Width="130"
-                           FontSize="14"
-                           FontWeight="SemiBold"
-                           Foreground="#DDDDDD"
-                           VerticalAlignment="Center"/>
-                <ComboBox x:Name="VoCore2ComboBox"
-                          Width="250"
-                          Height="32"
-                          Background="#252526"
-                          Foreground="White"
-                          BorderBrush="#3E3E42"/>
-                <styles:SHButtonPrimary x:Name="RemoveVoCore2Button"
-                        Content="🗑️ Remove"
-                        Width="110" Height="32"
-                        Margin="10,0,0,0"
-                        Background="#C42B1C"
-                        Foreground="White"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        ToolTip="Remove VoCore 2 selection"/>
+                    <!-- Device Rows Container -->
+                    <ItemsControl x:Name="DeviceListContainer">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="#3E3E42" BorderThickness="0,1,0,0">
+                                    <Grid Margin="10,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="60"/>
+                                            <ColumnDefinition Width="{Binding Column2Width}"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding DisplayName}"
+                                                   Grid.Column="0"
+                                                   Foreground="{Binding NameColor}"
+                                                   FontSize="13"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <RadioButton x:Name="Radio1"
+                                                     Grid.Column="1"
+                                                     GroupName="VoCore1Group"
+                                                     HorizontalAlignment="Center"
+                                                     IsChecked="{Binding IsVoCore1, Mode=TwoWay}"
+                                                     Tag="{Binding Serial}"/>
+                                        <RadioButton x:Name="Radio2"
+                                                     Grid.Column="2"
+                                                     GroupName="VoCore2Group"
+                                                     HorizontalAlignment="Center"
+                                                     IsChecked="{Binding IsVoCore2, Mode=TwoWay}"
+                                                     Tag="{Binding Serial}"
+                                                     Visibility="{Binding Column2Visibility}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Test Button -->
+            <styles:SHButtonPrimary x:Name="TestVoCoresButton"
+                    Content="Send Test Message"
+                    Width="160" Height="32"
+                    HorizontalAlignment="Left"
+                    Background="#0E7A0D"
+                    Foreground="White"
+                    IsEnabled="False"
+                    Margin="0,0,0,15"
+                    ToolTip="Send a test notification to selected VoCore devices"/>
+
+            <!-- Dashboard Selection -->
+            <StackPanel x:Name="DashboardSelectionPanel" Margin="0,0,0,15" Visibility="Collapsed">
+                <!-- Dashboard #1 -->
+                <StackPanel x:Name="Dashboard1Panel" Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="Dashboard #1:"
+                               Width="100"
+                               FontSize="13"
+                               Foreground="#DDDDDD"
+                               VerticalAlignment="Center"/>
+                    <ComboBox x:Name="Dashboard1ComboBox"
+                              Width="250"
+                              Height="28"
+                              Background="#252526"
+                              Foreground="White"
+                              BorderBrush="#3E3E42"/>
+                </StackPanel>
+
+                <!-- Dashboard #2 -->
+                <StackPanel x:Name="Dashboard2Panel" Orientation="Horizontal" Visibility="Collapsed">
+                    <TextBlock Text="Dashboard #2:"
+                               Width="100"
+                               FontSize="13"
+                               Foreground="#DDDDDD"
+                               VerticalAlignment="Center"/>
+                    <ComboBox x:Name="Dashboard2ComboBox"
+                              Width="250"
+                              Height="28"
+                              Background="#252526"
+                              Foreground="White"
+                              BorderBrush="#3E3E42"/>
+                </StackPanel>
             </StackPanel>
 
             <!-- Info Box -->
             <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,0,0,20">
-                <StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="ℹ️" FontSize="16" Margin="0,0,10,0" Foreground="White" VerticalAlignment="Top"/>
-                        <TextBlock Foreground="White" FontSize="12" TextWrapping="Wrap">
-                            <Run Text="Select up to 2 VoCore devices to display WhatsApp notifications during races." FontWeight="SemiBold"/>
-                            <LineBreak/><LineBreak/>
-                            <Run Text="• The device list updates automatically every 3s"/>
-                            <LineBreak/>
-                            <Run Text="• Selected devices show ✅ in the dropdown"/>
-                            <LineBreak/>
-                            <Run Text="• Available devices show their name only"/>
-                            <LineBreak/>
-                            <Run Text="• Use Test button to verify configuration"/>
-                        </TextBlock>
-                    </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="i" FontSize="14" FontWeight="Bold" Margin="0,0,10,0" Foreground="White" VerticalAlignment="Top"/>
+                    <TextBlock Foreground="White" FontSize="12" TextWrapping="Wrap">
+                        <Run Text="Select devices using #1 and #2 columns. Click again to deselect." FontWeight="SemiBold"/>
+                        <LineBreak/>
+                        <Run Text="Each device can only be assigned to one slot. Use custom dashboards to replace the default overlay."/>
+                    </TextBlock>
                 </StackPanel>
             </Border>
 
             <!-- VR / Overlay Info -->
-            <TextBlock Text="VR &amp; Overlay Support"
+            <TextBlock Text="VR and Overlay Support"
                        FontSize="18"
                        FontWeight="Bold"
                        Foreground="#00BCD4"
@@ -112,7 +165,7 @@
             <Border Background="#2D2D30" Padding="15" CornerRadius="6" Margin="0,0,0,10">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                        <TextBlock Text="🥽" FontSize="18" Margin="0,0,10,0"/>
+                        <TextBlock Text="VR" FontSize="14" FontWeight="Bold" Margin="0,0,10,0" Foreground="White"/>
                         <TextBlock Text="Using in VR or as Screen Overlay"
                                    FontSize="14"
                                    FontWeight="SemiBold"
@@ -129,7 +182,7 @@
                                FontSize="12"
                                FontWeight="SemiBold"
                                Margin="0,0,0,5"/>
-                    <TextBlock Text="1. Go to SimHub → Dash Studio → Overlay settings"
+                    <TextBlock Text="1. Go to SimHub - Dash Studio - Overlay settings"
                                Foreground="#CCCCCC"
                                FontSize="12"
                                Margin="15,0,0,3"/>

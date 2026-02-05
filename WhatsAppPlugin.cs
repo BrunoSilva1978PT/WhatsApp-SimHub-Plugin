@@ -222,7 +222,9 @@ namespace WhatsAppSimHubPlugin
 
         // ===== OVERLAY/DASHBOARD PROPERTIES (EXPOSED TO SIMHUB) =====
         private bool _showMessage = false; // Controls overlay visibility
-        private bool _voCoreEnabled = true; // Controls VoCore display (for VR-only users)
+        private bool _voCoreEnabled = true; // Legacy: Controls VoCore display (= vocore1enabled || vocore2enabled)
+        private bool _voCore1Enabled = false; // Controls VoCore 1 display
+        private bool _voCore2Enabled = false; // Controls VoCore 2 display
         private string _overlaySender = "";
         private string _overlayTypeMessage = "";
         private int _overlayTotalMessages = 0;
@@ -461,7 +463,9 @@ namespace WhatsAppSimHubPlugin
             // ===== OVERLAY PROPERTIES (PARA DASHBOARD) =====
             // SimHub adiciona prefixo "WhatsAppPlugin." automaticamente!
             this.AttachDelegate("showmessage", () => _showMessage); // WhatsAppPlugin.showmessage
-            this.AttachDelegate("vocoreenabled", () => _voCoreEnabled); // WhatsAppPlugin.vocoreenabled
+            this.AttachDelegate("vocoreenabled", () => _voCoreEnabled); // WhatsAppPlugin.vocoreenabled (legacy)
+            this.AttachDelegate("vocore1enabled", () => _voCore1Enabled); // WhatsAppPlugin.vocore1enabled
+            this.AttachDelegate("vocore2enabled", () => _voCore2Enabled); // WhatsAppPlugin.vocore2enabled
             this.AttachDelegate("sender", () => _overlaySender); // WhatsAppPlugin.sender
             this.AttachDelegate("typemessage", () => _overlayTypeMessage); // WhatsAppPlugin.typemessage
             this.AttachDelegate("totalmessages", () => _overlayTotalMessages); // WhatsAppPlugin.totalmessages
@@ -1785,8 +1789,10 @@ del ""%~f0""
                     SaveSettings(); // Save immediately to create the file
                 }
 
-                // Sync VoCore enabled property with settings
-                _voCoreEnabled = _settings.VoCoreEnabled;
+                // Sync VoCore enabled properties based on configured devices
+                _voCore1Enabled = !string.IsNullOrEmpty(_settings.VoCore1_Serial);
+                _voCore2Enabled = !string.IsNullOrEmpty(_settings.VoCore2_Serial);
+                _voCoreEnabled = _voCore1Enabled || _voCore2Enabled;
             }
             catch (Exception)
             {
@@ -1794,7 +1800,9 @@ del ""%~f0""
                 _settings = new PluginSettings();
                 _settings.EnsureDefaults();
                 SaveSettings();
-                _voCoreEnabled = _settings.VoCoreEnabled;
+                _voCore1Enabled = false;
+                _voCore2Enabled = false;
+                _voCoreEnabled = false;
             }
         }
 
@@ -1957,29 +1965,63 @@ del ""%~f0""
         }
 
         /// <summary>
-        /// Configure VoCore device (called from UI when user selects device)
+        /// Configure VoCore 1 device (called from UI when user selects device)
         /// </summary>
-        public void ConfigureVoCore(string serialNumber)
+        public void ConfigureVoCore1()
         {
-            _vocoreManager?.ConfigureDevice(serialNumber);
+            if (!string.IsNullOrEmpty(_settings?.VoCore1_Serial))
+            {
+                _vocoreManager?.ConfigureDevice(_settings.VoCore1_Serial, 1, _settings.VoCore1_CurrentDash);
+            }
         }
 
         /// <summary>
-        /// Update VoCore enabled state (called from UI)
-        /// This syncs the property exposed to dashboards
+        /// Configure VoCore 2 device (called from UI when user selects device)
         /// </summary>
-        public void SetVoCoreEnabled(bool enabled)
+        public void ConfigureVoCore2()
         {
-            _voCoreEnabled = enabled;
-            _settings.VoCoreEnabled = enabled;
-            WriteLog($"VoCore enabled: {enabled}");
+            if (!string.IsNullOrEmpty(_settings?.VoCore2_Serial))
+            {
+                _vocoreManager?.ConfigureDevice(_settings.VoCore2_Serial, 2, _settings.VoCore2_CurrentDash);
+            }
         }
 
+        /// <summary>
+        /// Set VoCore 1 enabled state (called from UI when device is selected/deselected)
+        /// </summary>
+        public void SetVoCore1Enabled(bool enabled)
+        {
+            _voCore1Enabled = enabled;
+            UpdateLegacyVoCoreEnabled();
+            WriteLog($"VoCore 1 enabled: {enabled}");
+        }
 
+        /// <summary>
+        /// Set VoCore 2 enabled state (called from UI when device is selected/deselected)
+        /// </summary>
+        public void SetVoCore2Enabled(bool enabled)
+        {
+            _voCore2Enabled = enabled;
+            UpdateLegacyVoCoreEnabled();
+            WriteLog($"VoCore 2 enabled: {enabled}");
+        }
 
+        /// <summary>
+        /// Update legacy vocoreenabled property (= vocore1enabled || vocore2enabled)
+        /// </summary>
+        private void UpdateLegacyVoCoreEnabled()
+        {
+            _voCoreEnabled = _voCore1Enabled || _voCore2Enabled;
+            _settings.VoCoreEnabled = _voCoreEnabled;
+        }
 
-
-
+        /// <summary>
+        /// Get the path to SimHub's DashTemplates folder
+        /// </summary>
+        public string GetDashboardsPath()
+        {
+            return _dashboardInstaller?.GetDashboardsPath();
+        }
 
         public async void TestQuickReply(int replyNumber, string text)
         {
@@ -2018,6 +2060,9 @@ del ""%~f0""
                 // Refresh device list in UI (detects VoCore connect/disconnect)
                 _settingsControl?.RefreshDeviceList();
 
+                // Install default dashboards if missing (uses SimHub API - zero I/O check)
+                EnsureDashboardsInstalled();
+
                 // If no VoCores configured, nothing to do
                 if (string.IsNullOrEmpty(_settings?.VoCore1_Serial) && string.IsNullOrEmpty(_settings?.VoCore2_Serial))
                     return;
@@ -2025,19 +2070,51 @@ del ""%~f0""
                 // Configure VoCore 1 if set
                 if (!string.IsNullOrEmpty(_settings?.VoCore1_Serial))
                 {
-                    _vocoreManager?.ConfigureDevice(_settings.VoCore1_Serial);
+                    _vocoreManager?.ConfigureDevice(
+                        _settings.VoCore1_Serial,
+                        1,
+                        _settings.VoCore1_CurrentDash);
                 }
 
                 // Configure VoCore 2 if set
                 if (!string.IsNullOrEmpty(_settings?.VoCore2_Serial))
                 {
-                    _vocoreManager?.ConfigureDevice(_settings.VoCore2_Serial);
+                    _vocoreManager?.ConfigureDevice(
+                        _settings.VoCore2_Serial,
+                        2,
+                        _settings.VoCore2_CurrentDash);
                 }
             }
             catch
             {
                 // Silence errors - we don't want spam in log every 3s
                 // VoCoreManager already does its own logging
+            }
+        }
+
+        /// <summary>
+        /// Ensure all required dashboards are installed (uses SimHub API for checking)
+        /// </summary>
+        private void EnsureDashboardsInstalled()
+        {
+            if (_vocoreManager == null || _dashboardInstaller == null) return;
+
+            // Check and install WhatsAppPluginVocore1
+            if (!_vocoreManager.DoesDashboardExist("WhatsAppPluginVocore1"))
+            {
+                _dashboardInstaller.InstallDashboard("WhatsAppPluginVocore1.simhubdash");
+            }
+
+            // Check and install WhatsAppPluginVocore2
+            if (!_vocoreManager.DoesDashboardExist("WhatsAppPluginVocore2"))
+            {
+                _dashboardInstaller.InstallDashboard("WhatsAppPluginVocore2.simhubdash");
+            }
+
+            // Check and install VR Overlay dashboard
+            if (!_vocoreManager.DoesDashboardExist("Simhub WhatsApp Plugin Overlay"))
+            {
+                _dashboardInstaller.InstallDashboard("Simhub WhatsApp Plugin Overlay.simhubdash");
             }
         }
 

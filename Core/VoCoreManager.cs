@@ -161,12 +161,25 @@ namespace WhatsAppSimHubPlugin.Core
         /// <summary>
         /// Configure a specific VoCore device (overlay + dashboard)
         /// </summary>
-        public void ConfigureDevice(string serialNumber)
+        /// <param name="serialNumber">Device serial number</param>
+        /// <param name="vocoreNumber">VoCore number (1 or 2)</param>
+        /// <param name="targetDashboard">Target dashboard from settings (CurrentDash)</param>
+        public void ConfigureDevice(string serialNumber, int vocoreNumber, string targetDashboard)
         {
             if (string.IsNullOrEmpty(serialNumber))
             {
                 _log?.Invoke("ConfigureDevice: serial number is empty");
                 return;
+            }
+
+            // Default dashboards for each VoCore
+            string defaultDashboard = vocoreNumber == 1 ? "WhatsAppPluginVocore1" : "WhatsAppPluginVocore2";
+            string mergedDashboard = DashboardMerger.GetMergedDashboardName(vocoreNumber);
+
+            // If no target specified, use default
+            if (string.IsNullOrEmpty(targetDashboard))
+            {
+                targetDashboard = defaultDashboard;
             }
 
             try
@@ -179,62 +192,63 @@ namespace WhatsAppSimHubPlugin.Core
                     return;
                 }
 
-                _log?.Invoke($"Configuring VoCore (serial: {serialNumber})...");
+                _log?.Invoke($"Configuring VoCore {vocoreNumber} (serial: {serialNumber})...");
 
-                // STEP 1: Information Overlay
+                // STEP 1: Information Overlay must be ON
                 if (!vocoreSettings.UseOverlayDashboard)
                 {
                     vocoreSettings.UseOverlayDashboard = true;
                     _log?.Invoke("✓ Information Overlay enabled");
                 }
 
-                // STEP 2: Dashboard
-                string currentDash = vocoreSettings.CurrentOverlayDashboard?.Dashboard;
+                // STEP 2: Get current dashboard in SimHub
+                string simhubCurrentDash = vocoreSettings.CurrentOverlayDashboard?.Dashboard;
 
-                // Empty/null → set WhatsAppPlugin
-                if (string.IsNullOrEmpty(currentDash))
+                // Empty/null → set target dashboard
+                if (string.IsNullOrEmpty(simhubCurrentDash))
                 {
-                    vocoreSettings.CurrentOverlayDashboard.TrySet("WhatsAppPlugin");
-                    _log?.Invoke("✓ Dashboard set to 'WhatsAppPlugin' (was empty)");
+                    vocoreSettings.CurrentOverlayDashboard.TrySet(targetDashboard);
+                    _log?.Invoke($"✓ Dashboard set to '{targetDashboard}' (was empty)");
                     return;
                 }
 
                 // Check if current dashboard still exists (user may have deleted it)
-                if (!DoesDashboardExist(currentDash))
+                if (!DoesDashboardExist(simhubCurrentDash))
                 {
-                    _log?.Invoke($"⚠️ Dashboard '{currentDash}' no longer exists (deleted) → reverting to 'WhatsAppPlugin'");
-                    vocoreSettings.CurrentOverlayDashboard.TrySet("WhatsAppPlugin");
+                    _log?.Invoke($"⚠️ Dashboard '{simhubCurrentDash}' no longer exists → setting to '{targetDashboard}'");
+                    vocoreSettings.CurrentOverlayDashboard.TrySet(targetDashboard);
                     return;
                 }
 
-                // Already WhatsAppPlugin → don't touch
-                if (currentDash == "WhatsAppPlugin")
+                // Already using target dashboard (default or custom) → don't touch
+                if (simhubCurrentDash == targetDashboard)
                 {
-                    _log?.Invoke("✓ Dashboard already 'WhatsAppPlugin'");
+                    _log?.Invoke($"✓ Dashboard already '{targetDashboard}'");
                     return;
                 }
 
-                // Already merged → don't touch
-                if (currentDash == "WhatsApp_merged_overlay_dash")
+                // Already using merged dashboard for this VoCore → don't touch
+                if (simhubCurrentDash == mergedDashboard)
                 {
-                    _log?.Invoke("✓ Dashboard already merged");
+                    _log?.Invoke($"✓ Dashboard already merged for VoCore {vocoreNumber}");
                     return;
                 }
 
-                // Other dashboard → merge
-                _log?.Invoke($"✓ Found user dashboard '{currentDash}' → merging...");
+                // User has a different dashboard in SimHub → need to merge
+                // The target is default or custom, but SimHub shows something else (user's own dash)
+                _log?.Invoke($"✓ Found user dashboard '{simhubCurrentDash}' → merging with '{targetDashboard}'...");
 
-                // Change dashboard name FIRST (instant)
-                vocoreSettings.CurrentOverlayDashboard.TrySet("WhatsApp_merged_overlay_dash");
-                _log?.Invoke("✓ Dashboard changed to 'WhatsApp_merged_overlay_dash'");
+                // Change dashboard name to merged FIRST (instant)
+                vocoreSettings.CurrentOverlayDashboard.TrySet(mergedDashboard);
+                _log?.Invoke($"✓ Dashboard changed to '{mergedDashboard}'");
 
                 // Do actual merge in background (don't wait)
                 _ = Task.Run(() =>
                 {
                     try
                     {
-                        _dashboardMerger.MergeDashboards(currentDash, "WhatsAppPlugin");
-                        _log?.Invoke("✓ Dashboard merge completed in background");
+                        _dashboardMerger.MergeDashboards(simhubCurrentDash, targetDashboard, vocoreNumber);
+                        _log?.Invoke($"✓ Dashboard merge completed in background for VoCore {vocoreNumber}");
                     }
                     catch (Exception ex)
                     {

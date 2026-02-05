@@ -286,6 +286,80 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
+        /// Install a specific dashboard from Resources by filename
+        /// </summary>
+        /// <param name="fileName">The .simhubdash filename (e.g., "WhatsAppPluginVocore1.simhubdash")</param>
+        public bool InstallDashboard(string fileName)
+        {
+            try
+            {
+                // Get dashboard name without extension
+                string dashboardName = Path.GetFileNameWithoutExtension(fileName);
+
+                string dashboardsPath = GetDashboardsPath();
+                if (string.IsNullOrEmpty(dashboardsPath))
+                {
+                    _log?.Invoke($"Could not find DashTemplates folder");
+                    return false;
+                }
+
+                // Check if already installed
+                string targetFolder = Path.Combine(dashboardsPath, dashboardName);
+                if (Directory.Exists(targetFolder))
+                {
+                    _log?.Invoke($"Dashboard '{dashboardName}' already installed - skipping");
+                    return true;
+                }
+
+                _log?.Invoke($"Installing dashboard '{dashboardName}' from resources...");
+
+                // Extract from embedded resource
+                var assembly = Assembly.GetExecutingAssembly();
+                var resourceName = $"WhatsAppSimHubPlugin.Resources.{fileName}";
+
+                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                {
+                    if (stream == null)
+                    {
+                        _log?.Invoke($"Resource not found: {resourceName}");
+                        return false;
+                    }
+
+                    // Create temporary file
+                    string tempZipFile = Path.Combine(Path.GetTempPath(), fileName);
+
+                    using (FileStream fileStream = File.Create(tempZipFile))
+                    {
+                        stream.CopyTo(fileStream);
+                    }
+
+                    // Extract to DashTemplates
+                    ZipFile.ExtractToDirectory(tempZipFile, dashboardsPath);
+
+                    // Clean up temp file
+                    try { File.Delete(tempZipFile); } catch { }
+
+                    // Verify installation
+                    if (Directory.Exists(targetFolder))
+                    {
+                        _log?.Invoke($"Dashboard '{dashboardName}' installed successfully");
+                        return true;
+                    }
+                    else
+                    {
+                        _log?.Invoke($"Dashboard folder not found after extraction: {targetFolder}");
+                        return false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _log?.Invoke($"InstallDashboard error for '{fileName}': {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Checks if the dashboard is installed (folder extracted in DashTemplates)
         /// </summary>
         public bool IsDashboardInstalled()

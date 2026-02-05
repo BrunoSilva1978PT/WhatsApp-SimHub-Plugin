@@ -128,18 +128,15 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <EmbeddedResource Include="Resources\icon.png" />
-    <EmbeddedResource Include="Resources\WhatsAppPlugin.simhubdash" />
+    <EmbeddedResource Include="Resources\WhatsAppPluginVocore1.simhubdash" />
+    <EmbeddedResource Include="Resources\WhatsAppPluginVocore2.simhubdash" />
     <EmbeddedResource Include="Resources\Simhub WhatsApp Plugin Overlay.simhubdash" />
     <EmbeddedResource Include="Resources\whatsapp-server.js" />
     <EmbeddedResource Include="Resources\baileys-server.mjs" />
     <EmbeddedResource Include="Resources\google-contacts.js" />
     <EmbeddedResource Include="Resources\package.json" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="Resources\WhatsAppPlugin.simhubdash">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+
   <ItemGroup>
     <Page Include="UI\SettingsControl.xaml">
       <SubType>Designer</SubType>

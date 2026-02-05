@@ -22,8 +22,10 @@ namespace WhatsAppSimHubPlugin.Models
         // VoCore Devices (support up to 2)
         public string VoCore1_Name { get; set; } = "";
         public string VoCore1_Serial { get; set; } = "";
+        public string VoCore1_CurrentDash { get; set; } = "WhatsAppPluginVocore1"; // Current dashboard for VoCore 1
         public string VoCore2_Name { get; set; } = "";
         public string VoCore2_Serial { get; set; } = "";
+        public string VoCore2_CurrentDash { get; set; } = "WhatsAppPluginVocore2"; // Current dashboard for VoCore 2
 
         // Queue
         public int MaxGroupSize { get; set; } = 5; // Max messages per contact in queue
