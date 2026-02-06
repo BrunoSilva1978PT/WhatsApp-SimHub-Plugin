@@ -53,12 +53,20 @@ namespace WhatsAppSimHubPlugin.UI
         /// </summary>
         public void SetSoundManager(Core.SoundManager soundManager)
         {
+            // Unsubscribe to prevent SelectionChanged from overwriting saved settings during population
+            NotificationsTab.VipSoundComboBoxCtrl.SelectionChanged -= VipSoundComboBox_SelectionChanged;
+            NotificationsTab.UrgentSoundComboBoxCtrl.SelectionChanged -= UrgentSoundComboBox_SelectionChanged;
+
             NotificationsTab.SetSoundManager(soundManager);
             NotificationsTab.RefreshSoundList();
             if (!string.IsNullOrEmpty(_settings.VipSoundFile))
                 NotificationsTab.VipSoundComboBoxCtrl.SelectedItem = _settings.VipSoundFile;
             if (!string.IsNullOrEmpty(_settings.UrgentSoundFile))
                 NotificationsTab.UrgentSoundComboBoxCtrl.SelectedItem = _settings.UrgentSoundFile;
+
+            // Re-subscribe after selections are restored
+            NotificationsTab.VipSoundComboBoxCtrl.SelectionChanged += VipSoundComboBox_SelectionChanged;
+            NotificationsTab.UrgentSoundComboBoxCtrl.SelectionChanged += UrgentSoundComboBox_SelectionChanged;
         }
         private bool _isLoadingDevices = false; // Flag to avoid trigger during loading
         private HashSet<string> _knownDeviceIds = new HashSet<string>(); // Known devices
@@ -688,13 +696,19 @@ namespace WhatsAppSimHubPlugin.UI
                 // VoCore selection is handled by LoadAvailableDevices() which runs before this
                 UpdateTestButtonState();
 
-                // Sound settings
+                // Sound settings - unsubscribe to prevent SelectionChanged from overwriting saved settings
+                NotificationsTab.VipSoundComboBoxCtrl.SelectionChanged -= VipSoundComboBox_SelectionChanged;
+                NotificationsTab.UrgentSoundComboBoxCtrl.SelectionChanged -= UrgentSoundComboBox_SelectionChanged;
+
                 NotificationsTab.SoundEnabledCheckboxCtrl.IsChecked = _settings.SoundEnabled;
                 NotificationsTab.RefreshSoundList();
                 if (!string.IsNullOrEmpty(_settings.VipSoundFile))
                     NotificationsTab.VipSoundComboBoxCtrl.SelectedItem = _settings.VipSoundFile;
                 if (!string.IsNullOrEmpty(_settings.UrgentSoundFile))
                     NotificationsTab.UrgentSoundComboBoxCtrl.SelectedItem = _settings.UrgentSoundFile;
+
+                NotificationsTab.VipSoundComboBoxCtrl.SelectionChanged += VipSoundComboBox_SelectionChanged;
+                NotificationsTab.UrgentSoundComboBoxCtrl.SelectionChanged += UrgentSoundComboBox_SelectionChanged;
 
                 // Sliders - convert from ms to seconds where necessary
                 NotificationsTab.MaxMessagesPerContactSliderCtrl.Value = _settings.MaxGroupSize;
