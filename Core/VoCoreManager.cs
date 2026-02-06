@@ -117,10 +117,6 @@ namespace WhatsAppSimHubPlugin.Core
             if (string.IsNullOrEmpty(name))
                 return null;
 
-            string serial = deviceInstance.ConfiguredSerialNumber();
-            if (string.IsNullOrEmpty(serial))
-                serial = deviceInstance.InstanceId.ToString();
-
             VOCORESettings vocoreSettings = null;
             try
             {
@@ -135,6 +131,8 @@ namespace WhatsAppSimHubPlugin.Core
             if (vocoreSettings == null)
                 return null;
 
+            string serial = GetStableDeviceId(vocoreSettings, deviceInstance);
+
             return new VoCoreDevice
             {
                 Name = name,
@@ -142,6 +140,36 @@ namespace WhatsAppSimHubPlugin.Core
                 InformationOverlayEnabled = vocoreSettings.UseOverlayDashboard,
                 CurrentDashboard = vocoreSettings.CurrentOverlayDashboard?.Dashboard
             };
+        }
+
+        /// <summary>
+        /// Get a stable device identifier. Priority:
+        /// 1. ConnectedId from BitmapDisplayInstance (hardware Screen ID, never changes)
+        /// 2. ConfiguredSerialNumber (hardware serial if available)
+        /// 3. InstanceId (GUID fallback, may change on composite sub-devices)
+        /// </summary>
+        private string GetStableDeviceId(VOCORESettings vocoreSettings, DeviceInstance deviceInstance)
+        {
+            // Try ConnectedId (hardware Screen ID - most reliable)
+            try
+            {
+                dynamic bdi = vocoreSettings.BitmapDisplayInstance;
+                if (bdi != null)
+                {
+                    string connectedId = bdi.ConnectedId;
+                    if (!string.IsNullOrEmpty(connectedId))
+                        return connectedId;
+                }
+            }
+            catch { }
+
+            // Fallback to ConfiguredSerialNumber
+            string serial = deviceInstance.ConfiguredSerialNumber();
+            if (!string.IsNullOrEmpty(serial))
+                return serial;
+
+            // Last resort: InstanceId
+            return deviceInstance.InstanceId.ToString();
         }
 
         /// <summary>
@@ -426,26 +454,29 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Try to match a device by serial and return its VOCORESettings.
+        /// Try to match a device by serial/ConnectedId and return its VOCORESettings.
         /// </summary>
         private VOCORESettings TryMatchDeviceBySerial(object device, DeviceInstance deviceInstance, string serialNumber)
         {
-            string serial = deviceInstance.ConfiguredSerialNumber();
-            if (string.IsNullOrEmpty(serial))
-                serial = deviceInstance.InstanceId.ToString();
-
-            if (serial != serialNumber)
-                return null;
-
+            VOCORESettings vocoreSettings = null;
             try
             {
                 dynamic dynDevice = device;
-                return dynDevice.Settings as VOCORESettings;
+                vocoreSettings = dynDevice.Settings as VOCORESettings;
             }
             catch
             {
                 return null;
             }
+
+            if (vocoreSettings == null)
+                return null;
+
+            string deviceId = GetStableDeviceId(vocoreSettings, deviceInstance);
+            if (deviceId != serialNumber)
+                return null;
+
+            return vocoreSettings;
         }
     }
 }
