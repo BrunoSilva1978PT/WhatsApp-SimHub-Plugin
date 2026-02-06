@@ -131,7 +131,9 @@ namespace WhatsAppSimHubPlugin.Core
             if (vocoreSettings == null)
                 return null;
 
-            string serial = GetStableDeviceId(vocoreSettings, deviceInstance);
+            string serial = GetConnectedId(vocoreSettings);
+            if (string.IsNullOrEmpty(serial))
+                return null;
 
             return new VoCoreDevice
             {
@@ -143,33 +145,20 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Get a stable device identifier. Priority:
-        /// 1. ConnectedId from BitmapDisplayInstance (hardware Screen ID, never changes)
-        /// 2. ConfiguredSerialNumber (hardware serial if available)
-        /// 3. InstanceId (GUID fallback, may change on composite sub-devices)
+        /// Get VoCore hardware Screen ID (ConnectedId). Always available on any VoCore device.
+        /// Returns null if not a valid VoCore (no BitmapDisplayInstance or no ConnectedId).
         /// </summary>
-        private string GetStableDeviceId(VOCORESettings vocoreSettings, DeviceInstance deviceInstance)
+        private string GetConnectedId(VOCORESettings vocoreSettings)
         {
-            // Try ConnectedId (hardware Screen ID - most reliable)
             try
             {
                 dynamic bdi = vocoreSettings.BitmapDisplayInstance;
                 if (bdi != null)
-                {
-                    string connectedId = bdi.ConnectedId;
-                    if (!string.IsNullOrEmpty(connectedId))
-                        return connectedId;
-                }
+                    return bdi.ConnectedId;
             }
             catch { }
 
-            // Fallback to ConfiguredSerialNumber
-            string serial = deviceInstance.ConfiguredSerialNumber();
-            if (!string.IsNullOrEmpty(serial))
-                return serial;
-
-            // Last resort: InstanceId
-            return deviceInstance.InstanceId.ToString();
+            return null;
         }
 
         /// <summary>
@@ -472,8 +461,8 @@ namespace WhatsAppSimHubPlugin.Core
             if (vocoreSettings == null)
                 return null;
 
-            string deviceId = GetStableDeviceId(vocoreSettings, deviceInstance);
-            if (deviceId != serialNumber)
+            string deviceId = GetConnectedId(vocoreSettings);
+            if (string.IsNullOrEmpty(deviceId) || deviceId != serialNumber)
                 return null;
 
             return vocoreSettings;
