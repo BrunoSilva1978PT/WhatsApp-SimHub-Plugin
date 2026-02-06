@@ -47,7 +47,8 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Get all connected VoCore devices with their current state
+        /// Get all connected VoCore devices with their current state.
+        /// Supports standalone VoCores and VoCores embedded in composite devices (wheels, DDUs).
         /// </summary>
         public List<VoCoreDevice> GetConnectedDevices()
         {
@@ -65,43 +66,37 @@ namespace WhatsAppSimHubPlugin.Core
                     if (deviceInstance == null)
                         continue;
 
-                    string name = deviceInstance.MainDisplayName;
-                    string serial = deviceInstance.ConfiguredSerialNumber();
-                    string instanceId = deviceInstance.InstanceId.ToString();
-
-                    if (string.IsNullOrEmpty(name))
+                    // Try direct device first (standalone VoCore)
+                    var vocoreDevice = TryCreateVoCoreDevice(device, deviceInstance);
+                    if (vocoreDevice != null)
+                    {
+                        devices.Add(vocoreDevice);
                         continue;
+                    }
 
-                    // Use InstanceId if serial is empty
-                    if (string.IsNullOrEmpty(serial))
-                        serial = instanceId;
-
-                    // Try to get VOCORESettings (filters only VoCores)
-                    dynamic dynDevice = device;
-                    VOCORESettings vocoreSettings = null;
-
+                    // If CompositeDevice, check sub-devices (wheels, DDUs with embedded VoCore)
                     try
                     {
-                        vocoreSettings = dynDevice.Settings as VOCORESettings;
+                        dynamic dynDevice = device;
+                        System.Collections.IEnumerable subDevices = dynDevice.Devices;
+                        if (subDevices == null)
+                            continue;
+
+                        foreach (var subDev in subDevices)
+                        {
+                            var subInstance = subDev as DeviceInstance;
+                            if (subInstance == null)
+                                continue;
+
+                            var subVoCoreDevice = TryCreateVoCoreDevice(subDev, subInstance);
+                            if (subVoCoreDevice != null)
+                                devices.Add(subVoCoreDevice);
+                        }
                     }
                     catch
                     {
-                        continue; // Not a VoCore
+                        // Not a composite device or no Devices property
                     }
-
-                    if (vocoreSettings == null)
-                        continue;
-
-                    bool overlayEnabled = vocoreSettings.UseOverlayDashboard;
-                    string currentDash = vocoreSettings.CurrentOverlayDashboard?.Dashboard;
-
-                    devices.Add(new VoCoreDevice
-                    {
-                        Name = name,
-                        Serial = serial,
-                        InformationOverlayEnabled = overlayEnabled,
-                        CurrentDashboard = currentDash
-                    });
                 }
             }
             catch (Exception ex)
@@ -110,6 +105,43 @@ namespace WhatsAppSimHubPlugin.Core
             }
 
             return devices;
+        }
+
+        /// <summary>
+        /// Try to create a VoCoreDevice from a device instance.
+        /// Returns null if the device doesn't have VOCORESettings.
+        /// </summary>
+        private VoCoreDevice TryCreateVoCoreDevice(object device, DeviceInstance deviceInstance)
+        {
+            string name = deviceInstance.MainDisplayName;
+            if (string.IsNullOrEmpty(name))
+                return null;
+
+            string serial = deviceInstance.ConfiguredSerialNumber();
+            if (string.IsNullOrEmpty(serial))
+                serial = deviceInstance.InstanceId.ToString();
+
+            VOCORESettings vocoreSettings = null;
+            try
+            {
+                dynamic dynDevice = device;
+                vocoreSettings = dynDevice.Settings as VOCORESettings;
+            }
+            catch
+            {
+                return null;
+            }
+
+            if (vocoreSettings == null)
+                return null;
+
+            return new VoCoreDevice
+            {
+                Name = name,
+                Serial = serial,
+                InformationOverlayEnabled = vocoreSettings.UseOverlayDashboard,
+                CurrentDashboard = vocoreSettings.CurrentOverlayDashboard?.Dashboard
+            };
         }
 
         /// <summary>
@@ -342,7 +374,8 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         /// <summary>
-        /// Find VoCore device by serial number
+        /// Find VoCore device by serial number.
+        /// Searches standalone devices and sub-devices inside composite devices.
         /// </summary>
         private VOCORESettings FindDeviceBySerial(string serialNumber)
         {
@@ -356,23 +389,31 @@ namespace WhatsAppSimHubPlugin.Core
                     var deviceInstance = device as DeviceInstance;
                     if (deviceInstance == null) continue;
 
-                    string serial = deviceInstance.ConfiguredSerialNumber();
+                    // Try direct device first (standalone VoCore)
+                    var result = TryMatchDeviceBySerial(device, deviceInstance, serialNumber);
+                    if (result != null)
+                        return result;
 
-                    // If serial is empty, use InstanceId instead
-                    if (string.IsNullOrEmpty(serial))
-                        serial = deviceInstance.InstanceId.ToString();
-
-                    if (serial != serialNumber) continue;
-
-                    // Found device! Get settings
-                    dynamic dynDevice = device;
+                    // If CompositeDevice, check sub-devices
                     try
                     {
-                        return dynDevice.Settings as VOCORESettings;
+                        dynamic dynDevice = device;
+                        System.Collections.IEnumerable subDevices = dynDevice.Devices;
+                        if (subDevices == null) continue;
+
+                        foreach (var subDev in subDevices)
+                        {
+                            var subInstance = subDev as DeviceInstance;
+                            if (subInstance == null) continue;
+
+                            result = TryMatchDeviceBySerial(subDev, subInstance, serialNumber);
+                            if (result != null)
+                                return result;
+                        }
                     }
                     catch
                     {
-                        return null;
+                        // Not a composite device
                     }
                 }
             }
@@ -382,6 +423,29 @@ namespace WhatsAppSimHubPlugin.Core
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Try to match a device by serial and return its VOCORESettings.
+        /// </summary>
+        private VOCORESettings TryMatchDeviceBySerial(object device, DeviceInstance deviceInstance, string serialNumber)
+        {
+            string serial = deviceInstance.ConfiguredSerialNumber();
+            if (string.IsNullOrEmpty(serial))
+                serial = deviceInstance.InstanceId.ToString();
+
+            if (serial != serialNumber)
+                return null;
+
+            try
+            {
+                dynamic dynDevice = device;
+                return dynDevice.Settings as VOCORESettings;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }
