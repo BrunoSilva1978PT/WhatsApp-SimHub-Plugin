@@ -224,10 +224,15 @@ namespace WhatsAppSimHubPlugin.UI
         private void WireUpNotificationsTabEvents()
         {
             // Sound settings
-            NotificationsTab.SoundEnabledCheckboxCtrl.Checked += SoundEnabledCheckbox_Changed;
-            NotificationsTab.SoundEnabledCheckboxCtrl.Unchecked += SoundEnabledCheckbox_Changed;
+            NotificationsTab.VipSoundEnabledCheckboxCtrl.Checked += VipSoundEnabledCheckbox_Changed;
+            NotificationsTab.VipSoundEnabledCheckboxCtrl.Unchecked += VipSoundEnabledCheckbox_Changed;
+            NotificationsTab.UrgentSoundEnabledCheckboxCtrl.Checked += UrgentSoundEnabledCheckbox_Changed;
+            NotificationsTab.UrgentSoundEnabledCheckboxCtrl.Unchecked += UrgentSoundEnabledCheckbox_Changed;
+            NotificationsTab.NormalSoundEnabledCheckboxCtrl.Checked += NormalSoundEnabledCheckbox_Changed;
+            NotificationsTab.NormalSoundEnabledCheckboxCtrl.Unchecked += NormalSoundEnabledCheckbox_Changed;
             NotificationsTab.VipSoundComboBoxCtrl.SelectionChanged += VipSoundComboBox_SelectionChanged;
             NotificationsTab.UrgentSoundComboBoxCtrl.SelectionChanged += UrgentSoundComboBox_SelectionChanged;
+            NotificationsTab.NormalSoundComboBoxCtrl.SelectionChanged += NormalSoundComboBox_SelectionChanged;
 
             // Duration/queue settings
             NotificationsTab.NormalDurationSliderCtrl.ValueChanged += NormalDurationSlider_ValueChanged;
@@ -699,16 +704,28 @@ namespace WhatsAppSimHubPlugin.UI
                 // Sound settings - unsubscribe to prevent SelectionChanged from overwriting saved settings
                 NotificationsTab.VipSoundComboBoxCtrl.SelectionChanged -= VipSoundComboBox_SelectionChanged;
                 NotificationsTab.UrgentSoundComboBoxCtrl.SelectionChanged -= UrgentSoundComboBox_SelectionChanged;
+                NotificationsTab.NormalSoundComboBoxCtrl.SelectionChanged -= NormalSoundComboBox_SelectionChanged;
 
-                NotificationsTab.SoundEnabledCheckboxCtrl.IsChecked = _settings.SoundEnabled;
+                NotificationsTab.VipSoundEnabledCheckboxCtrl.IsChecked = _settings.VipSoundEnabled;
+                NotificationsTab.UrgentSoundEnabledCheckboxCtrl.IsChecked = _settings.UrgentSoundEnabled;
+                NotificationsTab.NormalSoundEnabledCheckboxCtrl.IsChecked = _settings.NormalSoundEnabled;
                 NotificationsTab.RefreshSoundList();
+
+                // Set saved sound files (or defaults for VIP/Urgent)
                 if (!string.IsNullOrEmpty(_settings.VipSoundFile))
                     NotificationsTab.VipSoundComboBoxCtrl.SelectedItem = _settings.VipSoundFile;
                 if (!string.IsNullOrEmpty(_settings.UrgentSoundFile))
                     NotificationsTab.UrgentSoundComboBoxCtrl.SelectedItem = _settings.UrgentSoundFile;
 
+                // Only set Normal sound if explicitly saved (don't default to anything)
+                if (!string.IsNullOrEmpty(_settings.NormalSoundFile))
+                {
+                    NotificationsTab.NormalSoundComboBoxCtrl.SelectedItem = _settings.NormalSoundFile;
+                }
+
                 NotificationsTab.VipSoundComboBoxCtrl.SelectionChanged += VipSoundComboBox_SelectionChanged;
                 NotificationsTab.UrgentSoundComboBoxCtrl.SelectionChanged += UrgentSoundComboBox_SelectionChanged;
+                NotificationsTab.NormalSoundComboBoxCtrl.SelectionChanged += NormalSoundComboBox_SelectionChanged;
 
                 // Sliders - convert from ms to seconds where necessary
                 NotificationsTab.MaxMessagesPerContactSliderCtrl.Value = _settings.MaxGroupSize;
@@ -1036,10 +1053,24 @@ namespace WhatsAppSimHubPlugin.UI
             }
         }
 
-        private void SoundEnabledCheckbox_Changed(object sender, RoutedEventArgs e)
+        private void VipSoundEnabledCheckbox_Changed(object sender, RoutedEventArgs e)
         {
             if (_settings == null) return;
-            _settings.SoundEnabled = NotificationsTab.SoundEnabledCheckboxCtrl.IsChecked == true;
+            _settings.VipSoundEnabled = NotificationsTab.VipSoundEnabledCheckboxCtrl.IsChecked == true;
+            _plugin?.SaveSettings();
+        }
+
+        private void UrgentSoundEnabledCheckbox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_settings == null) return;
+            _settings.UrgentSoundEnabled = NotificationsTab.UrgentSoundEnabledCheckboxCtrl.IsChecked == true;
+            _plugin?.SaveSettings();
+        }
+
+        private void NormalSoundEnabledCheckbox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_settings == null) return;
+            _settings.NormalSoundEnabled = NotificationsTab.NormalSoundEnabledCheckboxCtrl.IsChecked == true;
             _plugin?.SaveSettings();
         }
 
@@ -1061,6 +1092,17 @@ namespace WhatsAppSimHubPlugin.UI
             if (!string.IsNullOrEmpty(selected))
             {
                 _settings.UrgentSoundFile = selected;
+                _plugin?.SaveSettings();
+            }
+        }
+
+        private void NormalSoundComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_settings == null) return;
+            var selected = NotificationsTab.NormalSoundComboBoxCtrl.SelectedItem as string;
+            if (!string.IsNullOrEmpty(selected))
+            {
+                _settings.NormalSoundFile = selected;
                 _plugin?.SaveSettings();
             }
         }

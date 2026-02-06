@@ -21,9 +21,12 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         }
 
         // Sound controls
-        public ToggleButton SoundEnabledCheckboxCtrl => SoundEnabledCheckbox;
+        public ToggleButton VipSoundEnabledCheckboxCtrl => VipSoundEnabledCheckbox;
+        public ToggleButton UrgentSoundEnabledCheckboxCtrl => UrgentSoundEnabledCheckbox;
+        public ToggleButton NormalSoundEnabledCheckboxCtrl => NormalSoundEnabledCheckbox;
         public ComboBox VipSoundComboBoxCtrl => VipSoundComboBox;
         public ComboBox UrgentSoundComboBoxCtrl => UrgentSoundComboBox;
+        public ComboBox NormalSoundComboBoxCtrl => NormalSoundComboBox;
 
         // Message Display Duration
         public Slider NormalDurationSliderCtrl => NormalDurationSlider;
@@ -53,10 +56,13 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
             var selectedVip = VipSoundComboBox.SelectedItem as string;
             var selectedUrgent = UrgentSoundComboBox.SelectedItem as string;
 
+            var selectedNormal = NormalSoundComboBox.SelectedItem as string;
+
             VipSoundComboBox.ItemsSource = sounds;
             UrgentSoundComboBox.ItemsSource = sounds;
+            NormalSoundComboBox.ItemsSource = sounds;
 
-            // Restore selection
+            // Restore selection (only auto-select for VIP and Urgent, not Normal)
             if (selectedVip != null && sounds.Contains(selectedVip))
                 VipSoundComboBox.SelectedItem = selectedVip;
             else if (sounds.Count > 0)
@@ -66,6 +72,10 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
                 UrgentSoundComboBox.SelectedItem = selectedUrgent;
             else if (sounds.Count > 0)
                 UrgentSoundComboBox.SelectedIndex = 0;
+
+            if (selectedNormal != null && sounds.Contains(selectedNormal))
+                NormalSoundComboBox.SelectedItem = selectedNormal;
+            // Don't auto-select first item for Normal - only if user explicitly chose one
         }
 
         // Sound button handlers
@@ -79,6 +89,13 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         private void UrgentSoundPlay_Click(object sender, RoutedEventArgs e)
         {
             var selected = UrgentSoundComboBox.SelectedItem as string;
+            if (!string.IsNullOrEmpty(selected))
+                _soundManager?.PlaySound(selected);
+        }
+
+        private void NormalSoundPlay_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = NormalSoundComboBox.SelectedItem as string;
             if (!string.IsNullOrEmpty(selected))
                 _soundManager?.PlaySound(selected);
         }
@@ -105,6 +122,8 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
                         VipSoundComboBox.SelectedItem = imported;
                     else if (button?.Name == "UrgentSoundImport")
                         UrgentSoundComboBox.SelectedItem = imported;
+                    else if (button?.Name == "NormalSoundImport")
+                        NormalSoundComboBox.SelectedItem = imported;
                 }
             }
         }
@@ -132,6 +151,26 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         private void UrgentSoundDelete_Click(object sender, RoutedEventArgs e)
         {
             var selected = UrgentSoundComboBox.SelectedItem as string;
+            if (string.IsNullOrEmpty(selected)) return;
+
+            var confirmed = ConfirmDialog.Show(
+                $"Delete '{selected}'?",
+                null,
+                "Delete Sound",
+                "Delete",
+                "Cancel",
+                true);
+
+            if (confirmed)
+            {
+                _soundManager?.DeleteSound(selected);
+                RefreshSoundList();
+            }
+        }
+
+        private void NormalSoundDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = NormalSoundComboBox.SelectedItem as string;
             if (string.IsNullOrEmpty(selected)) return;
 
             var confirmed = ConfirmDialog.Show(

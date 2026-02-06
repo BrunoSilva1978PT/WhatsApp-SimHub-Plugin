@@ -46,6 +46,9 @@ namespace WhatsAppSimHubPlugin
         // See RegisterActions() and SendQuickReply(int)
         private bool _replySentForCurrentMessage = false; // Blocks multiple sends for same message
 
+        // SOUND NOTIFICATIONS: Track last contact that played sound to avoid repeating
+        private string _lastSoundPlayedForContact = ""; // Contact number that last played sound
+
         private string _pluginPath;
         private string _settingsFile;
         private string _contactsFile;
@@ -1727,22 +1730,49 @@ del ""%~f0""
                 // ✅ ATUALIZAR OVERLAY
                 UpdateOverlayProperties(messages);
 
-                // Play sound notification for VIP/Urgent messages
-                if (_settings?.SoundEnabled == true && _soundManager != null)
+                // Play sound notification (only once per contact)
+                if (_soundManager != null)
                 {
-                    string soundFile = null;
-                    if (messages.Any(m => m.IsUrgent))
-                        soundFile = _settings.UrgentSoundFile;
-                    else if (messages.Any(m => m.IsVip))
-                        soundFile = _settings.VipSoundFile;
+                    string contactNumber = messages[0].Number;
+                    bool isNewContact = _lastSoundPlayedForContact != contactNumber;
 
-                    if (!string.IsNullOrEmpty(soundFile))
+                    if (isNewContact)
                     {
-                        // MediaPlayer must be called from UI thread
-                        _settingsControl?.Dispatcher?.BeginInvoke(new Action(() =>
+                        string soundFile = null;
+                        bool shouldPlaySound = false;
+
+                        // Priority order: Urgent > VIP > Normal
+                        if (messages.Any(m => m.IsUrgent) && _settings?.UrgentSoundEnabled == true)
                         {
-                            _soundManager.PlaySound(soundFile);
-                        }));
+                            soundFile = _settings.UrgentSoundFile;
+                            shouldPlaySound = true;
+                        }
+                        else if (messages.Any(m => m.IsVip) && _settings?.VipSoundEnabled == true)
+                        {
+                            soundFile = _settings.VipSoundFile;
+                            shouldPlaySound = true;
+                        }
+                        else if (_settings?.NormalSoundEnabled == true)
+                        {
+                            soundFile = _settings.NormalSoundFile;
+                            shouldPlaySound = true;
+                        }
+
+                        if (shouldPlaySound && !string.IsNullOrEmpty(soundFile))
+                        {
+                            // MediaPlayer must be called from UI thread
+                            _settingsControl?.Dispatcher?.BeginInvoke(new Action(() =>
+                            {
+                                _soundManager.PlaySound(soundFile);
+                            }));
+
+                            _lastSoundPlayedForContact = contactNumber;
+                            WriteLog($"[SOUND] Played sound for contact {contactNumber}");
+                        }
+                    }
+                    else
+                    {
+                        WriteLog($"[SOUND] Skipped sound - already played for contact {contactNumber}");
                     }
                 }
 
@@ -1765,6 +1795,7 @@ del ""%~f0""
             _currentMessageGroup = null;
             _currentContactNumber = "";
             _currentContactRealNumber = "";
+            _lastSoundPlayedForContact = ""; // Reset sound tracking when message is removed
 
             WriteLog($"[EVENT] Calling UpdateOverlayProperties(null) to clear overlay...");
 

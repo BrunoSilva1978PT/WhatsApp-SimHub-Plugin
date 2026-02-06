@@ -51,9 +51,16 @@ namespace WhatsAppSimHubPlugin.Models
         // Sound Notifications
         [DefaultValue(true)]
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
-        public bool SoundEnabled { get; set; } = true;
+        public bool VipSoundEnabled { get; set; } = true;
+        [DefaultValue(true)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool UrgentSoundEnabled { get; set; } = true;
+        [DefaultValue(false)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool NormalSoundEnabled { get; set; } = false;
         public string VipSoundFile { get; set; } = "mixkit-bell-notification-933.wav";
         public string UrgentSoundFile { get; set; } = "mixkit-urgent-simple-tone-loop-2976.wav";
+        public string NormalSoundFile { get; set; } = ""; // No default - user must choose explicitly
 
         // Dependencies
         public bool DependenciesInstalling { get; set; } = false; // True when installing dependencies in background

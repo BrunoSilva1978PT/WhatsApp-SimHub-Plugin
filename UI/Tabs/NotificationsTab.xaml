@@ -16,19 +16,13 @@
 
             <StackPanel Margin="0,0,0,20">
 
-                <!-- Enable/Disable toggle -->
-                <styles:SHToggleCheckbox x:Name="SoundEnabledCheckbox"
-                         Content="Enable notification sounds"
+                <!-- VIP Sound -->
+                <styles:SHToggleCheckbox x:Name="VipSoundEnabledCheckbox"
+                         Content="Enable VIP sounds"
                          FontSize="13"
                          Foreground="White"
-                         Margin="0,0,0,15"/>
-
-                <!-- VIP Sound -->
-                <TextBlock Text="VIP message sound:"
-                           FontSize="13"
-                           FontWeight="SemiBold"
-                           Margin="0,0,0,8"/>
-                <Grid Margin="0,0,0,15">
+                         Margin="0,0,0,8"/>
+                <Grid Margin="0,0,0,20">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
@@ -43,11 +37,12 @@
                 </Grid>
 
                 <!-- Urgent Sound -->
-                <TextBlock Text="Urgent message sound:"
-                           FontSize="13"
-                           FontWeight="SemiBold"
-                           Margin="0,0,0,8"/>
-                <Grid Margin="0,0,0,15">
+                <styles:SHToggleCheckbox x:Name="UrgentSoundEnabledCheckbox"
+                         Content="Enable Urgent sounds"
+                         FontSize="13"
+                         Foreground="White"
+                         Margin="0,0,0,8"/>
+                <Grid Margin="0,0,0,20">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
@@ -61,13 +56,35 @@
                     </StackPanel>
                 </Grid>
 
+                <!-- Normal Sound -->
+                <styles:SHToggleCheckbox x:Name="NormalSoundEnabledCheckbox"
+                         Content="Enable Normal sounds"
+                         FontSize="13"
+                         Foreground="White"
+                         Margin="0,0,0,8"/>
+                <Grid Margin="0,0,0,20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <ComboBox x:Name="NormalSoundComboBox" Grid.Column="0"
+                              Height="28" VerticalContentAlignment="Center"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
+                        <styles:SHButtonPrimary x:Name="NormalSoundPlay" Content="Play" Width="50" Height="28" Padding="0" Margin="0,0,4,0" FontSize="12" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="NormalSoundPlay_Click"/>
+                        <styles:SHButtonPrimary x:Name="NormalSoundImport" Content="Import" Width="60" Height="28" Padding="0" Margin="0,0,4,0" FontSize="12" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="SoundImport_Click"/>
+                        <styles:SHButtonPrimary x:Name="NormalSoundDelete" Content="Delete" Width="55" Height="28" Padding="0" FontSize="12" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="NormalSoundDelete_Click"/>
+                    </StackPanel>
+                </Grid>
+
                 <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,0,0,0">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="i" FontSize="14" FontWeight="Bold" Margin="0,0,10,0" Foreground="White"/>
                         <TextBlock TextWrapping="Wrap"
                                    Foreground="White"
                                    FontSize="12">
-                            Play a sound when VIP or Urgent messages arrive.
+                            Enable sounds for each priority level individually.
+                            <LineBreak/>
+                            Sounds play only once per contact until the message is dismissed.
                             <LineBreak/>
                             Import your own .wav or .mp3 files.
                         </TextBlock>
