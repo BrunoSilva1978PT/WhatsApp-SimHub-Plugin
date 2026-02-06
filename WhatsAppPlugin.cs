@@ -24,7 +24,7 @@ namespace WhatsAppSimHubPlugin
     public class WhatsAppPlugin : IPlugin, IWPFSettingsV2, IDataPlugin
     {
         // Plugin version - update this when releasing new versions
-        public const string PLUGIN_VERSION = "1.0.4";
+        public const string PLUGIN_VERSION = "1.0.5";
         private const string GITHUB_REPO = "BrunoSilva1978PT/WhatsApp-SimHub-Plugin";
 
         public PluginManager PluginManager { get; set; }
