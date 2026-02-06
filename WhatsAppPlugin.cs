@@ -40,6 +40,7 @@ namespace WhatsAppSimHubPlugin
         private DashboardInstaller _dashboardInstaller; // Installer to reinstall dashboard
         private DashboardMerger _dashboardMerger; // Merger to combine dashboards
         private VoCoreManager _vocoreManager; // VoCore configuration manager
+        private SoundManager _soundManager; // Sound notification manager
 
         // QUICK REPLIES: Now work via registered Actions
         // See RegisterActions() and SendQuickReply(int)
@@ -320,6 +321,10 @@ namespace WhatsAppSimHubPlugin
 
             // Initialize VoCore manager
             _vocoreManager = new VoCoreManager(PluginManager, _dashboardMerger, WriteLog);
+
+            // Initialize sound manager
+            _soundManager = new SoundManager(_pluginPath, WriteLog);
+            _soundManager.ExtractDefaultSounds();
 
             bool installed = _dashboardInstaller.InstallDashboard();
 
@@ -1722,6 +1727,25 @@ del ""%~f0""
                 // ✅ ATUALIZAR OVERLAY
                 UpdateOverlayProperties(messages);
 
+                // Play sound notification for VIP/Urgent messages
+                if (_settings?.SoundEnabled == true && _soundManager != null)
+                {
+                    string soundFile = null;
+                    if (messages.Any(m => m.IsUrgent))
+                        soundFile = _settings.UrgentSoundFile;
+                    else if (messages.Any(m => m.IsVip))
+                        soundFile = _settings.VipSoundFile;
+
+                    if (!string.IsNullOrEmpty(soundFile))
+                    {
+                        // MediaPlayer must be called from UI thread
+                        _settingsControl?.Dispatcher?.BeginInvoke(new Action(() =>
+                        {
+                            _soundManager.PlaySound(soundFile);
+                        }));
+                    }
+                }
+
                 WriteLog($"[EVENT] ✅ OnGroupDisplay completed - displaying {messages.Count} messages from {messages[0].From}");
             }
         }
@@ -1768,6 +1792,7 @@ del ""%~f0""
             }
 
             _messageQueue?.Dispose();
+            _soundManager?.Dispose();
 
             WriteLog("Plugin shutdown complete");
         }
@@ -1832,6 +1857,7 @@ del ""%~f0""
             if (_settingsControl == null)
             {
                 _settingsControl = new UI.SettingsControl(this);
+                _settingsControl.SetSoundManager(_soundManager);
             }
             return _settingsControl;
         }

@@ -101,9 +101,9 @@
                 <tabs:DisplayTab x:Name="DisplayTab"/>
             </styles:SHTabItem>
 
-            <!-- TAB 5: QUEUE -->
-            <styles:SHTabItem Header="⏱️ Queue">
-                <tabs:QueueTab x:Name="QueueTab"/>
+            <!-- TAB 5: NOTIFICATIONS -->
+            <styles:SHTabItem Header="🔔 Notifications">
+                <tabs:NotificationsTab x:Name="NotificationsTab"/>
             </styles:SHTabItem>
 
             <!-- TAB 6: QUICK REPLIES -->

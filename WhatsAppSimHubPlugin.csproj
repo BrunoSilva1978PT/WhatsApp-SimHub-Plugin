@@ -106,8 +106,9 @@
     <Compile Include="UI\Tabs\DisplayTab.xaml.cs">
       <DependentUpon>DisplayTab.xaml</DependentUpon>
     </Compile>
-    <Compile Include="UI\Tabs\QueueTab.xaml.cs">
-      <DependentUpon>QueueTab.xaml</DependentUpon>
+    <Compile Include="Core\SoundManager.cs" />
+    <Compile Include="UI\Tabs\NotificationsTab.xaml.cs">
+      <DependentUpon>NotificationsTab.xaml</DependentUpon>
     </Compile>
     <Compile Include="UI\Tabs\QuickRepliesTab.xaml.cs">
       <DependentUpon>QuickRepliesTab.xaml</DependentUpon>
@@ -134,6 +135,25 @@
     <EmbeddedResource Include="Resources\baileys-server.mjs" />
     <EmbeddedResource Include="Resources\google-contacts.js" />
     <EmbeddedResource Include="Resources\package.json" />
+    <EmbeddedResource Include="Resources\sounds\freesound_community-message-notification-103496.mp3" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-access-allowed-tone-2869.wav" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-bell-notification-933.wav" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-clear-announce-tones-2861.wav" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-confirmation-tone-2867.wav" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-doorbell-single-press-333.wav" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-doorbell-tone-2864.wav" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-elevator-tone-2863.wav" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-game-notification-wave-alarm-987.wav" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-happy-bells-notification-937.wav" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-positive-notification-951.wav" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-software-interface-back-2575.wav" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-software-interface-remove-2576.wav" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-software-interface-start-2574.wav" />
+    <EmbeddedResource Include="Resources\sounds\mixkit-urgent-simple-tone-loop-2976.wav" />
+    <EmbeddedResource Include="Resources\sounds\quiandrea96-notification-457196.mp3" />
+    <EmbeddedResource Include="Resources\sounds\soundreality-notification-aero-432436.mp3" />
+    <EmbeddedResource Include="Resources\sounds\soundreality-notification-power-432434.mp3" />
+    <EmbeddedResource Include="Resources\sounds\soundreality-notification-tone-443095.mp3" />
   </ItemGroup>
 
   <ItemGroup>
@@ -157,7 +177,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="UI\Tabs\QueueTab.xaml">
+    <Page Include="UI\Tabs\NotificationsTab.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

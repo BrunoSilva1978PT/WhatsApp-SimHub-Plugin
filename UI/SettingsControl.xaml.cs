@@ -46,6 +46,20 @@ namespace WhatsAppSimHubPlugin.UI
         // Public properties for external access (used by WhatsAppPlugin.cs)
         public Button ReconnectButton => ConnectionTab.ReconnectButtonCtrl;
         public Button DisconnectButton => ConnectionTab.DisconnectButtonCtrl;
+
+        /// <summary>
+        /// Set the SoundManager instance so NotificationsTab can play sounds.
+        /// Also populates sound dropdowns and restores saved selections.
+        /// </summary>
+        public void SetSoundManager(Core.SoundManager soundManager)
+        {
+            NotificationsTab.SetSoundManager(soundManager);
+            NotificationsTab.RefreshSoundList();
+            if (!string.IsNullOrEmpty(_settings.VipSoundFile))
+                NotificationsTab.VipSoundComboBoxCtrl.SelectedItem = _settings.VipSoundFile;
+            if (!string.IsNullOrEmpty(_settings.UrgentSoundFile))
+                NotificationsTab.UrgentSoundComboBoxCtrl.SelectedItem = _settings.UrgentSoundFile;
+        }
         private bool _isLoadingDevices = false; // Flag to avoid trigger during loading
         private HashSet<string> _knownDeviceIds = new HashSet<string>(); // Known devices
 
@@ -71,8 +85,8 @@ namespace WhatsAppSimHubPlugin.UI
             // ✅ Wire up DisplayTab event handlers
             WireUpDisplayTabEvents();
 
-            // ✅ Wire up QueueTab event handlers
-            WireUpQueueTabEvents();
+            // ✅ Wire up NotificationsTab event handlers
+            WireUpNotificationsTabEvents();
 
             // ✅ Wire up QuickRepliesTab event handlers
             WireUpQuickRepliesTabEvents();
@@ -197,17 +211,24 @@ namespace WhatsAppSimHubPlugin.UI
         }
 
         /// <summary>
-        /// Wire up event handlers for QueueTab UserControl
+        /// Wire up event handlers for NotificationsTab UserControl
         /// </summary>
-        private void WireUpQueueTabEvents()
+        private void WireUpNotificationsTabEvents()
         {
-            QueueTab.NormalDurationSliderCtrl.ValueChanged += NormalDurationSlider_ValueChanged;
-            QueueTab.UrgentDurationSliderCtrl.ValueChanged += UrgentDurationSlider_ValueChanged;
-            QueueTab.MaxMessagesPerContactSliderCtrl.ValueChanged += MaxMessagesPerContactSlider_ValueChanged;
-            QueueTab.MaxQueueSizeSliderCtrl.ValueChanged += MaxQueueSizeSlider_ValueChanged;
-            QueueTab.RemoveAfterFirstDisplayCheckboxCtrl.Checked += RemoveAfterFirstDisplayCheckbox_Changed;
-            QueueTab.RemoveAfterFirstDisplayCheckboxCtrl.Unchecked += RemoveAfterFirstDisplayCheckbox_Changed;
-            QueueTab.ReminderIntervalSliderCtrl.ValueChanged += ReminderIntervalSlider_ValueChanged;
+            // Sound settings
+            NotificationsTab.SoundEnabledCheckboxCtrl.Checked += SoundEnabledCheckbox_Changed;
+            NotificationsTab.SoundEnabledCheckboxCtrl.Unchecked += SoundEnabledCheckbox_Changed;
+            NotificationsTab.VipSoundComboBoxCtrl.SelectionChanged += VipSoundComboBox_SelectionChanged;
+            NotificationsTab.UrgentSoundComboBoxCtrl.SelectionChanged += UrgentSoundComboBox_SelectionChanged;
+
+            // Duration/queue settings
+            NotificationsTab.NormalDurationSliderCtrl.ValueChanged += NormalDurationSlider_ValueChanged;
+            NotificationsTab.UrgentDurationSliderCtrl.ValueChanged += UrgentDurationSlider_ValueChanged;
+            NotificationsTab.MaxMessagesPerContactSliderCtrl.ValueChanged += MaxMessagesPerContactSlider_ValueChanged;
+            NotificationsTab.MaxQueueSizeSliderCtrl.ValueChanged += MaxQueueSizeSlider_ValueChanged;
+            NotificationsTab.RemoveAfterFirstDisplayCheckboxCtrl.Checked += RemoveAfterFirstDisplayCheckbox_Changed;
+            NotificationsTab.RemoveAfterFirstDisplayCheckboxCtrl.Unchecked += RemoveAfterFirstDisplayCheckbox_Changed;
+            NotificationsTab.ReminderIntervalSliderCtrl.ValueChanged += ReminderIntervalSlider_ValueChanged;
         }
 
         /// <summary>
@@ -667,20 +688,28 @@ namespace WhatsAppSimHubPlugin.UI
                 // VoCore selection is handled by LoadAvailableDevices() which runs before this
                 UpdateTestButtonState();
 
+                // Sound settings
+                NotificationsTab.SoundEnabledCheckboxCtrl.IsChecked = _settings.SoundEnabled;
+                NotificationsTab.RefreshSoundList();
+                if (!string.IsNullOrEmpty(_settings.VipSoundFile))
+                    NotificationsTab.VipSoundComboBoxCtrl.SelectedItem = _settings.VipSoundFile;
+                if (!string.IsNullOrEmpty(_settings.UrgentSoundFile))
+                    NotificationsTab.UrgentSoundComboBoxCtrl.SelectedItem = _settings.UrgentSoundFile;
+
                 // Sliders - convert from ms to seconds where necessary
-                QueueTab.MaxMessagesPerContactSliderCtrl.Value = _settings.MaxGroupSize;
-                QueueTab.MaxQueueSizeSliderCtrl.Value = _settings.MaxQueueSize;
-                QueueTab.NormalDurationSliderCtrl.Value = _settings.NormalDuration / 1000; // ms → seconds
-                QueueTab.UrgentDurationSliderCtrl.Value = _settings.UrgentDuration / 1000; // ms → seconds
+                NotificationsTab.MaxMessagesPerContactSliderCtrl.Value = _settings.MaxGroupSize;
+                NotificationsTab.MaxQueueSizeSliderCtrl.Value = _settings.MaxQueueSize;
+                NotificationsTab.NormalDurationSliderCtrl.Value = _settings.NormalDuration / 1000; // ms → seconds
+                NotificationsTab.UrgentDurationSliderCtrl.Value = _settings.UrgentDuration / 1000; // ms → seconds
 
                 // Checkbox RemoveAfterFirstDisplay
-                QueueTab.RemoveAfterFirstDisplayCheckboxCtrl.IsChecked = _settings.RemoveAfterFirstDisplay;
+                NotificationsTab.RemoveAfterFirstDisplayCheckboxCtrl.IsChecked = _settings.RemoveAfterFirstDisplay;
 
                 // ReminderInterval slider (ms → minutes)
-                QueueTab.ReminderIntervalSliderCtrl.Value = _settings.ReminderInterval / 60000;
+                NotificationsTab.ReminderIntervalSliderCtrl.Value = _settings.ReminderInterval / 60000;
 
                 // Mostrar/esconder painel baseado no checkbox
-                QueueTab.ReminderIntervalPanelCtrl.Visibility = _settings.RemoveAfterFirstDisplay ? Visibility.Collapsed : Visibility.Visible;
+                NotificationsTab.ReminderIntervalPanelCtrl.Visibility = _settings.RemoveAfterFirstDisplay ? Visibility.Collapsed : Visibility.Visible;
 
                 // Quick replies - apenas textos
                 QuickRepliesTab.Reply1TextBoxCtrl.Text = _settings.Reply1Text;
@@ -898,30 +927,32 @@ namespace WhatsAppSimHubPlugin.UI
 
         private void MaxMessagesPerContactSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (QueueTab.MaxMessagesPerContactValueCtrl != null && _settings != null)
+            if (NotificationsTab.MaxMessagesPerContactValueCtrl != null && _settings != null)
             {
                 int value = (int)e.NewValue;
-                QueueTab.MaxMessagesPerContactValueCtrl.Text = value.ToString();
+                NotificationsTab.MaxMessagesPerContactValueCtrl.Text = value.ToString();
                 _settings.MaxGroupSize = value;
+                _plugin?.SaveSettings();
             }
         }
 
         private void MaxQueueSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (QueueTab.MaxQueueSizeValueCtrl != null && _settings != null)
+            if (NotificationsTab.MaxQueueSizeValueCtrl != null && _settings != null)
             {
                 int value = (int)e.NewValue;
-                QueueTab.MaxQueueSizeValueCtrl.Text = value.ToString();
+                NotificationsTab.MaxQueueSizeValueCtrl.Text = value.ToString();
                 _settings.MaxQueueSize = value;
+                _plugin?.SaveSettings();
             }
         }
 
         private void NormalDurationSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (QueueTab.NormalDurationValueCtrl != null && _settings != null)
+            if (NotificationsTab.NormalDurationValueCtrl != null && _settings != null)
             {
                 int value = (int)e.NewValue;
-                QueueTab.NormalDurationValueCtrl.Text = $"{value}s";
+                NotificationsTab.NormalDurationValueCtrl.Text = $"{value}s";
                 _settings.NormalDuration = value * 1000; // Convert to milliseconds
                 _plugin?.SaveSettings(); // 💾 SALVAR
             }
@@ -929,10 +960,10 @@ namespace WhatsAppSimHubPlugin.UI
 
         private void UrgentDurationSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (QueueTab.UrgentDurationValueCtrl != null && _settings != null)
+            if (NotificationsTab.UrgentDurationValueCtrl != null && _settings != null)
             {
                 int value = (int)e.NewValue;
-                QueueTab.UrgentDurationValueCtrl.Text = $"{value}s";
+                NotificationsTab.UrgentDurationValueCtrl.Text = $"{value}s";
                 _settings.UrgentDuration = value * 1000; // Convert to milliseconds
                 _plugin?.SaveSettings(); // 💾 SALVAR
             }
@@ -961,7 +992,7 @@ namespace WhatsAppSimHubPlugin.UI
             if (_settings == null)
                 return;
 
-            bool isChecked = QueueTab.RemoveAfterFirstDisplayCheckboxCtrl.IsChecked == true;
+            bool isChecked = NotificationsTab.RemoveAfterFirstDisplayCheckboxCtrl.IsChecked == true;
             _settings.RemoveAfterFirstDisplay = isChecked;
 
             // 💾 SALVAR SETTINGS AUTOMATICAMENTE
@@ -974,19 +1005,48 @@ namespace WhatsAppSimHubPlugin.UI
             }
 
             // Mostrar/esconder painel do ReminderInterval
-            if (QueueTab.ReminderIntervalPanelCtrl != null)
+            if (NotificationsTab.ReminderIntervalPanelCtrl != null)
             {
-                QueueTab.ReminderIntervalPanelCtrl.Visibility = isChecked ? Visibility.Collapsed : Visibility.Visible;
+                NotificationsTab.ReminderIntervalPanelCtrl.Visibility = isChecked ? Visibility.Collapsed : Visibility.Visible;
             }
         }
 
         private void ReminderIntervalSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (QueueTab.ReminderIntervalValueCtrl != null && _settings != null)
+            if (NotificationsTab.ReminderIntervalValueCtrl != null && _settings != null)
             {
                 int value = (int)e.NewValue;
-                QueueTab.ReminderIntervalValueCtrl.Text = $"{value} min";
+                NotificationsTab.ReminderIntervalValueCtrl.Text = $"{value} min";
                 _settings.ReminderInterval = value * 60000; // Convert to milliseconds
+                _plugin?.SaveSettings();
+            }
+        }
+
+        private void SoundEnabledCheckbox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_settings == null) return;
+            _settings.SoundEnabled = NotificationsTab.SoundEnabledCheckboxCtrl.IsChecked == true;
+            _plugin?.SaveSettings();
+        }
+
+        private void VipSoundComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_settings == null) return;
+            var selected = NotificationsTab.VipSoundComboBoxCtrl.SelectedItem as string;
+            if (!string.IsNullOrEmpty(selected))
+            {
+                _settings.VipSoundFile = selected;
+                _plugin?.SaveSettings();
+            }
+        }
+
+        private void UrgentSoundComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_settings == null) return;
+            var selected = NotificationsTab.UrgentSoundComboBoxCtrl.SelectedItem as string;
+            if (!string.IsNullOrEmpty(selected))
+            {
+                _settings.UrgentSoundFile = selected;
                 _plugin?.SaveSettings();
             }
         }
@@ -1291,8 +1351,8 @@ namespace WhatsAppSimHubPlugin.UI
 
                     // Clear selections
                     ContactsTab.GoogleContactsComboBoxCtrl.SelectedIndex = -1;
-                    ContactsTab.ManualNameTextBoxCtrl.Text = "Name";
-                    ContactsTab.ManualNumberTextBoxCtrl.Text = "+351...";
+                    ContactsTab.ManualNameTextBoxCtrl.Text = "";
+                    ContactsTab.ManualNumberTextBoxCtrl.Text = "";
                 }
             });
         }
@@ -1594,14 +1654,14 @@ namespace WhatsAppSimHubPlugin.UI
             string number = ContactsTab.ManualNumberTextBoxCtrl.Text.Trim();
 
             // Validate name
-            if (string.IsNullOrWhiteSpace(name) || name == "Name")
+            if (string.IsNullOrWhiteSpace(name))
             {
                 ShowToast("Please enter a name.", "⚠️", 5);
                 return;
             }
 
             // Validate number
-            if (string.IsNullOrWhiteSpace(number) || number == "+351912345678" || !number.StartsWith("+"))
+            if (string.IsNullOrWhiteSpace(number) || !number.StartsWith("+"))
             {
                 ShowToast("Please enter a valid phone number.\n\nFormat: +[country code][number]\nExample: +351912345678", "⚠️", 8);
                 return;

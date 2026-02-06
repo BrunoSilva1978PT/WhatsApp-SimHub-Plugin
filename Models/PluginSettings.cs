@@ -1,7 +1,10 @@
 using System.Collections.Generic;
+using System.ComponentModel;
+using Newtonsoft.Json;
 
 namespace WhatsAppSimHubPlugin.Models
 {
+    [JsonObject(ItemNullValueHandling = NullValueHandling.Ignore)]
     public class PluginSettings
     {
         // Backend Mode
@@ -44,6 +47,13 @@ namespace WhatsAppSimHubPlugin.Models
         // VIP/Urgent Behavior
         public bool RemoveAfterFirstDisplay { get; set; } = false; // If true, VIP/URGENT removes after 1st display
         public int ReminderInterval { get; set; } = 180000; // Interval between VIP/Urgent repetitions (ms) - Default 3 min
+
+        // Sound Notifications
+        [DefaultValue(true)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool SoundEnabled { get; set; } = true;
+        public string VipSoundFile { get; set; } = "mixkit-bell-notification-933.wav";
+        public string UrgentSoundFile { get; set; } = "mixkit-urgent-simple-tone-loop-2976.wav";
 
         // Dependencies
         public bool DependenciesInstalling { get; set; } = false; // True when installing dependencies in background
