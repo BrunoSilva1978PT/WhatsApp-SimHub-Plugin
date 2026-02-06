@@ -351,18 +351,7 @@ namespace WhatsAppSimHubPlugin.Core
             ProcessQueue();
         }
 
-        public void RemoveMessage(string messageId)
-        {
-            var message = _vipUrgentQueue.FirstOrDefault(m => m.Id == messageId) ??
-                         _normalQueue.FirstOrDefault(m => m.Id == messageId);
 
-            if (message != null)
-            {
-                _vipUrgentQueue.Remove(message);
-                _normalQueue.Remove(message);
-                OnMessageRemoved?.Invoke();
-            }
-        }
 
         public void ClearVipUrgentMessages()
         {
@@ -395,10 +384,7 @@ namespace WhatsAppSimHubPlugin.Core
             }
         }
 
-        public int GetQueueSize()
-        {
-            return _vipUrgentQueue.Count + _normalQueue.Count;
-        }
+
 
         public List<QueuedMessage> GetAllMessages()
         {

@@ -312,7 +312,7 @@ namespace WhatsAppSimHubPlugin
 
             // Install dashboard automatically
             WriteLog("=== Dashboard Installation ===");
-            _dashboardInstaller = new DashboardInstaller(PluginManager, WriteLog);
+            _dashboardInstaller = new DashboardInstaller(WriteLog);
 
             // Initialize dashboard merger
             string dashTemplatesPath = _dashboardInstaller.GetDashboardsPath();
@@ -1747,7 +1747,7 @@ del ""%~f0""
             // ✅ LIMPAR OVERLAY
             UpdateOverlayProperties((List<QueuedMessage>)null);
 
-            WriteLog($"[EVENT] ✅ OnMessageRemoved completed - overlay cleared, queue count = {_messageQueue.GetQueueSize()}");
+            WriteLog($"[EVENT] OnMessageRemoved completed - overlay cleared");
         }
 
         public void End(PluginManager pluginManager)
@@ -1959,14 +1959,7 @@ del ""%~f0""
             }
         }
 
-        public void ApplyDisplaySettings()
-        {
-            // Recreate MessageQueue with new settings
-            _messageQueue?.Dispose();
-            _messageQueue = new MessageQueue(_settings, WriteLog);
-            _messageQueue.OnGroupDisplay += MessageQueue_OnGroupDisplay;
-            _messageQueue.OnMessageRemoved += MessageQueue_OnMessageRemoved;
-        }
+
 
         /// <summary>
         /// Apply dashboard directly (1 layer mode) - called from UI
@@ -2335,41 +2328,7 @@ del ""%~f0""
             }
         }
 
-        /// <summary>
-        /// Tests overlay system with .simhubdash dashboard
-        /// </summary>
-        public void TestDashboardOverlay()
-        {
-            try
-            {
-                WriteLog("🧪 Testing message display via SimHub properties...");
 
-                // Create test message
-                var testMessage = new QueuedMessage
-                {
-                    From = "🚨 WHATSAPP TEST 🚨",
-                    Number = "+351912345678",
-                    Body = "IF YOU SEE THIS, IT WORKED!",
-                    Timestamp = DateTime.Now,
-                    IsVip = false,
-                    IsUrgent = true
-                };
-
-                // Show via SimHub properties
-                _showMessage = true;
-                _overlaySender = testMessage.From;
-                _overlayTypeMessage = "URGENT";
-                _overlayTotalMessages = 1;
-                _overlayMessages[0] = $"{testMessage.Timestamp:HH:mm} {testMessage.Body}";
-
-                WriteLog("✅ Test message displayed via SimHub properties");
-                WriteLog("   Check your dashboard - message should be visible!");
-            }
-            catch (Exception ex)
-            {
-                WriteLog($"❌ TestDashboardOverlay ERROR: {ex.Message}");
-            }
-        }
 
 
         #region Dependency Setup

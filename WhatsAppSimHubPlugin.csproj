@@ -89,7 +89,6 @@
     <Compile Include="Core\WebSocketManager.cs" />
     <Compile Include="Core\DashboardInstaller.cs" />
     <Compile Include="Core\DashboardMerger.cs" />
-    <Compile Include="Core\PluginState.cs" />
     <Compile Include="Core\DependencyManager.cs" />
     <Compile Include="Core\VoCoreManager.cs" />
     <Compile Include="UI\SettingsControl.xaml.cs">

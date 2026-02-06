@@ -24,19 +24,6 @@ namespace WhatsAppSimHubPlugin.Models
             DisplayCount = 0;
         }
 
-        public int GetPriority()
-        {
-            // Urgent + VIP = 0 (highest priority)
-            if (IsUrgent && IsVip) return 0;
 
-            // Urgent = 1
-            if (IsUrgent) return 1;
-
-            // VIP = 2
-            if (IsVip) return 2;
-
-            // Normal = 3
-            return 3;
-        }
     }
 }

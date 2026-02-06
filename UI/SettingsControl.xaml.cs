@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
@@ -1579,154 +1578,6 @@ namespace WhatsAppSimHubPlugin.UI
 
         #endregion
 
-        #region Quick Replies Tab
-
-
-        /// <summary>
-        /// 🔍 DEBUG: Discover all available methods in PluginManager
-        /// </summary>
-        private void DiscoverPluginManagerMethods_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                if (_plugin?.PluginManager == null)
-                {
-                    MessageBox.Show("PluginManager not available!", "Error",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                var pluginManagerType = _plugin.PluginManager.GetType();
-                var output = new System.Text.StringBuilder();
-
-                output.AppendLine("🔍 DISCOVERED PLUGINMANAGER API:");
-                output.AppendLine("=====================================");
-                output.AppendLine();
-
-                // ======= METHODS =======
-                output.AppendLine("📌 MÉTODOS RELEVANTES:");
-                output.AppendLine("─────────────────────────────────────");
-
-                var allMethods = pluginManagerType.GetMethods(
-                    System.Reflection.BindingFlags.Public |
-                    System.Reflection.BindingFlags.Instance |
-                    System.Reflection.BindingFlags.Static
-                );
-
-                var relevantMethods = allMethods
-                    .Where(m =>
-                        m.Name.IndexOf("Control", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        m.Name.IndexOf("Action", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        m.Name.IndexOf("Input", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        m.Name.IndexOf("Dialog", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        m.Name.IndexOf("Configure", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        m.Name.IndexOf("Mapping", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        m.Name.IndexOf("Bind", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        m.Name.IndexOf("Settings", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        m.Name.IndexOf("Show", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        m.Name.IndexOf("Open", StringComparison.OrdinalIgnoreCase) >= 0
-                    )
-                    .OrderBy(m => m.Name)
-                    .ToList();
-
-                foreach (var method in relevantMethods)
-                {
-                    var parameters = method.GetParameters();
-                    var paramString = string.Join(", ", parameters.Select(p => $"{p.ParameterType.Name} {p.Name}"));
-
-                    output.AppendLine($"✅ {method.Name}({paramString})");
-                    output.AppendLine($"   Returns: {method.ReturnType.Name}");
-                    output.AppendLine();
-                }
-
-                // ======= PROPRIEDADES =======
-                output.AppendLine();
-                output.AppendLine("📌 PROPRIEDADES RELEVANTES:");
-                output.AppendLine("─────────────────────────────────────");
-
-                var allProperties = pluginManagerType.GetProperties(
-                    System.Reflection.BindingFlags.Public |
-                    System.Reflection.BindingFlags.Instance
-                );
-
-                var relevantProperties = allProperties
-                    .Where(p =>
-                        p.Name.IndexOf("Control", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        p.Name.IndexOf("Input", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        p.Name.IndexOf("Dialog", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        p.Name.IndexOf("Mapping", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        p.Name.IndexOf("Settings", StringComparison.OrdinalIgnoreCase) >= 0
-                    )
-                    .OrderBy(p => p.Name)
-                    .ToList();
-
-                foreach (var prop in relevantProperties)
-                {
-                    output.AppendLine($"🔹 {prop.Name}");
-                    output.AppendLine($"   Type: {prop.PropertyType.Name}");
-                    output.AppendLine($"   CanRead: {prop.CanRead}, CanWrite: {prop.CanWrite}");
-                    output.AppendLine();
-                }
-
-                // ======= AVAILABLE TYPES IN ASSEMBLY =======
-                output.AppendLine();
-                output.AppendLine("📌 TIPOS RELACIONADOS COM INPUT/CONTROL NA ASSEMBLY:");
-                output.AppendLine("─────────────────────────────────────");
-
-                var assembly = pluginManagerType.Assembly;
-                var inputTypes = assembly.GetTypes()
-                    .Where(t =>
-                        t.Name.IndexOf("Input", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        t.Name.IndexOf("Control", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        t.Name.IndexOf("Action", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        t.Name.IndexOf("Mapping", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        t.Name.IndexOf("Bind", StringComparison.OrdinalIgnoreCase) >= 0
-                    )
-                    .OrderBy(t => t.Name)
-                    .Take(50)  // Limit to 50 to not get too big
-                    .ToList();
-
-                foreach (var type in inputTypes)
-                {
-                    output.AppendLine($"🔸 {type.FullName}");
-                    output.AppendLine($"   IsClass: {type.IsClass}, IsInterface: {type.IsInterface}");
-                    output.AppendLine();
-                }
-
-                // Mostrar resultados numa janela scrollable
-                var window = new Window
-                {
-                    Title = "PluginManager API Discovery",
-                    Width = 900,
-                    Height = 700,
-                    Content = new ScrollViewer
-                    {
-                        Content = new TextBlock
-                        {
-                            Text = output.ToString(),
-                            FontFamily = new System.Windows.Media.FontFamily("Consolas"),
-                            FontSize = 11,
-                            Padding = new Thickness(15),
-                            TextWrapping = TextWrapping.Wrap,
-                            Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
-                            Foreground = new SolidColorBrush(Colors.White)
-                        }
-                    },
-                    Background = new SolidColorBrush(Color.FromRgb(30, 30, 30))
-                };
-
-                window.ShowDialog();
-
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error discovering API: {ex.Message}\n\n{ex.StackTrace}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        #endregion
-
 
         /// <summary>
         /// Add contact manually - verifies WhatsApp before adding
@@ -1949,75 +1800,37 @@ namespace WhatsAppSimHubPlugin.UI
         }
 
         /// <summary>
-        /// 🔍 EXPLORE SIMHUB API - Discover available methods
-        /// </summary>
-        /// <summary>
-        /// ✅ Create ControlsEditor dynamically via reflection
-        /// This avoids compilation errors if the type doesn't exist
+        /// Create ControlsEditor instances for Quick Reply button mapping.
+        /// Uses SimHub's public ControlsEditor control directly (zero reflection).
         /// </summary>
         private void CreateControlsEditors()
         {
             try
             {
-                // Tentar encontrar o assembly SimHub.Plugins
-                var simhubPluginsAssembly = AppDomain.CurrentDomain.GetAssemblies()
-                    .FirstOrDefault(a => a.GetName().Name == "SimHub.Plugins");
-
-                if (simhubPluginsAssembly == null)
+                // ControlsEditor requires full action name including plugin prefix
+                var reply1Editor = new SimHub.Plugins.UI.ControlsEditor
                 {
-                    WriteDebugLog("[ControlsEditor] SimHub.Plugins assembly not found");
-                    return;
+                    ActionName = "WhatsAppPlugin.SendReply1"
+                };
+
+                if (QuickRepliesTab.Reply1ControlEditorPlaceholderCtrl != null)
+                {
+                    QuickRepliesTab.Reply1ControlEditorPlaceholderCtrl.Content = reply1Editor;
                 }
 
-                // Tentar encontrar o tipo ControlsEditor
-                var controlsEditorType = simhubPluginsAssembly.GetType("SimHub.Plugins.UI.ControlsEditor");
-
-                if (controlsEditorType == null)
+                var reply2Editor = new SimHub.Plugins.UI.ControlsEditor
                 {
-                    WriteDebugLog("[ControlsEditor] ControlsEditor type not found");
-                    return;
-                }
+                    ActionName = "WhatsAppPlugin.SendReply2"
+                };
 
-                // Create instance for Reply1
-                var reply1Editor = Activator.CreateInstance(controlsEditorType);
-                if (reply1Editor != null)
+                if (QuickRepliesTab.Reply2ControlEditorPlaceholderCtrl != null)
                 {
-                    // Configure properties
-                    // ⚡ CRITICAL: ControlsEditor does NOT add prefix automatically!
-                    // We need to use the COMPLETE name: "WhatsAppPlugin.SendReply1"
-                    controlsEditorType.GetProperty("ActionName")?.SetValue(reply1Editor, "WhatsAppPlugin.SendReply1");
-
-                    // ✅ Replace ContentPresenter content
-                    if (QuickRepliesTab.Reply1ControlEditorPlaceholderCtrl != null)
-                    {
-                        QuickRepliesTab.Reply1ControlEditorPlaceholderCtrl.Content = reply1Editor;
-                    }
-
-                    WriteDebugLog("[ControlsEditor] Reply1 editor created successfully");
-                }
-
-                // Create instance for Reply2
-                var reply2Editor = Activator.CreateInstance(controlsEditorType);
-                if (reply2Editor != null)
-                {
-                    // Configure properties
-                    // ⚡ CRITICAL: ControlsEditor does NOT add prefix automatically!
-                    // We need to use the COMPLETE name: "WhatsAppPlugin.SendReply2"
-                    controlsEditorType.GetProperty("ActionName")?.SetValue(reply2Editor, "WhatsAppPlugin.SendReply2");
-
-                    // ✅ Replace ContentPresenter content
-                    if (QuickRepliesTab.Reply2ControlEditorPlaceholderCtrl != null)
-                    {
-                        QuickRepliesTab.Reply2ControlEditorPlaceholderCtrl.Content = reply2Editor;
-                    }
-
-                    WriteDebugLog("[ControlsEditor] Reply2 editor created successfully");
+                    QuickRepliesTab.Reply2ControlEditorPlaceholderCtrl.Content = reply2Editor;
                 }
             }
             catch (Exception ex)
             {
                 WriteDebugLog($"[ControlsEditor] Error: {ex.Message}");
-                // Do nothing - let placeholders show default message
             }
         }
 

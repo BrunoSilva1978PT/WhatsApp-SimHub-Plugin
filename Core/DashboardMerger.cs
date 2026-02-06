@@ -521,27 +521,6 @@ namespace WhatsAppSimHubPlugin.Core
             }
         }
 
-        private string WrapFormulaWithScale(string expression, double scale)
-        {
-            // Multiply the final formula result by scale
-            // This works for any JavaScript formula without having to parse it
-            string trimmed = expression.Trim();
 
-            // Remove trailing semicolon if exists
-            if (trimmed.EndsWith(";"))
-                trimmed = trimmed.Substring(0, trimmed.Length - 1).Trim();
-
-            // If has multiple lines/statements, wrap the last expression after the last return
-            int lastReturnIndex = trimmed.LastIndexOf("return ", StringComparison.OrdinalIgnoreCase);
-            if (lastReturnIndex >= 0)
-            {
-                string beforeLastReturn = trimmed.Substring(0, lastReturnIndex);
-                string afterReturn = trimmed.Substring(lastReturnIndex + 7).Trim();
-                return $"{beforeLastReturn}return ({afterReturn}) * {scale.ToString(System.Globalization.CultureInfo.InvariantCulture)};";
-            }
-
-            // Fallback: if no return, wrap entire expression
-            return $"return ({trimmed}) * {scale.ToString(System.Globalization.CultureInfo.InvariantCulture)};";
-        }
     }
 }
