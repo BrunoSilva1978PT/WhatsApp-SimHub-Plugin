@@ -132,6 +132,7 @@ namespace WhatsAppSimHubPlugin.UI
             ConnectionTab.DisconnectButtonCtrl.Click += DisconnectButton_Click;
             ConnectionTab.ReconnectButtonCtrl.Click += ReconnectButton_Click;
             ConnectionTab.ResetSessionButtonCtrl.Click += ResetSessionButton_Click;
+            ConnectionTab.RetryInstallButtonCtrl.Click += RetryInstallButton_Click;
 
             // Backend mode
             ConnectionTab.BackendModeComboCtrl.SelectionChanged += BackendModeCombo_SelectionChanged;
@@ -2797,115 +2798,55 @@ namespace WhatsAppSimHubPlugin.UI
                     File.WriteAllText(packageJsonPath, json.ToString());
                 }
 
-                // Step 4: Delete ENTIRE node_modules folder
-                var nodeModulesPath = Path.Combine(nodePath, "node_modules");
-                if (Directory.Exists(nodeModulesPath))
-                {
-                    SetDependenciesInstalling(true, "Deleting node_modules...");
-                    await Task.Run(() => Directory.Delete(nodeModulesPath, true));
-                    await Task.Delay(500);
-                }
-
-                // Step 5: Delete package-lock.json
-                var packageLockPath = Path.Combine(nodePath, "package-lock.json");
-                if (File.Exists(packageLockPath))
-                {
-                    File.Delete(packageLockPath);
-                }
-
-                // Step 6: Run npm install
+                // Step 4: Run npm install via DependencyManager (handles kill node, clean cache, delete modules)
                 SetDependenciesInstalling(true, "Running npm install...");
                 UpdateNpmStatus("Installing...", false);
 
-                // IMPORTANT: On Windows, npm is a batch script (npm.cmd), not an executable
-                // We need to use cmd.exe /c to run it properly
-                var startInfo = new ProcessStartInfo
+                bool success = await _plugin.DependencyManager.EnsureNpmPackages(forceReinstall: true).ConfigureAwait(false);
+
+                if (success)
                 {
-                    FileName = "cmd.exe",
-                    Arguments = "/c npm install",
-                    WorkingDirectory = nodePath,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                };
-
-                WriteDebugLog($"[InstallLibrary] Running npm install in {nodePath}");
-
-                var process = Process.Start(startInfo);
-                if (process != null)
-                {
-                    // Capture output for debugging
-                    var outputTask = process.StandardOutput.ReadToEndAsync();
-                    var errorTask = process.StandardError.ReadToEndAsync();
-
-                    // Use async wait to avoid blocking UI thread
-                    await process.WaitForExitAsync();
-
-                    var output = await outputTask;
-                    var error = await errorTask;
-
-                    WriteDebugLog($"[InstallLibrary] npm install exit code: {process.ExitCode}");
-                    WriteDebugLog($"[InstallLibrary] npm output: {output}");
-                    if (!string.IsNullOrEmpty(error))
-                        WriteDebugLog($"[InstallLibrary] npm error: {error}");
-
-                    if (process.ExitCode == 0)
+                    Dispatcher.Invoke(() =>
                     {
-                        Dispatcher.Invoke(() =>
+                        UpdateNpmStatus("Installed", true);
+                        ShowToast($"{packageName} {version} installed successfully!", "✅", 5);
+
+                        // Update settings with the new installed version
+                        if (packageName == "whatsapp-web.js")
                         {
-                            UpdateNpmStatus("Installed", true);
-                            ShowToast($"{packageName} {version} installed successfully!", "✅", 5);
+                            _settings.WhatsAppWebJsVersion = version;
+                            ConnectionTab.WhatsAppWebJsInstallButtonCtrl.Visibility = Visibility.Collapsed;
 
-                            // Update settings with the new installed version
-                            if (packageName == "whatsapp-web.js")
+                            if (!string.IsNullOrEmpty(manualRepo))
                             {
-                                _settings.WhatsAppWebJsVersion = version;
-                                ConnectionTab.WhatsAppWebJsInstallButtonCtrl.Visibility = Visibility.Collapsed;
-
-                                // If manual repo install was successful, save the repo
-                                if (!string.IsNullOrEmpty(manualRepo))
-                                {
-                                    _settings.WhatsAppWebJsManualRepo = manualRepo;
-                                }
+                                _settings.WhatsAppWebJsManualRepo = manualRepo;
                             }
-                            else if (packageName.Contains("baileys"))
-                            {
-                                _settings.BaileysVersion = version;
-                                ConnectionTab.BaileysInstallButtonCtrl.Visibility = Visibility.Collapsed;
-
-                                // If manual repo install was successful, save the repo
-                                if (!string.IsNullOrEmpty(manualRepo))
-                                {
-                                    _settings.BaileysManualRepo = manualRepo;
-                                }
-                            }
-                            _plugin.SaveSettings();
-                            LoadInstalledVersions();
-                        });
-                    }
-                    else
-                    {
-                        Dispatcher.Invoke(() =>
+                        }
+                        else if (packageName.Contains("baileys"))
                         {
-                            UpdateNpmStatus("Installation failed", false, true);
-                            ShowToast($"npm install failed: {error}", "❌", 10);
-                        });
-                    }
+                            _settings.BaileysVersion = version;
+                            ConnectionTab.BaileysInstallButtonCtrl.Visibility = Visibility.Collapsed;
 
-                    process.Dispose();
+                            if (!string.IsNullOrEmpty(manualRepo))
+                            {
+                                _settings.BaileysManualRepo = manualRepo;
+                            }
+                        }
+                        _plugin.SaveSettings();
+                        LoadInstalledVersions();
+                    });
                 }
                 else
                 {
-                    WriteDebugLog("[InstallLibrary] Failed to start npm process!");
                     Dispatcher.Invoke(() =>
                     {
-                        UpdateNpmStatus("Failed to start npm", false, true);
-                        ShowToast("Failed to start npm process", "❌", 10);
+                        UpdateNpmStatus("Installation failed", false, true);
+                        ShowToast($"npm install failed for {packageName} {version}", "❌", 10);
                     });
+                    ShowRetryInstallButton();
                 }
 
-                // Step 7: Finish
+                // Step 5: Finish
                 SetDependenciesInstalling(false);
                 _plugin.Settings.DependenciesInstalling = false;
 
@@ -3504,6 +3445,47 @@ namespace WhatsAppSimHubPlugin.UI
                     ConnectionTab.DependenciesStatusTextCtrl.Foreground = new SolidColorBrush(Color.FromRgb(14, 122, 13));
                 }
             });
+        }
+
+        public void ShowRetryInstallButton()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                ConnectionTab.RetryInstallButtonCtrl.Visibility = Visibility.Visible;
+            });
+        }
+
+        public void HideRetryInstallButton()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                ConnectionTab.RetryInstallButtonCtrl.Visibility = Visibility.Collapsed;
+            });
+        }
+
+        private async void RetryInstallButton_Click(object sender, RoutedEventArgs e)
+        {
+            ConnectionTab.RetryInstallButtonCtrl.IsEnabled = false;
+            ConnectionTab.RetryInstallButtonCtrl.Content = "Reinstalling...";
+
+            SetDependenciesInstalling(true, "Stopping Node.js and cleaning caches...");
+
+            try
+            {
+                await _plugin.RetryNpmInstall();
+            }
+            catch (Exception ex)
+            {
+                _plugin.WriteLog($"Retry install error: {ex.Message}");
+            }
+            finally
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    ConnectionTab.RetryInstallButtonCtrl.IsEnabled = true;
+                    ConnectionTab.RetryInstallButtonCtrl.Content = "Retry Install";
+                });
+            }
         }
 
         #endregion

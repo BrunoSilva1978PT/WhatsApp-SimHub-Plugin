@@ -66,5 +66,6 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public TextBlock NpmPackagesStatusIconCtrl => NpmPackagesStatusIcon;
         public TextBlock NpmPackagesStatusTextCtrl => NpmPackagesStatusText;
         public TextBlock DependenciesProgressTextCtrl => DependenciesProgressText;
+        public Button RetryInstallButtonCtrl => RetryInstallButton;
     }
 }

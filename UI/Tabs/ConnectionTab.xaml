@@ -296,6 +296,13 @@
                 <TextBlock x:Name="DependenciesProgressText" Text=""
                            Foreground="#858585" FontSize="12"
                            TextWrapping="Wrap" Visibility="Collapsed" Margin="0,5,0,0"/>
+
+                <styles:SHButtonSecondary x:Name="RetryInstallButton" Content="Retry Install"
+                        Width="120" Height="30" Margin="0,10,0,0"
+                        HorizontalAlignment="Left" Visibility="Collapsed"
+                        Background="#FF9800" Foreground="White"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        ToolTip="Kills Node.js, cleans caches, deletes node_modules, and re-runs npm install"/>
             </StackPanel>
 
             <!-- Information -->

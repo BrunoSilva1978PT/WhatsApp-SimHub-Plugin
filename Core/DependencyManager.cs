@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Management;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -427,11 +428,65 @@ namespace WhatsAppSimHubPlugin.Core
                 return false;
             }
         }
+        /// <summary>
+        /// Single entry point for ensuring npm packages are installed.
+        /// Checks if install is needed, kills Node, cleans caches, and runs npm install.
         /// </summary>
-        public async Task<bool> InstallNpmPackages()
+        /// <param name="forceReinstall">If true, deletes node_modules and reinstalls from scratch</param>
+        /// <returns>true if packages are ready (already installed or freshly installed)</returns>
+        public async Task<bool> EnsureNpmPackages(bool forceReinstall = false)
+        {
+            if (!forceReinstall && AreNpmPackagesInstalled())
+            {
+                Log("npm packages already installed");
+                return true;
+            }
+
+            // Kill Node.js processes that could lock node_modules
+            KillPluginNodeProcesses();
+
+            // Clean Puppeteer cache before install
+            CleanPuppeteerCache();
+
+            if (forceReinstall)
+            {
+                // Delete node_modules
+                string nodeModulesPath = Path.Combine(_pluginPath, "node", "node_modules");
+                if (Directory.Exists(nodeModulesPath))
+                {
+                    try
+                    {
+                        Directory.Delete(nodeModulesPath, true);
+                        Log("node_modules deleted");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"Could not delete node_modules: {ex.Message}");
+                    }
+                }
+
+                // Delete package-lock.json to force fresh resolution
+                string packageLockPath = Path.Combine(_pluginPath, "node", "package-lock.json");
+                if (File.Exists(packageLockPath))
+                {
+                    try { File.Delete(packageLockPath); } catch { }
+                }
+            }
+
+            return await InstallNpmPackages().ConfigureAwait(false);
+        }
+
+        /// </summary>
+        private async Task<bool> InstallNpmPackages()
         {
             try
             {
+                // Kill any running Node.js processes that could lock node_modules
+                KillPluginNodeProcesses();
+
+                // Clean Puppeteer cache before install to avoid corruption issues
+                CleanPuppeteerCache();
+
                 Log("Installing npm packages...");
 
                 string nodePath = Path.Combine(_pluginPath, "node");
@@ -461,20 +516,23 @@ namespace WhatsAppSimHubPlugin.Core
                     }
                 };
 
-                process.Start();
-
-                // Wait async without blocking UI thread
+                // Set up event BEFORE starting process to avoid race condition
                 var tcs = new TaskCompletionSource<bool>();
                 process.EnableRaisingEvents = true;
                 process.Exited += (s, e) => tcs.TrySetResult(true);
 
-                // Set timeout (2 minutes)
-                var timeoutTask = Task.Delay(120000);
+                process.Start();
+                int npmPid = process.Id;
+
+                // Set timeout (5 minutes - Puppeteer downloads ~180MB of Chromium)
+                var timeoutTask = Task.Delay(300000);
                 var completedTask = await Task.WhenAny(tcs.Task, timeoutTask).ConfigureAwait(false);
 
                 if (completedTask == tcs.Task)
                 {
-                    // Process exited
+                    // Process exited - kill any leftover child processes (e.g. Puppeteer post-install scripts)
+                    KillProcessTree(npmPid);
+
                     if (process.ExitCode == 0)
                     {
                         Log("npm packages installed successfully!");
@@ -490,9 +548,9 @@ namespace WhatsAppSimHubPlugin.Core
                 }
                 else
                 {
-                    // Timeout
-                    Log("npm install timeout after 2 minutes");
-                    try { process.Kill(); } catch { }
+                    // Timeout - kill npm and all its children
+                    Log("npm install timeout after 5 minutes");
+                    KillProcessTree(npmPid);
                     return false;
                 }
             }
@@ -500,6 +558,36 @@ namespace WhatsAppSimHubPlugin.Core
             {
                 Log($"npm install error: {ex.Message}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Kills a process and all its child processes using taskkill /T.
+        /// This ensures npm's child node.exe processes (e.g. Puppeteer post-install) are cleaned up.
+        /// </summary>
+        private void KillProcessTree(int pid)
+        {
+            try
+            {
+                var killProcess = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "taskkill",
+                        Arguments = $"/PID {pid} /T /F",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    }
+                };
+                killProcess.Start();
+                killProcess.WaitForExit(5000);
+                Log($"Killed npm process tree (PID {pid})");
+            }
+            catch (Exception ex)
+            {
+                Log($"Could not kill process tree (PID {pid}): {ex.Message}");
             }
         }
 
@@ -621,6 +709,96 @@ namespace WhatsAppSimHubPlugin.Core
         }
 
         #endregion
+
+        /// <summary>
+        /// Deletes the Puppeteer browser cache (~/.cache/puppeteer)
+        /// This cache can become corrupted and cause npm install to fail
+        /// </summary>
+        public void CleanPuppeteerCache()
+        {
+            try
+            {
+                string puppeteerCache = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".cache", "puppeteer");
+
+                if (Directory.Exists(puppeteerCache))
+                {
+                    // Use rd /s /q because Puppeteer marks files as read-only
+                    // and Directory.Delete() fails on read-only files
+                    var process = new Process
+                    {
+                        StartInfo = new ProcessStartInfo
+                        {
+                            FileName = "cmd.exe",
+                            Arguments = $"/c rd /s /q \"{puppeteerCache}\"",
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        }
+                    };
+                    process.Start();
+                    process.WaitForExit(10000);
+                    Log("Deleted Puppeteer cache at: " + puppeteerCache);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"Could not delete Puppeteer cache: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Kills any running Node.js processes that belong to this plugin
+        /// Must be called before deleting node_modules or running npm install
+        /// </summary>
+        public void KillPluginNodeProcesses()
+        {
+            try
+            {
+                var nodeProcesses = Process.GetProcessesByName("node");
+                int killedCount = 0;
+
+                foreach (var process in nodeProcesses)
+                {
+                    try
+                    {
+                        string commandLine = GetProcessCommandLine(process.Id);
+
+                        if (!string.IsNullOrEmpty(commandLine) &&
+                            (commandLine.Contains("whatsapp-server.js") || commandLine.Contains("baileys-server.mjs")))
+                        {
+                            process.Kill();
+                            process.WaitForExit(3000);
+                            killedCount++;
+                        }
+                    }
+                    catch { }
+                }
+
+                if (killedCount > 0)
+                {
+                    Log($"Killed {killedCount} orphaned Node.js process(es)");
+                }
+            }
+            catch { }
+        }
+
+        private string GetProcessCommandLine(int processId)
+        {
+            try
+            {
+                using (var searcher = new System.Management.ManagementObjectSearcher(
+                    $"SELECT CommandLine FROM Win32_Process WHERE ProcessId = {processId}"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        return obj["CommandLine"]?.ToString() ?? "";
+                    }
+                }
+            }
+            catch { }
+            return "";
+        }
 
         private void Log(string message)
         {

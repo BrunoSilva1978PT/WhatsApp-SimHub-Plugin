@@ -30,7 +30,6 @@ namespace WhatsAppSimHubPlugin.Core
         public event EventHandler<JObject> MessageReceived;
         public event EventHandler Disconnected;
         public event EventHandler<string> StatusChanged;
-        public event EventHandler<bool> InstallationCompleted;
 
         // Google Contacts events
         public event EventHandler<(bool connected, string status)> GoogleStatusReceived;
@@ -41,10 +40,6 @@ namespace WhatsAppSimHubPlugin.Core
 
         // Public property to check connection
         public bool IsConnected => _isConnected && IsNodeProcessAlive;
-
-        // Flag for tracking installation in progress
-        private bool _isInstalling = false;
-        public bool IsInstalling => _isInstalling;
 
         // Check if Node.js process is still alive
         public bool IsNodeProcessAlive
@@ -187,6 +182,10 @@ namespace WhatsAppSimHubPlugin.Core
             }
         }
 
+        /// <summary>
+        /// Starts Node.js and connects WebSocket.
+        /// Dependencies must already be installed before calling this.
+        /// </summary>
         public async Task StartAsync()
         {
             // Use semaphore to prevent concurrent starts
@@ -199,7 +198,6 @@ namespace WhatsAppSimHubPlugin.Core
             try
             {
                 if (_isConnected) return;
-                if (_isInstalling) return;
                 if (_isStarting) return;
 
                 // If there's already a Node process running, don't start another
@@ -211,18 +209,6 @@ namespace WhatsAppSimHubPlugin.Core
 
                 _isStarting = true;
 
-                // Check if packages need to be installed
-                bool needsInstall = await CheckIfNpmInstallNeeded().ConfigureAwait(false);
-
-                if (needsInstall)
-                {
-                    // Start installation in background (event-based, doesn't block)
-                    StartNpmInstallBackground();
-                    // Flow continues when InstallationCompleted is fired
-                    return;
-                }
-
-                // Packages already installed, continue normally
                 await StartNodeProcess().ConfigureAwait(false);
                 await ConnectWebSocket().ConfigureAwait(false);
             }
@@ -236,260 +222,6 @@ namespace WhatsAppSimHubPlugin.Core
                 _isStarting = false;
                 _startLock.Release();
             }
-        }
-
-        /// <summary>
-        /// Checks if npm install is needed (runs in background to not block)
-        /// </summary>
-        private Task<bool> CheckIfNpmInstallNeeded()
-        {
-            // Run I/O checks in background thread
-            return Task.Run(() =>
-            {
-                var nodeModulesPath = Path.Combine(_pluginPath, "node", "node_modules");
-                var packageJsonPath = Path.Combine(_pluginPath, "node", "package.json");
-                var packageLockPath = Path.Combine(_pluginPath, "node", "package-lock.json");
-
-                // Check if package.json changed since last install
-                if (File.Exists(packageJsonPath) && File.Exists(packageLockPath))
-                {
-                    var packageJsonTime = File.GetLastWriteTime(packageJsonPath);
-                    var packageLockTime = File.GetLastWriteTime(packageLockPath);
-
-                    if (packageJsonTime > packageLockTime)
-                    {
-                        return true;
-                    }
-                }
-
-                if (Directory.Exists(nodeModulesPath))
-                {
-                    var whatsappPath = Path.Combine(nodeModulesPath, "whatsapp-web.js");
-                    if (Directory.Exists(whatsappPath))
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
-            });
-        }
-
-        /// <summary>
-        /// Starts npm install in background (event-based, doesn't block SimHub)
-        /// Fires InstallationCompleted when done
-        /// </summary>
-        private void StartNpmInstallBackground()
-        {
-            if (_isInstalling) return;
-
-            _isInstalling = true;
-            StatusChanged?.Invoke(this, "Installing");
-
-            // Fire-and-forget: runs in background thread
-            _ = Task.Run(async () =>
-            {
-                bool success = false;
-                try
-                {
-                    success = await RunNpmInstallAsync().ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    StatusChanged?.Invoke(this, $"Error: npm install exception: {ex.Message}");
-                    success = false;
-                }
-                finally
-                {
-                    _isInstalling = false;
-
-                    // Fire completion event
-                    InstallationCompleted?.Invoke(this, success);
-
-                    if (success)
-                    {
-                        StatusChanged?.Invoke(this, "✅ Installation completed - continuing startup...");
-
-                        // Continue normal flow after installation
-                        try
-                        {
-                            await StartNodeProcess().ConfigureAwait(false);
-                            await ConnectWebSocket().ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            StatusChanged?.Invoke(this, $"Error: {ex.Message}");
-                        }
-                    }
-                }
-            });
-        }
-
-        /// <summary>
-        /// Runs npm install (executes in background thread)
-        /// </summary>
-        private async Task<bool> RunNpmInstallAsync()
-        {
-            var npm = FindNpm();
-            var workDir = Path.Combine(_pluginPath, "node");
-
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = npm,
-                    Arguments = "install",
-                    WorkingDirectory = workDir,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                },
-                EnableRaisingEvents = true
-            };
-
-            var outputBuilder = new StringBuilder();
-            var errorBuilder = new StringBuilder();
-
-            process.OutputDataReceived += (s, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    outputBuilder.AppendLine(e.Data);
-                    StatusChanged?.Invoke(this, $"npm: {e.Data}");
-                }
-            };
-
-            process.ErrorDataReceived += (s, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    errorBuilder.AppendLine(e.Data);
-                }
-            };
-
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-
-            // Wait for process to finish (in background, doesn't block UI)
-            var exitedTask = new TaskCompletionSource<bool>();
-            process.Exited += (s, e) => exitedTask.TrySetResult(true);
-
-            // 2 minute timeout
-            var timeoutTask = Task.Delay(120000);
-            var completedTask = await Task.WhenAny(exitedTask.Task, timeoutTask).ConfigureAwait(false);
-
-            if (completedTask == timeoutTask)
-            {
-                StatusChanged?.Invoke(this, "❌ npm install timeout (2 minutes)");
-                try { process.Kill(); } catch { }
-                return false;
-            }
-
-            var error = errorBuilder.ToString();
-
-            // Check if failed due to missing Git
-            if (process.ExitCode != 0 || error.Contains("spawn git") || error.Contains("ENOENT"))
-            {
-                if (error.Contains("spawn git") || error.Contains("ENOENT") || process.ExitCode == -4058)
-                {
-                    StatusChanged?.Invoke(this, "⚠️ Git not found - Installing automatically...");
-
-                    bool gitInstalled = await InstallGitSilently().ConfigureAwait(false);
-
-                    if (gitInstalled)
-                    {
-                        StatusChanged?.Invoke(this, "✅ Git installed successfully!");
-                        StatusChanged?.Invoke(this, "🔄 Retrying npm install...");
-
-                        // Retry npm install
-                        return await RetryNpmInstallAsync(npm, workDir).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        StatusChanged?.Invoke(this, "❌ Could not install Git automatically");
-                        StatusChanged?.Invoke(this, "📥 Please install manually: https://git-scm.com/download/win");
-                        StatusChanged?.Invoke(this, "Error: Git required");
-                        return false;
-                    }
-                }
-                else
-                {
-                    StatusChanged?.Invoke(this, $"❌ npm install failed (exit code: {process.ExitCode})");
-                    return false;
-                }
-            }
-
-            StatusChanged?.Invoke(this, "✅ npm install completed successfully!");
-            return true;
-        }
-
-        /// <summary>
-        /// Retry npm install after installing Git
-        /// </summary>
-        private async Task<bool> RetryNpmInstallAsync(string npm, string workDir)
-        {
-            var retryProcess = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = npm,
-                    Arguments = "install",
-                    WorkingDirectory = workDir,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                },
-                EnableRaisingEvents = true
-            };
-
-            retryProcess.OutputDataReceived += (s, e) => { };
-            retryProcess.ErrorDataReceived += (s, e) => { };
-
-            retryProcess.Start();
-            retryProcess.BeginOutputReadLine();
-            retryProcess.BeginErrorReadLine();
-
-            var exitedTask = new TaskCompletionSource<bool>();
-            retryProcess.Exited += (s, e) => exitedTask.TrySetResult(true);
-
-            var timeoutTask = Task.Delay(120000);
-            var completedTask = await Task.WhenAny(exitedTask.Task, timeoutTask).ConfigureAwait(false);
-
-            if (completedTask == timeoutTask)
-            {
-                StatusChanged?.Invoke(this, "❌ npm install retry timeout");
-                try { retryProcess.Kill(); } catch { }
-                return false;
-            }
-
-            if (retryProcess.ExitCode == 0)
-            {
-                StatusChanged?.Invoke(this, "✅ npm install completed successfully!");
-                return true;
-            }
-
-            StatusChanged?.Invoke(this, $"❌ npm install retry failed (exit code: {retryProcess.ExitCode})");
-            return false;
-        }
-
-        private string FindNpm()
-        {
-            var paths = new[]
-            {
-                @"C:\Program Files\nodejs\npm.cmd",
-                @"C:\Program Files (x86)\nodejs\npm.cmd"
-            };
-
-            foreach (var path in paths)
-            {
-                if (File.Exists(path))
-                    return path;
-            }
-
-            return "npm.cmd";
         }
 
         /// <summary>
@@ -925,88 +657,6 @@ namespace WhatsAppSimHubPlugin.Core
                 killProcess.WaitForExit(5000); // Wait up to 5 seconds
             }
             catch { }
-        }
-
-        /// <summary>
-        /// Installs Git silently (no UI) if not already installed
-        /// </summary>
-        private async Task<bool> InstallGitSilently()
-        {
-            try
-            {
-                StatusChanged?.Invoke(this, "📥 Downloading Git installer...");
-
-                // Git installer URL (64-bit)
-                string gitUrl = "https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/Git-2.47.1-64-bit.exe";
-                string tempPath = Path.Combine(Path.GetTempPath(), "GitInstaller.exe");
-
-                // Download installer
-                using (var client = new System.Net.WebClient())
-                {
-                    await client.DownloadFileTaskAsync(gitUrl, tempPath);
-                }
-
-                StatusChanged?.Invoke(this, "⚙️ Installing Git silently (this may take 1-2 minutes)...");
-
-                // Install silently
-                var installProcess = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = tempPath,
-                        // Flags for completely silent installation:
-                        // /VERYSILENT - No UI
-                        // /NORESTART - Don't restart
-                        // /SUPPRESSMSGBOXES - No popup messages
-                        // /SP- - Don't show "preparing to install"
-                        Arguments = "/VERYSILENT /NORESTART /SUPPRESSMSGBOXES /SP-",
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
-                };
-
-                installProcess.EnableRaisingEvents = true;
-                installProcess.Start();
-
-                // Wait up to 3 minutes (installation can take time) - event-based
-                var exitedTask = new TaskCompletionSource<bool>();
-                installProcess.Exited += (s, e) => exitedTask.TrySetResult(true);
-
-                var timeoutTask = Task.Delay(180000);
-                var completedTask = await Task.WhenAny(exitedTask.Task, timeoutTask).ConfigureAwait(false);
-
-                bool finished = completedTask != timeoutTask;
-
-                if (finished && installProcess.ExitCode == 0)
-                {
-                    // Clean up temporary installer
-                    try { File.Delete(tempPath); } catch { }
-
-                    // Update PATH environment variable
-                    // Git installs to C:\Program Files\Git\cmd by default
-                    string gitPath = @"C:\Program Files\Git\cmd";
-                    if (Directory.Exists(gitPath))
-                    {
-                        // Add to current session PATH
-                        string currentPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process);
-                        if (!currentPath.Contains(gitPath))
-                        {
-                            Environment.SetEnvironmentVariable("PATH",
-                                currentPath + ";" + gitPath,
-                                EnvironmentVariableTarget.Process);
-                        }
-                    }
-
-                    return true;
-                }
-
-                return false;
-            }
-            catch (Exception ex)
-            {
-                StatusChanged?.Invoke(this, $"❌ Git installation failed: {ex.Message}");
-                return false;
-            }
         }
 
         public void Dispose()

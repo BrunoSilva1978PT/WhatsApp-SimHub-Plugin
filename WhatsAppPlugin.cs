@@ -57,6 +57,7 @@ namespace WhatsAppSimHubPlugin
 
         // SETUP & DEPENDENCIES
         private DependencyManager _dependencyManager;
+        public DependencyManager DependencyManager => _dependencyManager;
         // SetupControl removed - dependencies now managed in SettingsControl Connection tab
 
         // Public property for settings access
@@ -300,8 +301,6 @@ namespace WhatsAppSimHubPlugin
             _nodeManager.OnMessage += NodeManager_OnMessage;
             _nodeManager.OnError += NodeManager_OnError;
             _nodeManager.StatusChanged += NodeManager_OnStatusChanged;
-            _nodeManager.InstallationCompleted += NodeManager_OnInstallationCompleted;
-
             // Google Contacts events
             _nodeManager.GoogleStatusReceived += NodeManager_OnGoogleStatusReceived;
             _nodeManager.GoogleAuthUrlReceived += NodeManager_OnGoogleAuthUrlReceived;
@@ -1124,31 +1123,7 @@ namespace WhatsAppSimHubPlugin
         {
             WriteLog($"📡 Status changed: {status}");
 
-            if (status == "Installing")
-            {
-                _connectionStatus = "Installing dependencies...";
-                _settingsControl?.UpdateConnectionStatus("Installing dependencies...");
-
-                // Disable buttons during installation
-                _settingsControl?.Dispatcher?.BeginInvoke(new Action(() =>
-                {
-                    if (_settingsControl?.ReconnectButton != null)
-                    {
-                        _settingsControl.ReconnectButton.IsEnabled = false;
-                        _settingsControl.ReconnectButton.ToolTip = "Installing dependencies...";
-                    }
-                    if (_settingsControl?.DisconnectButton != null)
-                    {
-                        _settingsControl.DisconnectButton.IsEnabled = false;
-                    }
-                }));
-            }
-            else if (status == "Installed")
-            {
-                _connectionStatus = "Dependencies installed";
-                _settingsControl?.UpdateConnectionStatus("Disconnected");
-            }
-            else if (status == "Starting")
+            if (status == "Starting")
             {
                 _connectionStatus = "Starting Node.js...";
                 _settingsControl?.UpdateConnectionStatus("Connecting");
@@ -1185,31 +1160,6 @@ namespace WhatsAppSimHubPlugin
                     }));
                 }
             }
-        }
-
-        private void NodeManager_OnInstallationCompleted(object sender, bool success)
-        {
-            WriteLog($"📦 Installation completed: {(success ? "SUCCESS" : "FAILED")}");
-
-            // Update UI on correct thread
-            _settingsControl?.Dispatcher?.BeginInvoke(new Action(() =>
-            {
-                if (success)
-                {
-                    _settingsControl?.UpdateConnectionStatus("Connecting");
-                    // Buttons will be re-enabled when Connected/Ready
-                }
-                else
-                {
-                    _settingsControl?.UpdateConnectionStatus("Installation failed");
-                    // Re-enable buttons to allow retry
-                    if (_settingsControl?.ReconnectButton != null)
-                    {
-                        _settingsControl.ReconnectButton.IsEnabled = true;
-                        _settingsControl.ReconnectButton.ToolTip = null;
-                    }
-                }
-            }));
         }
 
         #region Google Contacts Event Handlers
@@ -1957,6 +1907,46 @@ del ""%~f0""
         }
 
         /// <summary>
+        /// Retry npm install: kills Node, cleans caches, deletes node_modules, re-runs npm install
+        /// Called from Retry Install button in UI
+        /// </summary>
+        public async Task RetryNpmInstall()
+        {
+            WriteLog("=== Retry npm install requested ===");
+
+            try
+            {
+                _nodeManager?.Stop();
+
+                _settingsControl?.SetDependenciesInstalling(true, "Reinstalling npm packages...");
+                _settingsControl?.UpdateNpmStatus("Installing...", false);
+
+                bool success = await _dependencyManager.EnsureNpmPackages(forceReinstall: true).ConfigureAwait(false);
+
+                if (success)
+                {
+                    WriteLog("npm install completed successfully!");
+                    _settingsControl?.UpdateNpmStatus("Installed", true);
+                    _settingsControl?.HideRetryInstallButton();
+                }
+                else
+                {
+                    WriteLog("npm install failed!");
+                    _settingsControl?.UpdateNpmStatus("Installation failed", false, true);
+                    _settingsControl?.ShowRetryInstallButton();
+                }
+
+                _settingsControl?.SetDependenciesInstalling(false);
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Retry npm install error: {ex.Message}");
+                _settingsControl?.SetDependenciesInstalling(false);
+                _settingsControl?.ShowRetryInstallButton();
+            }
+        }
+
+        /// <summary>
         /// Switches backend (whatsapp-web.js <-> Baileys) and auto-reconnects
         /// </summary>
         public async System.Threading.Tasks.Task SwitchBackend(string newBackend)
@@ -1980,7 +1970,6 @@ del ""%~f0""
                     _nodeManager.OnMessage -= NodeManager_OnMessage;
                     _nodeManager.OnError -= NodeManager_OnError;
                     _nodeManager.StatusChanged -= NodeManager_OnStatusChanged;
-                    _nodeManager.InstallationCompleted -= NodeManager_OnInstallationCompleted;
                     _nodeManager.GoogleStatusReceived -= NodeManager_OnGoogleStatusReceived;
                     _nodeManager.GoogleAuthUrlReceived -= NodeManager_OnGoogleAuthUrlReceived;
                     _nodeManager.GoogleContactsDone -= NodeManager_OnGoogleContactsDone;
@@ -1996,7 +1985,6 @@ del ""%~f0""
                 _nodeManager.OnMessage += NodeManager_OnMessage;
                 _nodeManager.OnError += NodeManager_OnError;
                 _nodeManager.StatusChanged += NodeManager_OnStatusChanged;
-                _nodeManager.InstallationCompleted += NodeManager_OnInstallationCompleted;
                 _nodeManager.GoogleStatusReceived += NodeManager_OnGoogleStatusReceived;
                 _nodeManager.GoogleAuthUrlReceived += NodeManager_OnGoogleAuthUrlReceived;
                 _nodeManager.GoogleContactsDone += NodeManager_OnGoogleContactsDone;
@@ -2663,148 +2651,48 @@ del ""%~f0""
                 // ============ NPM PACKAGES ============
                 WriteLog("🔍 Checking npm packages...");
 
-                // IF installed Node OR Git, delete node_modules for safety
-                if (nodeWasInstalled || gitWasInstalled)
+                // Force reinstall if Node or Git was just installed
+                bool forceReinstall = nodeWasInstalled || gitWasInstalled;
+                if (forceReinstall)
+                    WriteLog("Node or Git was just installed - forcing npm reinstall...");
+
+                if (_settingsControl != null)
                 {
-                    WriteLog("⚠️ Node or Git was just installed - deleting node_modules for safety...");
-                    string nodeModulesPath = Path.Combine(_pluginPath, "node", "node_modules");
-                    if (Directory.Exists(nodeModulesPath))
+                    _settingsControl.Dispatcher.Invoke(() =>
                     {
-                        try
-                        {
-                            Directory.Delete(nodeModulesPath, true);
-                            WriteLog("✅ node_modules deleted successfully");
-                        }
-                        catch (Exception ex)
-                        {
-                            WriteLog($"⚠️ Could not delete node_modules: {ex.Message}");
-                        }
-                    }
+                        _settingsControl.UpdateNpmStatus("Checking...", false);
+                    });
                 }
 
-                bool packagesInstalled = _dependencyManager.AreNpmPackagesInstalled();
+                // Stop Node.js before any npm operations
+                _nodeManager?.Stop();
 
-                if (!packagesInstalled)
+                bool npmReady = await _dependencyManager.EnsureNpmPackages(forceReinstall).ConfigureAwait(false);
+
+                if (npmReady)
                 {
-                    WriteLog("⚠️ npm packages not found - installing...");
-
-                    if (_settingsControl != null)
+                    WriteLog("✅ npm packages ready!");
+                    _settingsControl?.Dispatcher?.Invoke(() =>
                     {
-                        _settingsControl.Dispatcher.Invoke(() =>
-                        {
-                            _settingsControl.SetDependenciesInstalling(true, "Installing npm packages...");
-                            _settingsControl.UpdateNpmStatus("Installing...", false);
-                        });
-                    }
-
-                    bool success = await _dependencyManager.InstallNpmPackages().ConfigureAwait(false);
-
-                    if (success)
-                    {
-                        WriteLog("✅ npm packages installed successfully!");
-
-                        // Verify each library individually
-                        bool whatsappWebJsInstalled = _dependencyManager.IsWhatsAppWebJsInstalled();
-                        bool baileysInstalled = _dependencyManager.IsBaileysInstalled();
-
-                        if (_settingsControl != null)
-                        {
-                            _settingsControl.Dispatcher.Invoke(() =>
-                            {
-                                _settingsControl.UpdateNpmStatus("Installed", true);
-                                _settingsControl.SetDependenciesInstalling(false);
-                            });
-
-                            if (whatsappWebJsInstalled)
-                            {
-                                WriteLog("✅ whatsapp-web.js library verified");
-                            }
-                            else
-                            {
-                                WriteLog("⚠️ whatsapp-web.js library not found after installation");
-                            }
-
-                            if (baileysInstalled)
-                            {
-                                WriteLog("✅ Baileys library verified");
-                            }
-                            else
-                            {
-                                WriteLog("⚠️ Baileys library not found after installation");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        WriteLog("❌ ERROR: Failed to install npm packages!");
-                        if (_settingsControl != null)
-                        {
-                            _settingsControl.Dispatcher.Invoke(() =>
-                            {
-                                _settingsControl.UpdateNpmStatus("Installation failed", false, true);
-                                _settingsControl.SetDependenciesInstalling(false);
-                            });
-                            // _settingsControl.UpdateProgress(0, "ERROR: npm install failed");
-                            // _settingsControl.ShowRetryButton();
-                        }
-                        return;
-                    }
+                        _settingsControl.UpdateNpmStatus("Installed", true);
+                        _settingsControl.SetDependenciesInstalling(false);
+                        _settingsControl.HideRetryInstallButton();
+                    });
                 }
                 else
                 {
-                    WriteLog("✅ npm packages already installed - verifying libraries...");
-
-                    // Update UI to show they are already installed
-                    if (_settingsControl != null)
+                    WriteLog("❌ npm packages installation failed!");
+                    _settingsControl?.Dispatcher?.Invoke(() =>
                     {
-                        _settingsControl.Dispatcher.Invoke(() =>
-                        {
-                            _settingsControl.UpdateNpmStatus("Installed", true);
-                        });
-                    }
-
-                    // Verificar individualmente cada biblioteca
-                    bool whatsappWebJsInstalled = _dependencyManager.IsWhatsAppWebJsInstalled();
-                    bool baileysInstalled = _dependencyManager.IsBaileysInstalled();
-
-                    if (_settingsControl != null)
-                    {
-                        if (whatsappWebJsInstalled)
-                        {
-                            // _settingsControl.UpdateWhatsAppWebJsStatus("Already installed", true);
-                            WriteLog("✅ whatsapp-web.js library found");
-                        }
-                        else
-                        {
-                            // _settingsControl.UpdateWhatsAppWebJsStatus("Not found", false, true);
-                            WriteLog("⚠️ whatsapp-web.js library not found");
-                        }
-
-                        if (baileysInstalled)
-                        {
-                            // _settingsControl.UpdateBaileysStatus("Already installed", true);
-                            WriteLog("✅ Baileys library found");
-                        }
-                        else
-                        {
-                            // _settingsControl.UpdateBaileysStatus("Not found", false, true);
-                            WriteLog("⚠️ Baileys library not found");
-                        }
-
-                        if (whatsappWebJsInstalled && baileysInstalled)
-                        {
-                            // _settingsControl.UpdateProgress(100, "All dependencies ready!");
-                        }
-                        else
-                        {
-                            // _settingsControl.UpdateProgress(90, "Some libraries missing - plugin may not work correctly");
-                        }
-                    }
+                        _settingsControl.UpdateNpmStatus("Installation failed", false, true);
+                        _settingsControl.SetDependenciesInstalling(false);
+                    });
+                    _settingsControl?.ShowRetryInstallButton();
+                    return;
                 }
 
-
                 // ============ ALL READY! ============
-                WriteLog("✅ All dependencies installed - starting Node.js...");
+                WriteLog("✅ All dependencies ready!");
 
                 // RE-ENABLE CONNECTION BUTTONS
                 if (_settingsControl != null)
@@ -2816,47 +2704,17 @@ del ""%~f0""
                         _settingsControl.ReconnectButton.IsEnabled = true;   // Allow reconnect
                         _settingsControl.ReconnectButton.ToolTip = null;
                     });
-                    WriteLog("✅ Connection buttons re-enabled");
                 }
 
-                // Show Continue button!
-                if (_settingsControl != null)
-                {
-                    // _settingsControl.ShowContinueButton();
-                }
-
-                // Wait 1s for user to see complete UI
-                await Task.Delay(1000).ConfigureAwait(false);
-
-                // Now start Node.js!
-                await StartNodeJs().ConfigureAwait(false);
-
-                WriteLog("🎉 Plugin ready to use!");
-            }
-            catch (Exception ex)
-            {
-                WriteLog($"❌ CRITICAL ERROR during dependency setup: {ex.Message}");
-                WriteLog($"   Stack: {ex.StackTrace}");
-            }
-        }
-
-        /// <summary>
-        /// Starts Node.js (only called after dependencies are installed)
-        /// </summary>
-        private async Task StartNodeJs()
-        {
-            try
-            {
-                WriteLog("🚀 Starting Node.js...");
+                // Auto-connect: start Node.js
+                WriteLog("Starting Node.js...");
                 await _nodeManager.StartAsync().ConfigureAwait(false);
                 WriteLog("✅ Node.js started successfully!");
             }
             catch (Exception ex)
             {
-                WriteLog($"❌ Failed to start Node.js: {ex.Message}");
-                WriteLog($"   Stack trace: {ex.StackTrace}");
-                _connectionStatus = "Error";
-                _settingsControl?.UpdateConnectionStatus("Error");
+                WriteLog($"❌ CRITICAL ERROR during dependency setup: {ex.Message}");
+                WriteLog($"   Stack: {ex.StackTrace}");
             }
         }
 
