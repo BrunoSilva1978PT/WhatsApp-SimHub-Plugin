@@ -183,8 +183,7 @@
                                 Width="140" Height="28"
                                 Background="#0E7A0D"
                                 Foreground="White"
-                                Click="VoCore1Apply_Click"
-                                IsEnabled="False"/>
+                                Click="VoCore1Apply_Click"/>
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
@@ -261,8 +260,7 @@
                                 Width="140" Height="28"
                                 Background="#0E7A0D"
                                 Foreground="White"
-                                Click="VoCore2Apply_Click"
-                                IsEnabled="False"/>
+                                Click="VoCore2Apply_Click"/>
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
@@ -284,6 +282,8 @@
                         <LineBreak/>
                         <Run Text="Important:" FontWeight="SemiBold" Foreground="#FFA500"/>
                         <Run Text=" Both Layer 1 and Layer 2 dashboards must have a transparent background, otherwise they will cover the Main dashboard."/>
+                        <LineBreak/>
+                        <Run Text="When using 2 Layers, keep both dashboards simple (basic overlays). Complex dashboards may not merge correctly."/>
                     </TextBlock>
                 </StackPanel>
             </Border>

@@ -214,7 +214,7 @@ namespace WhatsAppSimHubPlugin.UI
             DisplayTab.VoCore1Layer1SelectionChangedEvent += OnVoCore1Layer1SelectionChanged;
             DisplayTab.VoCore2Layer1SelectionChangedEvent += OnVoCore2Layer1SelectionChanged;
 
-            // Layer 2 dropdown changed events (check if merge button should be enabled)
+            // Layer 2 dropdown changed events
             DisplayTab.VoCore1Layer2SelectionChangedEvent += OnVoCore1Layer2SelectionChanged;
             DisplayTab.VoCore2Layer2SelectionChangedEvent += OnVoCore2Layer2SelectionChanged;
         }
@@ -1539,7 +1539,6 @@ namespace WhatsAppSimHubPlugin.UI
         private RadioButton GetLayer2Radio(int vocoreNumber) => vocoreNumber == 1 ? DisplayTab.Dash1_Layer2RadioCtrl : DisplayTab.Dash2_Layer2RadioCtrl;
         private ComboBox GetLayer1ComboBox(int vocoreNumber) => vocoreNumber == 1 ? DisplayTab.Dash1_Layer1ComboBoxCtrl : DisplayTab.Dash2_Layer1ComboBoxCtrl;
         private ComboBox GetLayer2ComboBox(int vocoreNumber) => vocoreNumber == 1 ? DisplayTab.Dash1_Layer2ComboBoxCtrl : DisplayTab.Dash2_Layer2ComboBoxCtrl;
-        private Button GetApplyButton(int vocoreNumber) => vocoreNumber == 1 ? DisplayTab.VoCore1ApplyButtonCtrl : DisplayTab.VoCore2ApplyButtonCtrl;
 
         private int GetLayerCount(int vocoreNumber) => vocoreNumber == 1 ? _settings.VoCore1_LayerCount : _settings.VoCore2_LayerCount;
         private void SetLayerCount(int vocoreNumber, int value) { if (vocoreNumber == 1) _settings.VoCore1_LayerCount = value; else _settings.VoCore2_LayerCount = value; }
@@ -1606,7 +1605,6 @@ namespace WhatsAppSimHubPlugin.UI
                     }
                 }
 
-                GetApplyButton(vocoreNumber).IsEnabled = true;
             }
         }
 
@@ -1636,7 +1634,6 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 SetLayer1(vocoreNumber, layer1);
                 _plugin.SaveSettings();
-                UpdateVoCoreMergeButtonState(vocoreNumber);
             }
         }
 
@@ -1657,16 +1654,6 @@ namespace WhatsAppSimHubPlugin.UI
                 _plugin.SaveSettings();
             }
 
-            UpdateVoCoreMergeButtonState(vocoreNumber);
-        }
-
-        /// <summary>
-        /// Update VoCore merge button enabled state - always enabled when 2 layers selected
-        /// </summary>
-        private void UpdateVoCoreMergeButtonState(int vocoreNumber)
-        {
-            bool is2Layers = GetLayer2Radio(vocoreNumber).IsChecked == true;
-            GetApplyButton(vocoreNumber).IsEnabled = is2Layers;
         }
 
         /// <summary>
