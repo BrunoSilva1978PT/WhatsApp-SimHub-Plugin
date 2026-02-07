@@ -143,28 +143,24 @@ namespace WhatsAppSimHubPlugin.Core
         {
             try
             {
-                var baseItems = baseDash["Screens"]?[0]?["Items"] as JArray;
+                var baseScreens = baseDash["Screens"] as JArray;
                 var overlayItems = overlayDash["Screens"]?[0]?["Items"] as JArray;
-                if (baseItems == null || overlayItems == null)
+                if (baseScreens == null || baseScreens.Count == 0 || overlayItems == null)
                 {
-                    _log?.Invoke("Could not extract Items from dashboards");
+                    _log?.Invoke("Could not extract Screens/Items from dashboards");
                     return null;
                 }
-                _log?.Invoke($"Base dashboard has {baseItems.Count} items");
+                _log?.Invoke($"Base dashboard has {baseScreens.Count} screen(s)");
                 _log?.Invoke($"Overlay dashboard has {overlayItems.Count} items");
 
                 // Copy OverlayTriggerExpression from original overlay dashboard
                 var overlayTriggerExpression = overlayDash["Screens"]?[0]?["OverlayTriggerExpression"]?.DeepClone();
                 if (overlayTriggerExpression == null)
                 {
-                    _log?.Invoke("⚠️ Warning: Original dashboard has no OverlayTriggerExpression, using default");
                     overlayTriggerExpression = new JObject();
                     overlayTriggerExpression["Expression"] = "[WhatsAppPlugin.showmessage]";
                 }
-                else
-                {
-                    _log?.Invoke($"✅ Copied OverlayTriggerExpression: {overlayTriggerExpression["Expression"]}");
-                }
+                _log?.Invoke($"Overlay visibility expression: {overlayTriggerExpression["Expression"]}");
 
                 // Get original dimensions
                 int baseWidth = baseDash["BaseWidth"]?.Value<int>() ?? 850;
@@ -174,24 +170,16 @@ namespace WhatsAppSimHubPlugin.Core
                 const int OVERLAY_NATIVE_WIDTH = 850;
                 const int OVERLAY_NATIVE_HEIGHT = 480;
 
-                // NEW LOGIC: Final resolution is ALWAYS the MAXIMUM between base and overlay
+                // Final resolution is ALWAYS the MAXIMUM between base and overlay
                 int finalWidth = Math.Max(baseWidth, OVERLAY_NATIVE_WIDTH);
                 int finalHeight = Math.Max(baseHeight, OVERLAY_NATIVE_HEIGHT);
 
-                _log?.Invoke($"Base dashboard: {baseWidth}x{baseHeight}");
-                _log?.Invoke($"Overlay dashboard: {OVERLAY_NATIVE_WIDTH}x{OVERLAY_NATIVE_HEIGHT}");
-                _log?.Invoke($"Final merged resolution (MAX): {finalWidth}x{finalHeight}");
+                _log?.Invoke($"Base: {baseWidth}x{baseHeight}, Overlay: {OVERLAY_NATIVE_WIDTH}x{OVERLAY_NATIVE_HEIGHT}, Final: {finalWidth}x{finalHeight}");
 
-                // Calculate scale for each layer
+                // Calculate scale factors
                 double baseScale = 1.0;
-                double baseLeft = 0.0;
-                double baseTop = 0.0;
-
                 double overlayScale = 1.0;
-                double overlayLeft = 0.0;
-                double overlayTop = 0.0;
 
-                // If final > base, scale base dashboard
                 if (finalWidth > baseWidth || finalHeight > baseHeight)
                 {
                     baseScale = Math.Min(
@@ -201,7 +189,6 @@ namespace WhatsAppSimHubPlugin.Core
                     _log?.Invoke($"Scaling base dashboard: {baseScale:F3}x");
                 }
 
-                // If final > overlay, scale overlay dashboard
                 if (finalWidth > OVERLAY_NATIVE_WIDTH || finalHeight > OVERLAY_NATIVE_HEIGHT)
                 {
                     overlayScale = Math.Min(
@@ -210,81 +197,117 @@ namespace WhatsAppSimHubPlugin.Core
                     );
                     _log?.Invoke($"Scaling overlay dashboard: {overlayScale:F3}x");
                 }
-                // Calculate base layer dimensions (scaled if necessary)
-                double baseLayerWidth = baseWidth * baseScale;
-                double baseLayerHeight = baseHeight * baseScale;
 
-                var baseLayer = new JObject();
-                baseLayer["$type"] = "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.Layer, SimHub.Plugins";
-                baseLayer["Name"] = "BaseDashboardLayer";
-                baseLayer["Top"] = baseTop;
-                baseLayer["Left"] = baseLeft;
-                baseLayer["Height"] = baseLayerHeight;
-                baseLayer["Width"] = baseLayerWidth;
-                baseLayer["BackgroundColor"] = baseDash["BackgroundColor"]?.ToString() ?? "#FF000000";
-                baseLayer["Visible"] = true;
-                baseLayer["Group"] = false;
+                // Build screens array - one merged screen per base screen
+                var screens = new JArray();
+                var inGameIndexs = new JArray();
+                var idleIndexs = new JArray();
+                var pitIndexs = new JArray();
 
-                // Clone and scale base items if necessary
-                var clonedBaseItems = new JArray();
-                foreach (var item in baseItems)
+                for (int i = 0; i < baseScreens.Count; i++)
                 {
-                    var cloned = item.DeepClone();
-
-                    // Scale item if base was scaled
-                    if (baseScale != 1.0)
+                    var baseScreen = baseScreens[i];
+                    var baseItems = baseScreen["Items"] as JArray;
+                    if (baseItems == null)
                     {
-                        ScaleItem(cloned, baseScale);
+                        _log?.Invoke($"Screen {i} has no Items, skipping");
+                        continue;
                     }
 
-                    clonedBaseItems.Add(cloned);
-                }
-                baseLayer["Childrens"] = clonedBaseItems;
+                    _log?.Invoke($"Processing screen {i}: {baseItems.Count} base items");
 
-                // Calculate overlay layer dimensions (scaled if necessary)
-                double layerWidth = OVERLAY_NATIVE_WIDTH * overlayScale;
-                double layerHeight = OVERLAY_NATIVE_HEIGHT * overlayScale;
+                    // Create base layer with this screen's items
+                    double baseLayerWidth = baseWidth * baseScale;
+                    double baseLayerHeight = baseHeight * baseScale;
 
-                var overlayLayer = new JObject();
-                overlayLayer["$type"] = "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.Layer, SimHub.Plugins";
-                overlayLayer["Name"] = "OverlayLayer";
-                overlayLayer["Top"] = overlayTop;
-                overlayLayer["Left"] = overlayLeft;
-                overlayLayer["Height"] = layerHeight;
-                overlayLayer["Width"] = layerWidth;
-                overlayLayer["BackgroundColor"] = "#00FFFFFF";
-                overlayLayer["Visible"] = true;
-                overlayLayer["Group"] = false;
+                    var baseLayer = new JObject();
+                    baseLayer["$type"] = "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.Layer, SimHub.Plugins";
+                    baseLayer["Name"] = "BaseDashboardLayer";
+                    baseLayer["Top"] = 0.0;
+                    baseLayer["Left"] = 0.0;
+                    baseLayer["Height"] = baseLayerHeight;
+                    baseLayer["Width"] = baseLayerWidth;
+                    baseLayer["BackgroundColor"] = baseScreen["BackgroundColor"]?.ToString()
+                        ?? baseDash["BackgroundColor"]?.ToString() ?? "#FF000000";
+                    baseLayer["Visible"] = true;
+                    baseLayer["Group"] = false;
 
-                // Clone and scale overlay items
-                var clonedOverlayItems = new JArray();
-                foreach (var item in overlayItems)
-                {
-                    var cloned = item.DeepClone();
-
-                    // Scale item (X, Y, Width, Height) if necessary
-                    if (overlayScale != 1.0)
+                    var clonedBaseItems = new JArray();
+                    foreach (var item in baseItems)
                     {
-                        ScaleItem(cloned, overlayScale);
+                        var cloned = item.DeepClone();
+                        if (baseScale != 1.0)
+                            ScaleItem(cloned, baseScale);
+                        clonedBaseItems.Add(cloned);
                     }
+                    baseLayer["Childrens"] = clonedBaseItems;
 
-                    clonedOverlayItems.Add(cloned);
+                    // Create overlay layer (same for every screen)
+                    double layerWidth = OVERLAY_NATIVE_WIDTH * overlayScale;
+                    double layerHeight = OVERLAY_NATIVE_HEIGHT * overlayScale;
+
+                    var overlayLayer = new JObject();
+                    overlayLayer["$type"] = "SimHub.Plugins.OutputPlugins.GraphicalDash.Models.Layer, SimHub.Plugins";
+                    overlayLayer["Name"] = "OverlayLayer";
+                    overlayLayer["Top"] = 0.0;
+                    overlayLayer["Left"] = 0.0;
+                    overlayLayer["Height"] = layerHeight;
+                    overlayLayer["Width"] = layerWidth;
+                    overlayLayer["BackgroundColor"] = "#00FFFFFF";
+                    overlayLayer["Visible"] = true;
+                    overlayLayer["Group"] = false;
+
+                    var clonedOverlayItems = new JArray();
+                    foreach (var item in overlayItems)
+                    {
+                        var cloned = item.DeepClone();
+                        if (overlayScale != 1.0)
+                            ScaleItem(cloned, overlayScale);
+                        clonedOverlayItems.Add(cloned);
+                    }
+                    overlayLayer["Childrens"] = clonedOverlayItems;
+
+                    // Apply visibility binding to overlay layer
+                    var bindings = new JObject();
+                    var visibleBinding = new JObject();
+                    visibleBinding["Formula"] = overlayTriggerExpression.DeepClone();
+                    visibleBinding["Mode"] = 2;
+                    visibleBinding["TargetPropertyName"] = "Visible";
+                    bindings["Visible"] = visibleBinding;
+                    overlayLayer["Bindings"] = bindings;
+
+                    // Create merged screen preserving original screen properties
+                    var screen = new JObject();
+                    screen["Name"] = baseScreen["Name"]?.ToString() ?? $"Screen{i}";
+                    screen["InGameScreen"] = baseScreen["InGameScreen"]?.Value<bool>() ?? (i == 0);
+                    screen["IdleScreen"] = baseScreen["IdleScreen"]?.Value<bool>() ?? false;
+                    screen["PitScreen"] = baseScreen["PitScreen"]?.Value<bool>() ?? false;
+                    screen["ScreenId"] = Guid.NewGuid().ToString();
+                    screen["IsForegroundLayer"] = baseScreen["IsForegroundLayer"]?.Value<bool>() ?? false;
+                    screen["IsBackgroundLayer"] = baseScreen["IsBackgroundLayer"]?.Value<bool>() ?? false;
+                    screen["BackgroundColor"] = baseScreen["BackgroundColor"]?.ToString() ?? "#00FFFFFF";
+                    screen["Background"] = baseScreen["Background"]?.ToString() ?? "None";
+
+                    // Copy OverlayTriggerExpression if original screen had one
+                    var screenTrigger = baseScreen["OverlayTriggerExpression"]?.DeepClone();
+                    if (screenTrigger != null)
+                        screen["OverlayTriggerExpression"] = screenTrigger;
+
+                    var mergedItems = new JArray();
+                    mergedItems.Add(baseLayer);
+                    mergedItems.Add(overlayLayer);
+                    screen["Items"] = mergedItems;
+                    screens.Add(screen);
+
+                    // Track screen type indexes
+                    int screenIndex = screens.Count - 1;
+                    if (screen["InGameScreen"].Value<bool>()) inGameIndexs.Add(screenIndex);
+                    if (screen["IdleScreen"].Value<bool>()) idleIndexs.Add(screenIndex);
+                    if (screen["PitScreen"].Value<bool>()) pitIndexs.Add(screenIndex);
                 }
-                overlayLayer["Childrens"] = clonedOverlayItems;
 
-                // Apply visibility binding using the copied OverlayTriggerExpression
-                var bindings = new JObject();
-                var visibleBinding = new JObject();
-                var formula = new JObject();
+                _log?.Invoke($"Created {screens.Count} merged screen(s)");
 
-                // Copy the entire OverlayTriggerExpression as-is (preserves exact format)
-                visibleBinding["Formula"] = overlayTriggerExpression.DeepClone();
-
-                _log?.Invoke($"✅ Applied visibility binding with expression: {overlayTriggerExpression["Expression"]}");
-                visibleBinding["Mode"] = 2;
-                visibleBinding["TargetPropertyName"] = "Visible";
-                bindings["Visible"] = visibleBinding;
-                overlayLayer["Bindings"] = bindings;
                 var wrapper = new JObject();
                 wrapper["DashboardDebugManager"] = new JObject();
                 ((JObject)wrapper["DashboardDebugManager"])["Maximized"] = false;
@@ -293,22 +316,6 @@ namespace WhatsAppSimHubPlugin.Core
                 wrapper["BackgroundColor"] = "#00FFFFFF";
                 wrapper["BaseWidth"] = finalWidth;
                 wrapper["BaseHeight"] = finalHeight;
-                var screens = new JArray();
-                var screen = new JObject();
-                screen["Name"] = "MainScreen";
-                screen["InGameScreen"] = true;
-                screen["IdleScreen"] = false;
-                screen["PitScreen"] = false;
-                screen["ScreenId"] = Guid.NewGuid().ToString();
-                screen["IsForegroundLayer"] = false;
-                screen["IsBackgroundLayer"] = false;
-                screen["BackgroundColor"] = "#00FFFFFF";
-                screen["Background"] = "None";
-                var items = new JArray();
-                items.Add(baseLayer);
-                items.Add(overlayLayer);
-                screen["Items"] = items;
-                screens.Add(screen);
                 wrapper["Screens"] = screens;
                 wrapper["SnapToGrid"] = false;
                 wrapper["HideLabels"] = false;
@@ -321,11 +328,9 @@ namespace WhatsAppSimHubPlugin.Core
                 wrapper["Images"] = baseDash["Images"] ?? new JArray();
                 var metadata = new JObject();
                 metadata["Author"] = "WhatsApp SimHub Plugin";
-                metadata["ScreenCount"] = 1.0;
-                var inGameIndexs = new JArray();
-                inGameIndexs.Add(0);
+                metadata["ScreenCount"] = (double)screens.Count;
                 metadata["InGameScreensIndexs"] = inGameIndexs;
-                metadata["IdleScreensIndexs"] = new JArray();
+                metadata["IdleScreensIndexs"] = idleIndexs;
                 metadata["MainPreviewIndex"] = 0;
                 metadata["IsOverlay"] = false;
                 metadata["Width"] = baseWidth;
@@ -333,7 +338,7 @@ namespace WhatsAppSimHubPlugin.Core
                 metadata["OverlaySizeWarning"] = true;
                 metadata["MetadataVersion"] = 2.0;
                 metadata["EnableOnDashboardMessaging"] = true;
-                metadata["PitScreensIndexs"] = new JArray();
+                metadata["PitScreensIndexs"] = pitIndexs;
                 metadata["Title"] = mergedTitle;
                 metadata["DashboardVersion"] = "V2.0";
                 wrapper["Metadata"] = metadata;
@@ -342,7 +347,6 @@ namespace WhatsAppSimHubPlugin.Core
                 wrapper["IsOverlay"] = false;
                 wrapper["EnableClickThroughOverlay"] = true;
                 wrapper["EnableOnDashboardMessaging"] = true;
-                _log?.Invoke("Created wrapper dashboard with 2 layers");
                 return wrapper;
             }
             catch (Exception ex)

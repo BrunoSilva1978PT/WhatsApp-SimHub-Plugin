@@ -288,6 +288,35 @@ namespace WhatsAppSimHubPlugin.UI
         // Device row view models for the table
         private ObservableCollection<DeviceRowViewModel> _deviceRows = new ObservableCollection<DeviceRowViewModel>();
 
+        // Track dashboard count to detect new installs
+        private int _lastKnownDashboardCount = -1;
+
+        /// <summary>
+        /// Refresh dashboard dropdowns if SimHub's dashboard list changed (new dash installed/removed)
+        /// Called from DataUpdate every 5 seconds.
+        /// </summary>
+        public void RefreshDashboardList()
+        {
+            try
+            {
+                var dashSettings = GraphicalDashPlugin.GetSettings();
+                if (dashSettings?.Items == null) return;
+
+                int currentCount = dashSettings.Items.Count;
+                if (currentCount == _lastKnownDashboardCount) return;
+
+                _lastKnownDashboardCount = currentCount;
+
+                if (!Dispatcher.CheckAccess())
+                {
+                    Dispatcher.Invoke(() => LoadAvailableDashboards());
+                    return;
+                }
+                LoadAvailableDashboards();
+            }
+            catch { }
+        }
+
         /// <summary>
         /// Public method to refresh device list (called from DataUpdate auto-detection)
         /// </summary>
@@ -473,15 +502,6 @@ namespace WhatsAppSimHubPlugin.UI
                 // VoCore #2: Both layers show "Default" + user dashboards
                 PopulateLayerComboBox(DisplayTab.Dash2_Layer1ComboBoxCtrl, layer1Dashboards, _settings.VoCore2_Layer1, "WhatsAppPluginVocore2");
                 PopulateLayerComboBox(DisplayTab.Dash2_Layer2ComboBoxCtrl, layer1Dashboards, _settings.VoCore2_Layer2, "WhatsAppPluginVocore2");
-
-                // Update original values for change detection
-                string voCore1Layer1Display = string.IsNullOrEmpty(_settings.VoCore1_Layer1) || _settings.VoCore1_Layer1 == "WhatsAppPluginVocore1" ? "Default" : _settings.VoCore1_Layer1;
-                string voCore1Layer2Display = string.IsNullOrEmpty(_settings.VoCore1_Layer2) || _settings.VoCore1_Layer2 == "WhatsAppPluginVocore1" ? "Default" : _settings.VoCore1_Layer2;
-                DisplayTab.UpdateVoCore1OriginalValues(voCore1Layer1Display, voCore1Layer2Display);
-
-                string voCore2Layer1Display = string.IsNullOrEmpty(_settings.VoCore2_Layer1) || _settings.VoCore2_Layer1 == "WhatsAppPluginVocore2" ? "Default" : _settings.VoCore2_Layer1;
-                string voCore2Layer2Display = string.IsNullOrEmpty(_settings.VoCore2_Layer2) || _settings.VoCore2_Layer2 == "WhatsAppPluginVocore2" ? "Default" : _settings.VoCore2_Layer2;
-                DisplayTab.UpdateVoCore2OriginalValues(voCore2Layer1Display, voCore2Layer2Display);
 
                 // Set layer count radio buttons
                 DisplayTab.Dash1_Layer1RadioCtrl.IsChecked = _settings.VoCore1_LayerCount == 1;
@@ -1526,12 +1546,7 @@ namespace WhatsAppSimHubPlugin.UI
         private void SetLayer1(int vocoreNumber, string value) { if (vocoreNumber == 1) _settings.VoCore1_Layer1 = value; else _settings.VoCore2_Layer1 = value; }
         private void SetLayer2(int vocoreNumber, string value) { if (vocoreNumber == 1) _settings.VoCore1_Layer2 = value; else _settings.VoCore2_Layer2 = value; }
 
-        private bool HasVoCoreChanged(int vocoreNumber) => vocoreNumber == 1 ? DisplayTab.HasVoCore1Changed() : DisplayTab.HasVoCore2Changed();
-        private void UpdateOriginalValues(int vocoreNumber, string layer1, string layer2)
-        {
-            if (vocoreNumber == 1) DisplayTab.UpdateVoCore1OriginalValues(layer1, layer2);
-            else DisplayTab.UpdateVoCore2OriginalValues(layer1, layer2);
-        }
+
 
         // ===== Event handler wrappers (delegate to shared implementation) =====
         private void OnVoCore1LayerChanged() => OnVoCoreLayerChanged(1);
@@ -1586,12 +1601,12 @@ namespace WhatsAppSimHubPlugin.UI
                     }
                     else
                     {
-                        // Merged doesn't exist, create it (ApplyDashboardMerged handles everything)
+                        // Merged doesn't exist, create it
                         _plugin.ApplyDashboardMerged(vocoreNumber, layer1, layer2);
                     }
                 }
 
-                GetApplyButton(vocoreNumber).IsEnabled = false;
+                GetApplyButton(vocoreNumber).IsEnabled = true;
             }
         }
 
@@ -1646,15 +1661,12 @@ namespace WhatsAppSimHubPlugin.UI
         }
 
         /// <summary>
-        /// Update VoCore merge button enabled state
+        /// Update VoCore merge button enabled state - always enabled when 2 layers selected
         /// </summary>
         private void UpdateVoCoreMergeButtonState(int vocoreNumber)
         {
             bool is2Layers = GetLayer2Radio(vocoreNumber).IsChecked == true;
-            if (is2Layers)
-            {
-                GetApplyButton(vocoreNumber).IsEnabled = HasVoCoreChanged(vocoreNumber);
-            }
+            GetApplyButton(vocoreNumber).IsEnabled = is2Layers;
         }
 
         /// <summary>
@@ -1684,11 +1696,6 @@ namespace WhatsAppSimHubPlugin.UI
             _plugin.SaveSettings();
 
             _plugin.ApplyDashboardMerged(vocoreNumber, layer1, layer2);
-
-            string layer1Display = layer1 == defaultDash ? "Default" : layer1;
-            string layer2Display = layer2 == defaultDash ? "Default" : layer2;
-            UpdateOriginalValues(vocoreNumber, layer1Display, layer2Display);
-            GetApplyButton(vocoreNumber).IsEnabled = false;
 
             ShowToast("Dashboards merged successfully");
         }

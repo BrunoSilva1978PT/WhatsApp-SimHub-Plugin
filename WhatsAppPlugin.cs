@@ -2163,6 +2163,9 @@ del ""%~f0""
                 // Refresh device list in UI (detects VoCore connect/disconnect)
                 _settingsControl?.RefreshDeviceList();
 
+                // Refresh dashboard dropdowns if new dashboards were installed
+                _settingsControl?.RefreshDashboardList();
+
                 // Install default dashboards if missing (uses SimHub API - zero I/O check)
                 EnsureDashboardsInstalled();
 

@@ -48,12 +48,6 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public event System.Action VoCore1Layer2SelectionChangedEvent;
         public event System.Action VoCore2Layer2SelectionChangedEvent;
 
-        // Track original selections to detect real changes
-        private string _voCore1OriginalLayer1;
-        private string _voCore1OriginalLayer2;
-        private string _voCore2OriginalLayer1;
-        private string _voCore2OriginalLayer2;
-
         // Allow RadioButton to be deselected by clicking again (shared handler for both VoCore1 and VoCore2)
         private void Radio_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -121,33 +115,6 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
             VoCore2Layer2SelectionChangedEvent?.Invoke();
         }
 
-        // Methods to update original values (called from SettingsControl)
-        public void UpdateVoCore1OriginalValues(string layer1, string layer2)
-        {
-            _voCore1OriginalLayer1 = layer1;
-            _voCore1OriginalLayer2 = layer2;
-        }
-
-        public void UpdateVoCore2OriginalValues(string layer1, string layer2)
-        {
-            _voCore2OriginalLayer1 = layer1;
-            _voCore2OriginalLayer2 = layer2;
-        }
-
-        // Check if selections have changed from original
-        public bool HasVoCore1Changed()
-        {
-            string current1 = Dash1_Layer1ComboBox.SelectedItem?.ToString();
-            string current2 = Dash1_Layer2ComboBox.SelectedItem?.ToString();
-            return current1 != _voCore1OriginalLayer1 || current2 != _voCore1OriginalLayer2;
-        }
-
-        public bool HasVoCore2Changed()
-        {
-            string current1 = Dash2_Layer1ComboBox.SelectedItem?.ToString();
-            string current2 = Dash2_Layer2ComboBox.SelectedItem?.ToString();
-            return current1 != _voCore2OriginalLayer1 || current2 != _voCore2OriginalLayer2;
-        }
     }
 
     /// <summary>
