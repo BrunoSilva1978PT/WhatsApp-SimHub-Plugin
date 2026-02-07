@@ -282,16 +282,8 @@ namespace WhatsAppSimHubPlugin.Core
         /// </summary>
         public bool MergedDashboardExists(int vocoreNumber)
         {
-            try
-            {
-                string mergedDashboard = DashboardMerger.GetMergedDashboardName(vocoreNumber);
-                string mergedPath = Path.Combine(_dashboardMerger.DashTemplatesPath, mergedDashboard);
-                return Directory.Exists(mergedPath);
-            }
-            catch
-            {
-                return false;
-            }
+            string mergedDashboard = DashboardMerger.GetMergedDashboardName(vocoreNumber);
+            return DoesDashboardExist(mergedDashboard);
         }
 
         /// <summary>

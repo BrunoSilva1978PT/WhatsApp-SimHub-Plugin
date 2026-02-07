@@ -29,14 +29,16 @@ namespace WhatsAppSimHubPlugin.Models
         public string VoCore2_Serial { get; set; } = "";
 
         // Dashboard Configuration per VoCore
-        // LayerCount: 1 = use Layer1 directly, 2 = merge Layer1 + Layer2
+        // LayerCount: 1 = single dashboard, 2 = merged (Layer1 + Layer2)
         public int VoCore1_LayerCount { get; set; } = 1;
-        public string VoCore1_Layer1 { get; set; } = "WhatsAppPluginVocore1";
-        public string VoCore1_Layer2 { get; set; } = "";
+        public string VoCore1_Mode1_Dash { get; set; } = "WhatsAppPluginVocore1";
+        public string VoCore1_Mode2_Layer1 { get; set; } = "WhatsAppPluginVocore1";
+        public string VoCore1_Mode2_Layer2 { get; set; } = "";
 
         public int VoCore2_LayerCount { get; set; } = 1;
-        public string VoCore2_Layer1 { get; set; } = "WhatsAppPluginVocore2";
-        public string VoCore2_Layer2 { get; set; } = "";
+        public string VoCore2_Mode1_Dash { get; set; } = "WhatsAppPluginVocore2";
+        public string VoCore2_Mode2_Layer1 { get; set; } = "WhatsAppPluginVocore2";
+        public string VoCore2_Mode2_Layer2 { get; set; } = "";
 
         // Queue
         public int MaxGroupSize { get; set; } = 5; // Max messages per contact in queue

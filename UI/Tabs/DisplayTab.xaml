@@ -184,6 +184,12 @@
                                 Background="#0E7A0D"
                                 Foreground="White"
                                 Click="VoCore1Apply_Click"/>
+                        <TextBlock x:Name="VoCore1MergedLabel"
+                                   Foreground="#888888"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"
+                                   Margin="12,0,0,0"
+                                   Text="Current merged dashboards: -"/>
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
@@ -261,6 +267,12 @@
                                 Background="#0E7A0D"
                                 Foreground="White"
                                 Click="VoCore2Apply_Click"/>
+                        <TextBlock x:Name="VoCore2MergedLabel"
+                                   Foreground="#888888"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"
+                                   Margin="12,0,0,0"
+                                   Text="Current merged dashboards: -"/>
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
@@ -281,9 +293,7 @@
                         <LineBreak/>
                         <LineBreak/>
                         <Run Text="Important:" FontWeight="SemiBold" Foreground="#FFA500"/>
-                        <Run Text=" Both Layer 1 and Layer 2 dashboards must have a transparent background, otherwise they will cover the Main dashboard."/>
-                        <LineBreak/>
-                        <Run Text="When using 2 Layers, keep both dashboards simple (basic overlays). Complex dashboards may not merge correctly."/>
+                        <Run Text=" The 2 Layers merge is a best-effort feature. Use simple overlay dashboards only — complex dashboards may produce an invalid result that SimHub will not load. Both dashboards must have a transparent background."/>
                     </TextBlock>
                 </StackPanel>
             </Border>

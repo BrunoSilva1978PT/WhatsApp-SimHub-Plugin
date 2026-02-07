@@ -24,7 +24,7 @@ namespace WhatsAppSimHubPlugin
     public class WhatsAppPlugin : IPlugin, IWPFSettingsV2, IDataPlugin
     {
         // Plugin version - update this when releasing new versions
-        public const string PLUGIN_VERSION = "1.0.6";
+        public const string PLUGIN_VERSION = "1.0.7";
         private const string GITHUB_REPO = "BrunoSilva1978PT/WhatsApp-SimHub-Plugin";
 
         public PluginManager PluginManager { get; set; }
@@ -1685,14 +1685,16 @@ del ""%~f0""
                 {
                     string contactNumber = messages[0].Number;
                     bool isNewContact = _lastSoundPlayedForContact != contactNumber;
+                    bool hasUrgent = messages.Any(m => m.IsUrgent);
 
-                    if (isNewContact)
+                    // Play sound for new contacts OR if urgent messages arrive (always play urgent)
+                    if (isNewContact || hasUrgent)
                     {
                         string soundFile = null;
                         bool shouldPlaySound = false;
 
                         // Priority order: Urgent > VIP > Normal
-                        if (messages.Any(m => m.IsUrgent) && _settings?.UrgentSoundEnabled == true)
+                        if (hasUrgent && _settings?.UrgentSoundEnabled == true)
                         {
                             soundFile = _settings.UrgentSoundFile;
                             shouldPlaySound = true;
@@ -1702,7 +1704,7 @@ del ""%~f0""
                             soundFile = _settings.VipSoundFile;
                             shouldPlaySound = true;
                         }
-                        else if (_settings?.NormalSoundEnabled == true)
+                        else if (isNewContact && _settings?.NormalSoundEnabled == true)
                         {
                             soundFile = _settings.NormalSoundFile;
                             shouldPlaySound = true;
@@ -1717,7 +1719,7 @@ del ""%~f0""
                             }));
 
                             _lastSoundPlayedForContact = contactNumber;
-                            WriteLog($"[SOUND] Played sound for contact {contactNumber}");
+                            WriteLog($"[SOUND] Played sound for contact {contactNumber}{(hasUrgent ? " (urgent)" : "")}");
                         }
                     }
                     else
@@ -2067,12 +2069,7 @@ del ""%~f0""
                 return;
 
             int layerCount = vocoreNumber == 1 ? _settings.VoCore1_LayerCount : _settings.VoCore2_LayerCount;
-
-            string layer1 = vocoreNumber == 1 ? _settings.VoCore1_Layer1 : _settings.VoCore2_Layer1;
-            string layer2 = vocoreNumber == 1 ? _settings.VoCore1_Layer2 : _settings.VoCore2_Layer2;
             string defaultDash = vocoreNumber == 1 ? "WhatsAppPluginVocore1" : "WhatsAppPluginVocore2";
-
-            if (string.IsNullOrEmpty(layer1)) layer1 = defaultDash;
 
             if (layerCount == 2)
             {
@@ -2083,9 +2080,11 @@ del ""%~f0""
             }
             else
             {
-                // 1 layer - set Layer1
-                _vocoreManager.SetDashboard(serial, vocoreNumber, layer1);
-                WriteLog($"[ApplyFromSettings] VoCore {vocoreNumber}: Dashboard set to '{layer1}'");
+                // 1 layer - use Mode1 dashboard
+                string mode1Dash = vocoreNumber == 1 ? _settings.VoCore1_Mode1_Dash : _settings.VoCore2_Mode1_Dash;
+                if (string.IsNullOrEmpty(mode1Dash)) mode1Dash = defaultDash;
+                _vocoreManager.SetDashboard(serial, vocoreNumber, mode1Dash);
+                WriteLog($"[ApplyFromSettings] VoCore {vocoreNumber}: Dashboard set to '{mode1Dash}'");
             }
         }
 

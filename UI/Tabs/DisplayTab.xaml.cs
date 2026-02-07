@@ -27,6 +27,7 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public StackPanel Dash1_Layer2PanelCtrl => Dash1_Layer2Panel;
         public ComboBox Dash1_Layer1ComboBoxCtrl => Dash1_Layer1ComboBox;
         public ComboBox Dash1_Layer2ComboBoxCtrl => Dash1_Layer2ComboBox;
+        public TextBlock VoCore1MergedLabelCtrl => VoCore1MergedLabel;
 
         // VoCore #2 Config accessors
         public StackPanel VoCore2ConfigPanelCtrl => VoCore2ConfigPanel;
@@ -35,6 +36,7 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public StackPanel Dash2_Layer2PanelCtrl => Dash2_Layer2Panel;
         public ComboBox Dash2_Layer1ComboBoxCtrl => Dash2_Layer1ComboBox;
         public ComboBox Dash2_Layer2ComboBoxCtrl => Dash2_Layer2ComboBox;
+        public TextBlock VoCore2MergedLabelCtrl => VoCore2MergedLabel;
 
         // Events - will be wired up from SettingsControl
         public event System.Action VoCore1ApplyEvent;
