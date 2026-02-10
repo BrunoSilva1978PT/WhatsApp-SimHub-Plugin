@@ -2323,7 +2323,7 @@ del ""%~f0""
         public void TestLedEffect(LedDeviceConfig config, string priority)
         {
             if (_ledManager == null || config == null) return;
-            _ledManager.TestEffect(config, priority, 3000);
+            _ledManager.TestEffect(config, priority, 10000);
         }
 
         public void ShowTestMessage(string targetSerial = null)

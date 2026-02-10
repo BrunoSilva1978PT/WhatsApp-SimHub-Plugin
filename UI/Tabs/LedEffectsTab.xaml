@@ -86,18 +86,27 @@
                                 Margin="0,0,0,10">
                             <StackPanel>
                                 <!-- Device Header -->
-                                <Border Background="#2D2D30" CornerRadius="4,4,0,0" Padding="10,8">
+                                <Border Background="#2D2D30" CornerRadius="4,4,0,0" Padding="10,8"
+                                        Cursor="Hand"
+                                        MouseLeftButtonUp="DeviceHeader_Click">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <CheckBox Grid.Column="0"
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding ExpandArrow}"
+                                                   FontSize="11"
+                                                   Foreground="#858585"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,8,0"/>
+                                        <CheckBox Grid.Column="1"
                                                   IsChecked="{Binding Enabled, Mode=TwoWay}"
                                                   VerticalAlignment="Center"
                                                   Margin="0,0,10,0"/>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding DeviceName}"
                                                        FontSize="14"
                                                        FontWeight="SemiBold"
@@ -116,7 +125,7 @@
                                     </Grid>
                                 </Border>
                                 <!-- Device Body -->
-                                <StackPanel Margin="14,10,14,14" Visibility="{Binding Enabled, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel Margin="14,10,14,14" Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}">
                                     <TextBlock Text="Flash Colors"
                                                FontSize="13"
                                                FontWeight="SemiBold"
@@ -204,17 +213,26 @@
                                 Margin="0,0,0,10">
                             <StackPanel>
                                 <!-- Device Header -->
-                                <Border Background="#2D2D30" CornerRadius="4,4,0,0" Padding="10,8">
+                                <Border Background="#2D2D30" CornerRadius="4,4,0,0" Padding="10,8"
+                                        Cursor="Hand"
+                                        MouseLeftButtonUp="DeviceHeader_Click">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <CheckBox Grid.Column="0"
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding ExpandArrow}"
+                                                   FontSize="11"
+                                                   Foreground="#858585"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,8,0"/>
+                                        <CheckBox Grid.Column="1"
                                                   IsChecked="{Binding Enabled, Mode=TwoWay}"
                                                   VerticalAlignment="Center"
                                                   Margin="0,0,10,0"/>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding DeviceName}"
                                                        FontSize="14"
                                                        FontWeight="SemiBold"
@@ -233,7 +251,7 @@
                                     </Grid>
                                 </Border>
                                 <!-- Device Body -->
-                                <StackPanel Margin="14,10,14,14" Visibility="{Binding Enabled, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel Margin="14,10,14,14" Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}">
                                     <!-- Display Mode -->
                                     <TextBlock Text="Display Mode"
                                                FontSize="13"
@@ -317,17 +335,26 @@
                                 CornerRadius="4"
                                 Margin="0,0,0,10">
                             <StackPanel>
-                                <Border Background="#2D2D30" CornerRadius="4,4,0,0" Padding="10,8">
+                                <Border Background="#2D2D30" CornerRadius="4,4,0,0" Padding="10,8"
+                                        Cursor="Hand"
+                                        MouseLeftButtonUp="DeviceHeader_Click">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <CheckBox Grid.Column="0"
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding ExpandArrow}"
+                                                   FontSize="11"
+                                                   Foreground="#858585"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,8,0"/>
+                                        <CheckBox Grid.Column="1"
                                                   IsChecked="{Binding Enabled, Mode=TwoWay}"
                                                   VerticalAlignment="Center"
                                                   Margin="0,0,10,0"/>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding DeviceName}"
                                                        FontSize="14"
                                                        FontWeight="SemiBold"
@@ -345,7 +372,7 @@
                                         </StackPanel>
                                     </Grid>
                                 </Border>
-                                <StackPanel Margin="14,10,14,14" Visibility="{Binding Enabled, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel Margin="14,10,14,14" Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}">
                                     <!-- Matrix mode selector for ArduinoMatrix -->
                                     <StackPanel Visibility="{Binding IsMatrixDevice, Converter={StaticResource BoolToVisibility}}">
                                         <TextBlock Text="Display Mode"
@@ -423,17 +450,26 @@
                                 CornerRadius="4"
                                 Margin="0,0,0,10">
                             <StackPanel>
-                                <Border Background="#2D2D30" CornerRadius="4,4,0,0" Padding="10,8">
+                                <Border Background="#2D2D30" CornerRadius="4,4,0,0" Padding="10,8"
+                                        Cursor="Hand"
+                                        MouseLeftButtonUp="DeviceHeader_Click">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <CheckBox Grid.Column="0"
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding ExpandArrow}"
+                                                   FontSize="11"
+                                                   Foreground="#858585"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,8,0"/>
+                                        <CheckBox Grid.Column="1"
                                                   IsChecked="{Binding Enabled, Mode=TwoWay}"
                                                   VerticalAlignment="Center"
                                                   Margin="0,0,10,0"/>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding DeviceName}"
                                                        FontSize="14"
                                                        FontWeight="SemiBold"
@@ -451,7 +487,7 @@
                                         </StackPanel>
                                     </Grid>
                                 </Border>
-                                <StackPanel Margin="14,10,14,14" Visibility="{Binding Enabled, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel Margin="14,10,14,14" Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}">
                                     <!-- Select Lights -->
                                     <TextBlock Text="Select Lights"
                                                FontSize="13" FontWeight="SemiBold"

@@ -122,6 +122,16 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
             OnSettingsChanged?.Invoke();
         }
 
+        // Toggle expand/collapse
+        private void DeviceHeader_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var border = sender as Border;
+            if (border?.DataContext is LedDeviceViewModel ledVm)
+                ledVm.IsExpanded = !ledVm.IsExpanded;
+            else if (border?.DataContext is HueDeviceViewModel hueVm)
+                hueVm.IsExpanded = !hueVm.IsExpanded;
+        }
+
         // Test button handlers
         private void TestLedDevice_Click(object sender, RoutedEventArgs e)
         {
@@ -190,6 +200,7 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
     public class LedDeviceViewModel : INotifyPropertyChanged
     {
         private bool _enabled;
+        private bool _isExpanded;
         private System.Windows.Media.Color _normalColor;
         private System.Windows.Media.Color _vipColor;
         private System.Windows.Media.Color _urgentColor;
@@ -209,6 +220,14 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public string MatrixSizeText => $"{MatrixRows}x{MatrixColumns}";
 
         public bool IsMatrixDevice => DeviceType == LedDeviceType.ArduinoMatrix || DeviceType == LedDeviceType.DeviceMatrix;
+
+        public string ExpandArrow => _isExpanded ? "\u25BC" : "\u25B6";
+
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set { if (_isExpanded != value) { _isExpanded = value; OnPropertyChanged(nameof(IsExpanded)); OnPropertyChanged(nameof(ExpandArrow)); } }
+        }
 
         public bool Enabled
         {
@@ -322,6 +341,7 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
     public class HueDeviceViewModel : INotifyPropertyChanged
     {
         private bool _enabled;
+        private bool _isExpanded;
         private System.Windows.Media.Color _normalColor;
         private System.Windows.Media.Color _vipColor;
         private System.Windows.Media.Color _urgentColor;
@@ -338,6 +358,14 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public string LedCountText => $"{LedCount} lights";
 
         public ObservableCollection<HueLightViewModel> Lights { get; set; } = new ObservableCollection<HueLightViewModel>();
+
+        public string ExpandArrow => _isExpanded ? "\u25BC" : "\u25B6";
+
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set { if (_isExpanded != value) { _isExpanded = value; OnPropertyChanged(nameof(IsExpanded)); OnPropertyChanged(nameof(ExpandArrow)); } }
+        }
 
         public bool Enabled
         {
