@@ -1,7 +1,0 @@
-        /// <summary>
-        /// Called by SimHub at 60 FPS
-        /// </summary>
-        public void DataUpdate(PluginManager pluginManager, ref GameData data)
-        {
-            // Empty - VoCore logic will be rewritten from scratch
-        }
