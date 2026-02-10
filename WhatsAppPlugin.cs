@@ -41,6 +41,7 @@ namespace WhatsAppSimHubPlugin
         private DashboardMerger _dashboardMerger; // Merger to combine dashboards
         private VoCoreManager _vocoreManager; // VoCore configuration manager
         private SoundManager _soundManager; // Sound notification manager
+        private LedEffectsManager _ledManager; // LED notification effects manager
 
         // QUICK REPLIES: Now work via registered Actions
         // See RegisterActions() and SendQuickReply(int)
@@ -48,6 +49,9 @@ namespace WhatsAppSimHubPlugin
 
         // SOUND NOTIFICATIONS: Track last contact that played sound to avoid repeating
         private string _lastSoundPlayedForContact = ""; // Contact number that last played sound
+
+        // LED NOTIFICATIONS: Track last contact that triggered LED to avoid repeating
+        private string _lastLedPlayedForContact = ""; // Contact number that last triggered LED
 
         private string _pluginPath;
         private string _settingsFile;
@@ -220,6 +224,11 @@ namespace WhatsAppSimHubPlugin
         private DateTime _lastDataUpdateCheck = DateTime.MinValue;
         private const int DATA_UPDATE_INTERVAL_MS = 5000; // 5 seconds
 
+        // LED device discovery retry: if no devices found at startup, retry periodically
+        private bool _ledDevicesDiscovered = false;
+        private int _ledDiscoveryRetries = 0;
+        private const int MAX_LED_DISCOVERY_RETRIES = 6; // Try up to 6 times (30 seconds total)
+
         // ===== INTERNAL STATE (NOT EXPOSED TO SIMHUB) =====
         private List<QueuedMessage> _currentMessageGroup = null;
         private string _currentContactNumber = "";
@@ -327,6 +336,9 @@ namespace WhatsAppSimHubPlugin
             // Initialize sound manager
             _soundManager = new SoundManager(_pluginPath, WriteLog);
             _soundManager.ExtractDefaultSounds();
+
+            // Initialize LED effects manager
+            _ledManager = new LedEffectsManager(PluginManager, WriteLog);
 
             bool installed = _dashboardInstaller.InstallDashboard();
 
@@ -486,6 +498,21 @@ namespace WhatsAppSimHubPlugin
             {
                 int index = i; // catch value for closure
                 this.AttachDelegate($"message[{index}]", () => _overlayMessages[index]);
+            }
+
+            // ===== LED SLOT PROPERTIES =====
+            // Register color properties for LED effects: WhatsAppPlugin.S0_Led1..S7_Led128
+            if (_ledManager != null)
+            {
+                for (int slot = 0; slot < 8; slot++)
+                {
+                    for (int led = 0; led < 128; led++)
+                    {
+                        int s = slot;
+                        int l = led;
+                        this.AttachDelegate($"S{s}_Led{l + 1}", () => _ledManager.GetSlotColor(s, l));
+                    }
+                }
             }
         }
 
@@ -1728,6 +1755,43 @@ del ""%~f0""
                     }
                 }
 
+                // Trigger LED notification effects
+                if (_ledManager != null && _settings?.LedEffectsEnabled == true)
+                {
+                    string contactNumber = messages[0].Number;
+                    bool isNewContact = _lastLedPlayedForContact != contactNumber;
+                    bool hasUrgent = messages.Any(m => m.IsUrgent);
+
+                    if (isNewContact || hasUrgent)
+                    {
+                        string priority = null;
+                        int durationMs = _settings.NormalDuration;
+
+                        if (hasUrgent && _settings.LedUrgentEnabled)
+                        {
+                            priority = "urgent";
+                            durationMs = _settings.UrgentDuration;
+                        }
+                        else if (messages.Any(m => m.IsVip) && _settings.LedVipEnabled)
+                        {
+                            priority = "vip";
+                            durationMs = _settings.UrgentDuration;
+                        }
+                        else if (isNewContact && _settings.LedNormalEnabled)
+                        {
+                            priority = "normal";
+                            durationMs = _settings.NormalDuration;
+                        }
+
+                        if (priority != null)
+                        {
+                            _ledManager.TriggerEffect(_settings.LedDevices, priority, durationMs);
+                            _lastLedPlayedForContact = contactNumber;
+                            WriteLog($"[LED] Triggered {priority} effect for contact {contactNumber} ({durationMs}ms)");
+                        }
+                    }
+                }
+
                 WriteLog($"[EVENT] ✅ OnGroupDisplay completed - displaying {messages.Count} messages from {messages[0].From}");
             }
         }
@@ -1748,6 +1812,8 @@ del ""%~f0""
             _currentContactNumber = "";
             _currentContactRealNumber = "";
             _lastSoundPlayedForContact = ""; // Reset sound tracking when message is removed
+            _lastLedPlayedForContact = ""; // Reset LED tracking when message is removed
+            _ledManager?.StopAllEffects();
 
             WriteLog($"[EVENT] Calling UpdateOverlayProperties(null) to clear overlay...");
 
@@ -1776,6 +1842,7 @@ del ""%~f0""
 
             _messageQueue?.Dispose();
             _soundManager?.Dispose();
+            _ledManager?.Dispose();
 
             WriteLog("Plugin shutdown complete");
         }
@@ -2151,6 +2218,9 @@ del ""%~f0""
         /// </summary>
         public void DataUpdate(PluginManager pluginManager, ref GameData data)
         {
+            // Update LED effects every frame (60 FPS) for smooth animations
+            _ledManager?.Update();
+
             // Only check every 3 seconds (not every frame!)
             if ((DateTime.Now - _lastDataUpdateCheck).TotalMilliseconds < DATA_UPDATE_INTERVAL_MS)
                 return;
@@ -2175,7 +2245,15 @@ del ""%~f0""
                 if (!string.IsNullOrEmpty(_settings?.VoCore2_Serial))
                     _vocoreManager?.EnsureOverlayEnabled(_settings.VoCore2_Serial);
 
+                // Check if Color Effects profiles changed and re-inject LED containers
+                _ledManager?.CheckProfileChanges();
 
+                // Retry LED device discovery if no devices were found at startup
+                if (!_ledDevicesDiscovered && _ledDiscoveryRetries < MAX_LED_DISCOVERY_RETRIES)
+                {
+                    _ledDiscoveryRetries++;
+                    _settingsControl?.RefreshLedDevices();
+                }
             }
             catch
             {
@@ -2215,6 +2293,39 @@ del ""%~f0""
         /// During test, completely ignores both queues
         /// After 5s, CLEARS EVERYTHING so plugin can continue
         /// </summary>
+
+        /// <summary>
+        /// Discovers LED devices and connects enabled ones.
+        /// Called from UI when initializing the LED Effects tab.
+        /// </summary>
+        public List<DiscoveredLedDevice> DiscoverAndConnectLedDevices()
+        {
+            if (_ledManager == null) return new List<DiscoveredLedDevice>();
+
+            _ledManager.DisconnectAll();
+            var devices = _ledManager.DiscoverDevices();
+
+            // Connect all devices (will be enabled/disabled per config)
+            foreach (var device in devices)
+            {
+                _ledManager.ConnectDevice(device);
+            }
+
+            if (devices.Count > 0)
+                _ledDevicesDiscovered = true;
+
+            return devices;
+        }
+
+        /// <summary>
+        /// Tests a LED effect on a specific device.
+        /// </summary>
+        public void TestLedEffect(LedDeviceConfig config, string priority)
+        {
+            if (_ledManager == null || config == null) return;
+            _ledManager.TestEffect(config, priority, 3000);
+        }
+
         public void ShowTestMessage(string targetSerial = null)
         {
             try

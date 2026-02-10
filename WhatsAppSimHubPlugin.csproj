@@ -53,6 +53,24 @@
       <Private>False</Private>
     </Reference>
 
+    <!-- SerialDash.dll - For Arduino RGB LEDs/Matrix access -->
+    <Reference Include="SerialDash">
+      <HintPath>$(SimHubPath)SerialDash.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <!-- SimuLight - For Philips Hue access -->
+    <Reference Include="SimHub.Plugins.SimuLight">
+      <HintPath>$(SimHubPath)SimHub.Plugins.SimuLight.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
+    <!-- Xceed WPF Toolkit - For ColorPicker control -->
+    <Reference Include="Xceed.Wpf.Toolkit">
+      <HintPath>$(SimHubPath)Xceed.Wpf.Toolkit.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+
     <!-- SimHubWPF.exe - REMOVIDO: Não usado e pode causar problemas com CefSharp -->
     <!-- <Reference Include="SimHubWPF">
       <HintPath>$(SimHubPath)SimHubWPF.exe</HintPath>
@@ -107,8 +125,13 @@
       <DependentUpon>DisplayTab.xaml</DependentUpon>
     </Compile>
     <Compile Include="Core\SoundManager.cs" />
+    <Compile Include="Core\LedEffectsManager.cs" />
+    <Compile Include="Models\LedDeviceConfig.cs" />
     <Compile Include="UI\Tabs\NotificationsTab.xaml.cs">
       <DependentUpon>NotificationsTab.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Tabs\LedEffectsTab.xaml.cs">
+      <DependentUpon>LedEffectsTab.xaml</DependentUpon>
     </Compile>
     <Compile Include="UI\Tabs\QuickRepliesTab.xaml.cs">
       <DependentUpon>QuickRepliesTab.xaml</DependentUpon>
@@ -178,6 +201,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\Tabs\NotificationsTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Tabs\LedEffectsTab.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

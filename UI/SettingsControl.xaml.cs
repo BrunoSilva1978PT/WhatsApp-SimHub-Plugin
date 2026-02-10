@@ -99,6 +99,9 @@ namespace WhatsAppSimHubPlugin.UI
             // ✅ Wire up QuickRepliesTab event handlers
             WireUpQuickRepliesTabEvents();
 
+            // ✅ Wire up LedEffectsTab event handlers
+            WireUpLedEffectsTabEvents();
+
             // ✅ Create ControlsEditor dynamically via reflection
             CreateControlsEditors();
 
@@ -252,6 +255,27 @@ namespace WhatsAppSimHubPlugin.UI
         {
             QuickRepliesTab.Reply1TextBoxCtrl.TextChanged += Reply1TextBox_TextChanged;
             QuickRepliesTab.Reply2TextBoxCtrl.TextChanged += Reply2TextBox_TextChanged;
+        }
+
+        private void WireUpLedEffectsTabEvents()
+        {
+            // Master toggle
+            LedEffectsTab.LedEffectsEnabledCheckboxCtrl.Checked += LedEffectsEnabled_Changed;
+            LedEffectsTab.LedEffectsEnabledCheckboxCtrl.Unchecked += LedEffectsEnabled_Changed;
+
+            // Priority toggles
+            LedEffectsTab.LedNormalCheckboxCtrl.Checked += LedPriorityToggle_Changed;
+            LedEffectsTab.LedNormalCheckboxCtrl.Unchecked += LedPriorityToggle_Changed;
+            LedEffectsTab.LedVipCheckboxCtrl.Checked += LedPriorityToggle_Changed;
+            LedEffectsTab.LedVipCheckboxCtrl.Unchecked += LedPriorityToggle_Changed;
+            LedEffectsTab.LedUrgentCheckboxCtrl.Checked += LedPriorityToggle_Changed;
+            LedEffectsTab.LedUrgentCheckboxCtrl.Unchecked += LedPriorityToggle_Changed;
+
+            // Device settings changed
+            LedEffectsTab.OnSettingsChanged += LedDeviceSettings_Changed;
+
+            // Test button
+            LedEffectsTab.OnTestLedEffect += LedTestEffect_Requested;
         }
 
         private void InitializeData()
@@ -774,6 +798,15 @@ namespace WhatsAppSimHubPlugin.UI
                 QuickRepliesTab.Reply2TextBoxCtrl.Text = _settings.Reply2Text;
 
                 QuickRepliesTab.ShowConfirmationCheckCtrl.IsChecked = _settings.ShowConfirmation;
+
+                // LED Effects settings
+                LedEffectsTab.LedEffectsEnabledCheckboxCtrl.IsChecked = _settings.LedEffectsEnabled;
+                LedEffectsTab.LedNormalCheckboxCtrl.IsChecked = _settings.LedNormalEnabled;
+                LedEffectsTab.LedVipCheckboxCtrl.IsChecked = _settings.LedVipEnabled;
+                LedEffectsTab.LedUrgentCheckboxCtrl.IsChecked = _settings.LedUrgentEnabled;
+
+                // Discover and populate LED devices
+                InitializeLedDevices();
             }
             catch (Exception ex)
             {
@@ -1042,6 +1075,65 @@ namespace WhatsAppSimHubPlugin.UI
             {
                 _settings.Reply2Text = QuickRepliesTab.Reply2TextBoxCtrl.Text.Trim();
                 _plugin?.SaveSettings(); // 💾 SALVAR
+            }
+        }
+
+        // ======== LED Effects Tab Handlers ========
+
+        private void InitializeLedDevices()
+        {
+            try
+            {
+                var discovered = _plugin.DiscoverAndConnectLedDevices();
+                LedEffectsTab.PopulateDevices(discovered, _settings?.LedDevices);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LED] InitializeLedDevices error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Refreshes LED device list (called from DataUpdate via RefreshDeviceList).
+        /// </summary>
+        public void RefreshLedDevices()
+        {
+            try
+            {
+                Dispatcher.Invoke(() => InitializeLedDevices());
+            }
+            catch { }
+        }
+
+        private void LedEffectsEnabled_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_settings == null) return;
+            _settings.LedEffectsEnabled = LedEffectsTab.LedEffectsEnabledCheckboxCtrl.IsChecked == true;
+            _plugin?.SaveSettings();
+        }
+
+        private void LedPriorityToggle_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_settings == null) return;
+            _settings.LedNormalEnabled = LedEffectsTab.LedNormalCheckboxCtrl.IsChecked == true;
+            _settings.LedVipEnabled = LedEffectsTab.LedVipCheckboxCtrl.IsChecked == true;
+            _settings.LedUrgentEnabled = LedEffectsTab.LedUrgentCheckboxCtrl.IsChecked == true;
+            _plugin?.SaveSettings();
+        }
+
+        private void LedDeviceSettings_Changed()
+        {
+            if (_settings == null) return;
+            _settings.LedDevices = LedEffectsTab.GetAllDeviceConfigs();
+            _plugin?.SaveSettings();
+        }
+
+        private void LedTestEffect_Requested(string deviceId, string priority)
+        {
+            var config = LedEffectsTab.FindDeviceConfig(deviceId);
+            if (config != null)
+            {
+                _plugin?.TestLedEffect(config, priority);
             }
         }
 

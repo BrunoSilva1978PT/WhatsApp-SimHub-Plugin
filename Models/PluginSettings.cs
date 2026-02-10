@@ -64,6 +64,21 @@ namespace WhatsAppSimHubPlugin.Models
         public string UrgentSoundFile { get; set; } = "mixkit-urgent-simple-tone-loop-2976.wav";
         public string NormalSoundFile { get; set; } = ""; // No default - user must choose explicitly
 
+        // LED Notifications
+        [DefaultValue(false)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool LedEffectsEnabled { get; set; } = false;
+        [DefaultValue(true)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool LedNormalEnabled { get; set; } = true;
+        [DefaultValue(true)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool LedVipEnabled { get; set; } = true;
+        [DefaultValue(true)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool LedUrgentEnabled { get; set; } = true;
+        public List<LedDeviceConfig> LedDevices { get; set; } = new List<LedDeviceConfig>();
+
         // Dependencies
         public bool DependenciesInstalling { get; set; } = false; // True when installing dependencies in background
 

@@ -106,7 +106,12 @@
                 <tabs:NotificationsTab x:Name="NotificationsTab"/>
             </styles:SHTabItem>
 
-            <!-- TAB 6: QUICK REPLIES -->
+            <!-- TAB 6: LED EFFECTS -->
+            <styles:SHTabItem Header="LED Effects">
+                <tabs:LedEffectsTab x:Name="LedEffectsTab"/>
+            </styles:SHTabItem>
+
+            <!-- TAB 7: QUICK REPLIES -->
             <styles:SHTabItem Header="⚡ Quick Replies">
                 <tabs:QuickRepliesTab x:Name="QuickRepliesTab"/>
             </styles:SHTabItem>
