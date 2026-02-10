@@ -274,8 +274,8 @@
             <!-- Info Box -->
             <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,0,0,20">
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="i" FontSize="14" FontWeight="Bold" Margin="0,0,10,0" Foreground="White" VerticalAlignment="Top"/>
-                    <TextBlock Foreground="#CCCCCC" FontSize="12" TextWrapping="Wrap" Width="450">
+                    <TextBlock Text="&#x2139;&#xFE0F;" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Top" Foreground="White"/>
+                    <TextBlock Foreground="#CCCCCC" FontSize="12" TextWrapping="Wrap" LineHeight="18">
                         <Run Text="Layer Configuration:" FontWeight="SemiBold" Foreground="White"/>
                         <LineBreak/>
                         <Run Text="1 Layer: Uses the selected dashboard directly"/>

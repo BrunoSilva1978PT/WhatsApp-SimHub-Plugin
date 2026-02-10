@@ -76,14 +76,12 @@
                 <!-- Info Box -->
                 <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,0,0,0">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="i"
-                                   FontSize="14"
-                                   FontWeight="Bold"
-                                   Margin="0,0,10,0"
-                                   Foreground="White"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12">
+                        <TextBlock Text="&#x2139;&#xFE0F;" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Top" Foreground="White"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12" LineHeight="18">
                             LED effects activate when a message notification is displayed.
+                            <LineBreak/>
                             Effect duration matches the message display duration set in the Notifications tab.
+                            <LineBreak/>
                             Devices are detected automatically from SimHub.
                         </TextBlock>
                     </StackPanel>
@@ -196,7 +194,7 @@
                                                           ColorMode="ColorPalette"/>
                                     </StackPanel>
                                     <!-- Test Buttons -->
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                         <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,4"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
@@ -326,7 +324,7 @@
                                                           ShowStandardColors="True" ShowRecentColors="False"
                                                           DisplayColorAndName="False" ColorMode="ColorPalette"/>
                                     </StackPanel>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                         <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,4"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
@@ -448,7 +446,7 @@
                                                           ShowStandardColors="True" ShowRecentColors="False"
                                                           DisplayColorAndName="False" ColorMode="ColorPalette"/>
                                     </StackPanel>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                         <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,4"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
@@ -666,7 +664,7 @@
                                     </Border>
 
                                     <!-- Test Buttons -->
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                         <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,4"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
@@ -696,14 +694,12 @@
             <!-- Hue Info Box -->
             <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,5,0,20">
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="i"
-                               FontSize="14"
-                               FontWeight="Bold"
-                               Margin="0,0,10,0"
-                               Foreground="White"/>
-                    <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12">
+                    <TextBlock Text="&#x2139;&#xFE0F;" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Top" Foreground="White"/>
+                    <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12" LineHeight="18">
                         Philips Hue groups are loaded from SimHub's Ambient Lights configuration.
+                        <LineBreak/>
                         Flash (1 color): All selected lights flash the same color.
+                        <LineBreak/>
                         Alternating (2 colors): Lights alternate between two colors (requires 2+ lights selected).
                     </TextBlock>
                 </StackPanel>

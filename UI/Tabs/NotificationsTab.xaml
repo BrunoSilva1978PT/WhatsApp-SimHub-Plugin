@@ -78,10 +78,11 @@
 
                 <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,0,0,0">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="i" FontSize="14" FontWeight="Bold" Margin="0,0,10,0" Foreground="White"/>
+                        <TextBlock Text="&#x2139;&#xFE0F;" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Top" Foreground="White"/>
                         <TextBlock TextWrapping="Wrap"
                                    Foreground="White"
-                                   FontSize="12">
+                                   FontSize="12"
+                                   LineHeight="18">
                             Enable sounds for each priority level individually.
                             <LineBreak/>
                             Sounds play only once per contact until the message is dismissed.
@@ -152,10 +153,11 @@
 
                 <Border Background="#1E3A5F" Padding="12" CornerRadius="6" Margin="0,15,0,0">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="i" FontSize="14" FontWeight="Bold" Margin="0,0,10,0" Foreground="White"/>
+                        <TextBlock Text="&#x2139;&#xFE0F;" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Top" Foreground="White"/>
                         <TextBlock TextWrapping="Wrap"
                                    Foreground="White"
-                                   FontSize="12">
+                                   FontSize="12"
+                                   LineHeight="18">
                             How long messages stay visible on screen.
                             <LineBreak/>
                             VIP/Urgent messages display for longer.
@@ -227,10 +229,11 @@
                         CornerRadius="6"
                         Margin="0,15,0,0">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="i" FontSize="14" FontWeight="Bold" Margin="0,0,10,0" Foreground="White"/>
+                        <TextBlock Text="&#x2139;&#xFE0F;" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Top" Foreground="White"/>
                         <TextBlock TextWrapping="Wrap"
                                    Foreground="White"
-                                   FontSize="12">
+                                   FontSize="12"
+                                   LineHeight="18">
                             VIP/Urgent messages have no queue limit and always take priority.
                             <LineBreak/>
                             When the queue is full, oldest non-VIP/Urgent messages are removed first.
@@ -287,10 +290,11 @@
                         CornerRadius="6"
                         Margin="0,15,0,0">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="i" FontSize="14" FontWeight="Bold" Margin="0,0,10,0" Foreground="White"/>
+                        <TextBlock Text="&#x2139;&#xFE0F;" FontSize="18" Margin="0,0,12,0" VerticalAlignment="Top" Foreground="White"/>
                         <TextBlock TextWrapping="Wrap"
                                    Foreground="White"
-                                   FontSize="12">
+                                   FontSize="12"
+                                   LineHeight="18">
                             VIP/Urgent messages can repeat until read.
                             <LineBreak/>
                             Enable "Remove after first display" to prevent repeats.
