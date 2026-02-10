@@ -430,7 +430,7 @@ WhatsAppPlugin/
 
 ## Changelog
 
-### Version 1.0.7
+### Version 1.1.0
 - **LED Effects System**: Complete LED notification system
   - Support for LED Module, RGB Matrix, Arduino LEDs and Philips Hue
   - Per-priority colors (Normal/VIP/Urgent) on all device types
