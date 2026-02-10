@@ -197,15 +197,15 @@
                                     </StackPanel>
                                     <!-- Test Buttons -->
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
-                                        <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,0"
+                                        <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,4"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
                                                                Click="TestNormal_Click"/>
-                                        <styles:SHButtonPrimary Content="Test VIP" Height="28" Padding="12,0"
+                                        <styles:SHButtonPrimary Content="Test VIP" Height="28" Padding="12,4"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
                                                                Click="TestVip_Click"/>
-                                        <styles:SHButtonPrimary Content="Test Urgent" Height="28" Padding="12,0"
+                                        <styles:SHButtonPrimary Content="Test Urgent" Height="28" Padding="12,4"
                                                                Tag="{Binding DeviceId}"
                                                                Click="TestUrgent_Click"/>
                                     </StackPanel>
@@ -327,15 +327,15 @@
                                                           DisplayColorAndName="False" ColorMode="ColorPalette"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
-                                        <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,0"
+                                        <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,4"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
                                                                Click="TestNormal_Click"/>
-                                        <styles:SHButtonPrimary Content="Test VIP" Height="28" Padding="12,0"
+                                        <styles:SHButtonPrimary Content="Test VIP" Height="28" Padding="12,4"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
                                                                Click="TestVip_Click"/>
-                                        <styles:SHButtonPrimary Content="Test Urgent" Height="28" Padding="12,0"
+                                        <styles:SHButtonPrimary Content="Test Urgent" Height="28" Padding="12,4"
                                                                Tag="{Binding DeviceId}"
                                                                Click="TestUrgent_Click"/>
                                     </StackPanel>
@@ -449,15 +449,15 @@
                                                           DisplayColorAndName="False" ColorMode="ColorPalette"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
-                                        <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,0"
+                                        <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,4"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
                                                                Click="TestNormal_Click"/>
-                                        <styles:SHButtonPrimary Content="Test VIP" Height="28" Padding="12,0"
+                                        <styles:SHButtonPrimary Content="Test VIP" Height="28" Padding="12,4"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
                                                                Click="TestVip_Click"/>
-                                        <styles:SHButtonPrimary Content="Test Urgent" Height="28" Padding="12,0"
+                                        <styles:SHButtonPrimary Content="Test Urgent" Height="28" Padding="12,4"
                                                                Tag="{Binding DeviceId}"
                                                                Click="TestUrgent_Click"/>
                                     </StackPanel>
@@ -667,15 +667,15 @@
 
                                     <!-- Test Buttons -->
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
-                                        <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,0"
+                                        <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,4"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
                                                                Click="TestNormal_Click"/>
-                                        <styles:SHButtonPrimary Content="Test VIP" Height="28" Padding="12,0"
+                                        <styles:SHButtonPrimary Content="Test VIP" Height="28" Padding="12,4"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
                                                                Click="TestVip_Click"/>
-                                        <styles:SHButtonPrimary Content="Test Urgent" Height="28" Padding="12,0"
+                                        <styles:SHButtonPrimary Content="Test Urgent" Height="28" Padding="12,4"
                                                                Tag="{Binding DeviceId}"
                                                                Click="TestUrgent_Click"/>
                                     </StackPanel>

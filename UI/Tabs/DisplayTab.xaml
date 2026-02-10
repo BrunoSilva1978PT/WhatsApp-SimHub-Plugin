@@ -105,8 +105,6 @@
                     Content="Send Test Message"
                     Width="160" Height="32"
                     HorizontalAlignment="Left"
-                    Background="#0E7A0D"
-                    Foreground="White"
                     IsEnabled="False"
                     Margin="0,0,0,20"
                     ToolTip="Send a test notification to selected VoCore devices"/>
@@ -181,8 +179,6 @@
                         <styles:SHButtonPrimary x:Name="VoCore1ApplyButton"
                                 Content="Merge Dashboards"
                                 Width="140" Height="28"
-                                Background="#0E7A0D"
-                                Foreground="White"
                                 Click="VoCore1Apply_Click"/>
                         <TextBlock x:Name="VoCore1MergedLabel"
                                    Foreground="#888888"
@@ -264,8 +260,6 @@
                         <styles:SHButtonPrimary x:Name="VoCore2ApplyButton"
                                 Content="Merge Dashboards"
                                 Width="140" Height="28"
-                                Background="#0E7A0D"
-                                Foreground="White"
                                 Click="VoCore2Apply_Click"/>
                         <TextBlock x:Name="VoCore2MergedLabel"
                                    Foreground="#888888"
