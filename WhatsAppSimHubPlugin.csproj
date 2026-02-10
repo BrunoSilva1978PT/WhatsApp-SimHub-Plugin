@@ -108,6 +108,7 @@
     <Compile Include="Core\DashboardInstaller.cs" />
     <Compile Include="Core\DashboardMerger.cs" />
     <Compile Include="Core\DependencyManager.cs" />
+    <Compile Include="Core\DeviceDiscoveryManager.cs" />
     <Compile Include="Core\VoCoreManager.cs" />
     <Compile Include="UI\SettingsControl.xaml.cs">
       <DependentUpon>SettingsControl.xaml</DependentUpon>

@@ -69,7 +69,8 @@ namespace WhatsAppSimHubPlugin.UI
             NotificationsTab.UrgentSoundComboBoxCtrl.SelectionChanged += UrgentSoundComboBox_SelectionChanged;
         }
         private bool _isLoadingDevices = false; // Flag to avoid trigger during loading
-        private HashSet<string> _knownDeviceIds = new HashSet<string>(); // Known devices
+        private HashSet<string> _knownDeviceIds = new HashSet<string>(); // Known VoCore devices
+        private HashSet<string> _knownLedDeviceIds = new HashSet<string>(); // Known LED devices
 
         public SettingsControl(WhatsAppPlugin plugin)
         {
@@ -1085,6 +1086,7 @@ namespace WhatsAppSimHubPlugin.UI
             try
             {
                 var discovered = _plugin.DiscoverAndConnectLedDevices();
+                _knownLedDeviceIds = new HashSet<string>(discovered.Select(d => d.DeviceId));
                 LedEffectsTab.PopulateDevices(discovered, _settings?.LedDevices);
             }
             catch (Exception ex)
@@ -1094,13 +1096,28 @@ namespace WhatsAppSimHubPlugin.UI
         }
 
         /// <summary>
-        /// Refreshes LED device list (called from DataUpdate via RefreshDeviceList).
+        /// Refreshes LED device list with change detection (called from DataUpdate every 5s).
+        /// Only does full reconnect when devices are added or removed.
         /// </summary>
         public void RefreshLedDevices()
         {
             try
             {
-                Dispatcher.Invoke(() => InitializeLedDevices());
+                // Lightweight discovery - no disconnect/reconnect
+                var currentDevices = _plugin.DiscoverLedDevices();
+                var currentIds = new HashSet<string>(currentDevices.Select(d => d.DeviceId));
+
+                // Check if anything changed
+                if (currentIds.SetEquals(_knownLedDeviceIds))
+                    return;
+
+                // Devices changed - do full reconnect on UI thread
+                Dispatcher.Invoke(() =>
+                {
+                    var discovered = _plugin.DiscoverAndConnectLedDevices();
+                    _knownLedDeviceIds = new HashSet<string>(discovered.Select(d => d.DeviceId));
+                    LedEffectsTab.PopulateDevices(discovered, _settings?.LedDevices);
+                });
             }
             catch { }
         }

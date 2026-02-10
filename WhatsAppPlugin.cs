@@ -39,6 +39,7 @@ namespace WhatsAppSimHubPlugin
 
         private DashboardInstaller _dashboardInstaller; // Installer to reinstall dashboard
         private DashboardMerger _dashboardMerger; // Merger to combine dashboards
+        private DeviceDiscoveryManager _deviceDiscovery; // Unified device discovery (VoCore + LED)
         private VoCoreManager _vocoreManager; // VoCore configuration manager
         private SoundManager _soundManager; // Sound notification manager
         private LedEffectsManager _ledManager; // LED notification effects manager
@@ -224,11 +225,6 @@ namespace WhatsAppSimHubPlugin
         private DateTime _lastDataUpdateCheck = DateTime.MinValue;
         private const int DATA_UPDATE_INTERVAL_MS = 5000; // 5 seconds
 
-        // LED device discovery retry: if no devices found at startup, retry periodically
-        private bool _ledDevicesDiscovered = false;
-        private int _ledDiscoveryRetries = 0;
-        private const int MAX_LED_DISCOVERY_RETRIES = 6; // Try up to 6 times (30 seconds total)
-
         // ===== INTERNAL STATE (NOT EXPOSED TO SIMHUB) =====
         private List<QueuedMessage> _currentMessageGroup = null;
         private string _currentContactNumber = "";
@@ -330,15 +326,18 @@ namespace WhatsAppSimHubPlugin
             string dashTemplatesPath = _dashboardInstaller.GetDashboardsPath();
             _dashboardMerger = new DashboardMerger(dashTemplatesPath, WriteLog);
 
+            // Initialize unified device discovery (shared by VoCore and LED managers)
+            _deviceDiscovery = new DeviceDiscoveryManager(PluginManager, WriteLog);
+
             // Initialize VoCore manager
-            _vocoreManager = new VoCoreManager(PluginManager, _dashboardMerger, WriteLog);
+            _vocoreManager = new VoCoreManager(PluginManager, _dashboardMerger, _deviceDiscovery, WriteLog);
 
             // Initialize sound manager
             _soundManager = new SoundManager(_pluginPath, WriteLog);
             _soundManager.ExtractDefaultSounds();
 
             // Initialize LED effects manager
-            _ledManager = new LedEffectsManager(PluginManager, WriteLog);
+            _ledManager = new LedEffectsManager(PluginManager, _deviceDiscovery, WriteLog);
 
             bool installed = _dashboardInstaller.InstallDashboard();
 
@@ -2248,12 +2247,8 @@ del ""%~f0""
                 // Check if Color Effects profiles changed and re-inject LED containers
                 _ledManager?.CheckProfileChanges();
 
-                // Retry LED device discovery if no devices were found at startup
-                if (!_ledDevicesDiscovered && _ledDiscoveryRetries < MAX_LED_DISCOVERY_RETRIES)
-                {
-                    _ledDiscoveryRetries++;
-                    _settingsControl?.RefreshLedDevices();
-                }
+                // Refresh LED devices (detects connect/disconnect, returns early if no changes)
+                _settingsControl?.RefreshLedDevices();
             }
             catch
             {
@@ -2295,8 +2290,17 @@ del ""%~f0""
         /// </summary>
 
         /// <summary>
-        /// Discovers LED devices and connects enabled ones.
-        /// Called from UI when initializing the LED Effects tab.
+        /// Discovers LED devices without connecting (for change detection).
+        /// </summary>
+        public List<DiscoveredLedDevice> DiscoverLedDevices()
+        {
+            if (_ledManager == null) return new List<DiscoveredLedDevice>();
+            return _ledManager.DiscoverDevices();
+        }
+
+        /// <summary>
+        /// Full reconnect: disconnects all, discovers and connects.
+        /// Called when device list changes.
         /// </summary>
         public List<DiscoveredLedDevice> DiscoverAndConnectLedDevices()
         {
@@ -2305,14 +2309,10 @@ del ""%~f0""
             _ledManager.DisconnectAll();
             var devices = _ledManager.DiscoverDevices();
 
-            // Connect all devices (will be enabled/disabled per config)
             foreach (var device in devices)
             {
                 _ledManager.ConnectDevice(device);
             }
-
-            if (devices.Count > 0)
-                _ledDevicesDiscovered = true;
 
             return devices;
         }

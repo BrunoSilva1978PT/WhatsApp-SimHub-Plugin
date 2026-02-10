@@ -36,6 +36,7 @@ namespace WhatsAppSimHubPlugin.Core
 
         private readonly Action<string> _log;
         private readonly PluginManager _pluginManager;
+        private readonly DeviceDiscoveryManager _discovery;
 
         // Slot-based color arrays (read by containers via JS expressions)
         private readonly string[][] _slotColors;
@@ -51,9 +52,10 @@ namespace WhatsAppSimHubPlugin.Core
         // Profile change detection (checked every 5s via DataUpdate)
         private DateTime _lastProfileCheck = DateTime.MinValue;
 
-        public LedEffectsManager(PluginManager pluginManager, Action<string> log = null)
+        public LedEffectsManager(PluginManager pluginManager, DeviceDiscoveryManager discovery, Action<string> log = null)
         {
             _pluginManager = pluginManager;
+            _discovery = discovery;
             _log = log;
 
             _slotColors = new string[MaxSlots][];
@@ -80,15 +82,18 @@ namespace WhatsAppSimHubPlugin.Core
 
         /// <summary>
         /// Discovers all available LED devices from SimHub.
-        /// Returns a list of discovered devices with their info.
+        /// LedModule devices use DeviceDiscoveryManager (shared with VoCore discovery).
+        /// Arduino and Hue use their own plugin APIs.
         /// </summary>
         public List<DiscoveredLedDevice> DiscoverDevices()
         {
             var result = new List<DiscoveredLedDevice>();
 
+            // LedModule devices (from DeviceDiscoveryManager - same iteration as VoCore)
             try
             {
-                DiscoverLedModuleDevices(result);
+                var ledModuleDevices = _discovery.GetLedModuleDevices();
+                result.AddRange(ledModuleDevices);
             }
             catch (Exception ex)
             {
@@ -115,99 +120,6 @@ namespace WhatsAppSimHubPlugin.Core
 
             _log?.Invoke($"[LED] Discovered {result.Count} LED device(s)");
             return result;
-        }
-
-        private void DiscoverLedModuleDevices(List<DiscoveredLedDevice> result)
-        {
-            var devicesEnumerable = _pluginManager.GetAllDevices(true) as System.Collections.IEnumerable;
-            if (devicesEnumerable == null) return;
-
-            foreach (var device in devicesEnumerable)
-            {
-                var deviceInstance = device as DeviceInstance;
-                if (deviceInstance == null) continue;
-
-                // Check composite devices
-                var composite = deviceInstance as CompositeDeviceInstance;
-                if (composite?.Devices != null)
-                {
-                    foreach (var sub in composite.Devices)
-                    {
-                        AddLedModuleDevice(sub as LedModuleDevice, composite.MainDisplayName, result);
-                    }
-                }
-
-                // Check standalone LedModuleDevice
-                var topLed = deviceInstance as LedModuleDevice;
-                if (topLed != null)
-                {
-                    AddLedModuleDevice(topLed, topLed.MainDisplayName, result);
-                }
-            }
-        }
-
-        private void AddLedModuleDevice(LedModuleDevice ledDevice, string parentName, List<DiscoveredLedDevice> result)
-        {
-            if (ledDevice == null) return;
-
-            var settings = ledDevice.ledModuleSettings;
-            if (settings == null) return;
-
-            // Check for RGB LEDs
-            RGBLedsDriver ledDriver = settings.RawDriver ?? settings.LedsDriver;
-            if (ledDriver?.Settings != null)
-            {
-                int ledCount = settings.RawLedCount ?? settings.Ledcount;
-                if (ledCount > 0)
-                {
-                    string deviceId = $"led_{parentName}_{ledCount}";
-                    result.Add(new DiscoveredLedDevice
-                    {
-                        DeviceId = deviceId,
-                        DeviceName = parentName,
-                        DeviceType = LedDeviceType.LedDevice,
-                        LedCount = ledCount,
-                        LedModuleRef = ledDevice
-                    });
-                }
-            }
-
-            // Check for Matrix
-            var matrixDriver = settings.MatrixDriver;
-            if (matrixDriver?.Settings != null)
-            {
-                try
-                {
-                    var colorArray = matrixDriver.GetResult(0, Rotation.Normal);
-                    if (colorArray != null && colorArray.Length > 0)
-                    {
-                        int totalPixels = colorArray.Length;
-                        int side = (int)Math.Sqrt(totalPixels);
-                        int rows = side, cols = side;
-                        if (side * side != totalPixels)
-                        {
-                            rows = totalPixels > 0 ? 1 : 0;
-                            cols = totalPixels;
-                        }
-
-                        string deviceId = $"matrix_{parentName}_{rows}x{cols}";
-                        result.Add(new DiscoveredLedDevice
-                        {
-                            DeviceId = deviceId,
-                            DeviceName = parentName,
-                            DeviceType = LedDeviceType.DeviceMatrix,
-                            LedCount = totalPixels,
-                            MatrixRows = rows,
-                            MatrixColumns = cols,
-                            LedModuleRef = ledDevice
-                        });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _log?.Invoke($"[LED] Error detecting matrix for {parentName}: {ex.Message}");
-                }
-            }
         }
 
         private void DiscoverArduinoDevices(List<DiscoveredLedDevice> result)

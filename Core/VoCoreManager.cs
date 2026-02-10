@@ -12,18 +12,21 @@ namespace WhatsAppSimHubPlugin.Core
     /// <summary>
     /// Manages VoCore devices configuration (zero reflection, direct property access)
     /// Simplified: User controls dashboard via UI, backend only ensures overlay is ON and applies correct dashboard
+    /// Device discovery delegated to DeviceDiscoveryManager.
     /// </summary>
     public class VoCoreManager
     {
         private readonly PluginManager _pluginManager;
         private readonly Action<string> _log;
         private readonly DashboardMerger _dashboardMerger;
+        private readonly DeviceDiscoveryManager _discovery;
         private volatile bool _isMerging;
 
-        public VoCoreManager(PluginManager pluginManager, DashboardMerger dashboardMerger, Action<string> log = null)
+        public VoCoreManager(PluginManager pluginManager, DashboardMerger dashboardMerger, DeviceDiscoveryManager discovery, Action<string> log = null)
         {
             _pluginManager = pluginManager;
             _dashboardMerger = dashboardMerger;
+            _discovery = discovery;
             _log = log;
         }
 
@@ -49,125 +52,17 @@ namespace WhatsAppSimHubPlugin.Core
 
         /// <summary>
         /// Get all connected VoCore devices with their current state.
-        /// Supports standalone VoCores and VoCores embedded in composite devices (wheels, DDUs).
+        /// Delegates to DeviceDiscoveryManager.
         /// </summary>
         public List<VoCoreDevice> GetConnectedDevices()
         {
-            var devices = new List<VoCoreDevice>();
-
-            try
-            {
-                var devicesEnumerable = _pluginManager.GetAllDevices(true);
-                if (devicesEnumerable == null)
-                    return devices;
-
-                foreach (var device in devicesEnumerable)
-                {
-                    var deviceInstance = device as DeviceInstance;
-                    if (deviceInstance == null)
-                        continue;
-
-                    // Try direct device first (standalone VoCore)
-                    var vocoreDevice = TryCreateVoCoreDevice(device, deviceInstance);
-                    if (vocoreDevice != null)
-                    {
-                        devices.Add(vocoreDevice);
-                        continue;
-                    }
-
-                    // If CompositeDevice, check sub-devices (wheels, DDUs with embedded VoCore)
-                    try
-                    {
-                        dynamic dynDevice = device;
-                        System.Collections.IEnumerable subDevices = dynDevice.Devices;
-                        if (subDevices == null)
-                            continue;
-
-                        foreach (var subDev in subDevices)
-                        {
-                            var subInstance = subDev as DeviceInstance;
-                            if (subInstance == null)
-                                continue;
-
-                            var subVoCoreDevice = TryCreateVoCoreDevice(subDev, subInstance);
-                            if (subVoCoreDevice != null)
-                                devices.Add(subVoCoreDevice);
-                        }
-                    }
-                    catch
-                    {
-                        // Not a composite device or no Devices property
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _log?.Invoke($"GetConnectedDevices error: {ex.Message}");
-            }
-
-            return devices;
-        }
-
-        /// <summary>
-        /// Try to create a VoCoreDevice from a device instance.
-        /// Returns null if the device doesn't have VOCORESettings.
-        /// </summary>
-        private VoCoreDevice TryCreateVoCoreDevice(object device, DeviceInstance deviceInstance)
-        {
-            string name = deviceInstance.MainDisplayName;
-            if (string.IsNullOrEmpty(name))
-                return null;
-
-            VOCORESettings vocoreSettings = null;
-            try
-            {
-                dynamic dynDevice = device;
-                vocoreSettings = dynDevice.Settings as VOCORESettings;
-            }
-            catch
-            {
-                return null;
-            }
-
-            if (vocoreSettings == null)
-                return null;
-
-            string serial = GetConnectedId(vocoreSettings);
-            if (string.IsNullOrEmpty(serial))
-                return null;
-
-            return new VoCoreDevice
-            {
-                Name = name,
-                Serial = serial,
-                InformationOverlayEnabled = vocoreSettings.UseOverlayDashboard,
-                CurrentDashboard = vocoreSettings.CurrentOverlayDashboard?.Dashboard
-            };
-        }
-
-        /// <summary>
-        /// Get VoCore hardware Screen ID (ConnectedId). Always available on any VoCore device.
-        /// Returns null if not a valid VoCore (no BitmapDisplayInstance or no ConnectedId).
-        /// </summary>
-        private string GetConnectedId(VOCORESettings vocoreSettings)
-        {
-            try
-            {
-                dynamic bdi = vocoreSettings.BitmapDisplayInstance;
-                if (bdi != null)
-                    return bdi.ConnectedId;
-            }
-            catch { }
-
-            return null;
+            return _discovery.GetVoCoreDevices();
         }
 
         /// <summary>
         /// Ensure VoCore has Information Overlay ON and correct dashboard
         /// Called periodically from DataUpdate()
         /// </summary>
-        /// <param name="serialNumber">Device serial number</param>
-        /// <param name="expectedDashboard">Dashboard that should be active (from settings)</param>
         public void EnsureOverlayEnabled(string serialNumber)
         {
             if (string.IsNullOrEmpty(serialNumber) || _isMerging)
@@ -175,7 +70,7 @@ namespace WhatsAppSimHubPlugin.Core
 
             try
             {
-                VOCORESettings vocoreSettings = FindDeviceBySerial(serialNumber);
+                VOCORESettings vocoreSettings = _discovery.FindVoCoreBySerial(serialNumber);
                 if (vocoreSettings == null)
                     return;
 
@@ -202,7 +97,7 @@ namespace WhatsAppSimHubPlugin.Core
 
             try
             {
-                VOCORESettings vocoreSettings = FindDeviceBySerial(serialNumber);
+                VOCORESettings vocoreSettings = _discovery.FindVoCoreBySerial(serialNumber);
                 if (vocoreSettings == null)
                     return;
 
@@ -233,7 +128,7 @@ namespace WhatsAppSimHubPlugin.Core
                 string mergedDashboard = DashboardMerger.GetMergedDashboardName(vocoreNumber);
                 string mergedDashboardPath = Path.Combine(_dashboardMerger.DashTemplatesPath, mergedDashboard);
 
-                VOCORESettings vocoreSettings = FindDeviceBySerial(serialNumber);
+                VOCORESettings vocoreSettings = _discovery.FindVoCoreBySerial(serialNumber);
                 if (vocoreSettings == null)
                 {
                     _log?.Invoke($"[ApplyMerged] VoCore {vocoreNumber}: Device not found!");
@@ -323,7 +218,7 @@ namespace WhatsAppSimHubPlugin.Core
 
             try
             {
-                VOCORESettings vocoreSettings = FindDeviceBySerial(serialNumber);
+                VOCORESettings vocoreSettings = _discovery.FindVoCoreBySerial(serialNumber);
                 if (vocoreSettings == null)
                 {
                     _log?.Invoke($"[ClearOverlay] Device not found for '{serialNumber}'");
@@ -339,84 +234,6 @@ namespace WhatsAppSimHubPlugin.Core
             {
                 _log?.Invoke($"ClearOverlayDashboard error: {ex.Message}");
             }
-        }
-
-        /// <summary>
-        /// Find VoCore device by serial number.
-        /// Searches standalone devices and sub-devices inside composite devices.
-        /// </summary>
-        private VOCORESettings FindDeviceBySerial(string serialNumber)
-        {
-            try
-            {
-                var devicesEnumerable = _pluginManager.GetAllDevices(true);
-                if (devicesEnumerable == null) return null;
-
-                foreach (var device in devicesEnumerable)
-                {
-                    var deviceInstance = device as DeviceInstance;
-                    if (deviceInstance == null) continue;
-
-                    // Try direct device first (standalone VoCore)
-                    var result = TryMatchDeviceBySerial(device, deviceInstance, serialNumber);
-                    if (result != null)
-                        return result;
-
-                    // If CompositeDevice, check sub-devices
-                    try
-                    {
-                        dynamic dynDevice = device;
-                        System.Collections.IEnumerable subDevices = dynDevice.Devices;
-                        if (subDevices == null) continue;
-
-                        foreach (var subDev in subDevices)
-                        {
-                            var subInstance = subDev as DeviceInstance;
-                            if (subInstance == null) continue;
-
-                            result = TryMatchDeviceBySerial(subDev, subInstance, serialNumber);
-                            if (result != null)
-                                return result;
-                        }
-                    }
-                    catch
-                    {
-                        // Not a composite device
-                    }
-                }
-            }
-            catch
-            {
-                return null;
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Try to match a device by serial/ConnectedId and return its VOCORESettings.
-        /// </summary>
-        private VOCORESettings TryMatchDeviceBySerial(object device, DeviceInstance deviceInstance, string serialNumber)
-        {
-            VOCORESettings vocoreSettings = null;
-            try
-            {
-                dynamic dynDevice = device;
-                vocoreSettings = dynDevice.Settings as VOCORESettings;
-            }
-            catch
-            {
-                return null;
-            }
-
-            if (vocoreSettings == null)
-                return null;
-
-            string deviceId = GetConnectedId(vocoreSettings);
-            if (string.IsNullOrEmpty(deviceId) || deviceId != serialNumber)
-                return null;
-
-            return vocoreSettings;
         }
     }
 }
