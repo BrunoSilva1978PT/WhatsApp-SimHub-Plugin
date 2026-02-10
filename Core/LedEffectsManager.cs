@@ -238,12 +238,11 @@ namespace WhatsAppSimHubPlugin.Core
                     int lightIndex = 1;
                     foreach (var area in hueDevice.AllAreas)
                     {
-                        // CaptureArea may not expose a name - use index-based names
                         string name;
                         try
                         {
                             dynamic dynArea = area;
-                            name = dynArea.DisplayName as string ?? $"Light {lightIndex}";
+                            name = dynArea.Title as string ?? $"Light {lightIndex}";
                         }
                         catch
                         {
