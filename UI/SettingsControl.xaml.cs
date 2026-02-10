@@ -277,6 +277,9 @@ namespace WhatsAppSimHubPlugin.UI
 
             // Test button
             LedEffectsTab.OnTestLedEffect += LedTestEffect_Requested;
+
+            // Flash speed slider
+            LedEffectsTab.FlashSpeedSliderCtrl.ValueChanged += FlashSpeedSlider_ValueChanged;
         }
 
         private void InitializeData()
@@ -805,6 +808,8 @@ namespace WhatsAppSimHubPlugin.UI
                 LedEffectsTab.LedNormalCheckboxCtrl.IsChecked = _settings.LedNormalEnabled;
                 LedEffectsTab.LedVipCheckboxCtrl.IsChecked = _settings.LedVipEnabled;
                 LedEffectsTab.LedUrgentCheckboxCtrl.IsChecked = _settings.LedUrgentEnabled;
+                LedEffectsTab.FlashSpeedSliderCtrl.Value = _settings.LedFlashIntervalMs;
+                LedEffectsTab.FlashSpeedValueCtrl.Text = $"{_settings.LedFlashIntervalMs}ms";
 
                 // Discover and populate LED devices
                 InitializeLedDevices();
@@ -1142,6 +1147,16 @@ namespace WhatsAppSimHubPlugin.UI
         {
             if (_settings == null) return;
             _settings.LedDevices = LedEffectsTab.GetAllDeviceConfigs();
+            _plugin?.SaveSettings();
+        }
+
+        private void FlashSpeedSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_settings == null) return;
+            int value = (int)e.NewValue;
+            _settings.LedFlashIntervalMs = value;
+            LedEffectsTab.FlashSpeedValueCtrl.Text = $"{value}ms";
+            _plugin?.SetLedFlashInterval(value);
             _plugin?.SaveSettings();
         }
 

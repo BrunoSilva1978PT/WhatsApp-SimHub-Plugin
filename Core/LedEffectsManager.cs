@@ -29,14 +29,15 @@ namespace WhatsAppSimHubPlugin.Core
     {
         private const int MaxSlots = 8;
         private const int MaxLedsPerSlot = 128;
-        private const int FlashIntervalMs = 250;
-        private const int HueAlternateIntervalMs = 500;
         private const string PluginPropertyPrefix = "WhatsAppPlugin";
         private const string ContainerDescription = "WhatsApp LED Notifications";
 
         private readonly Action<string> _log;
         private readonly PluginManager _pluginManager;
         private readonly DeviceDiscoveryManager _discovery;
+
+        // Configurable flash interval (ms) - applies to all effect types
+        public int FlashIntervalMs { get; set; } = 250;
 
         // Slot-based color arrays (read by containers via JS expressions)
         private readonly string[][] _slotColors;
@@ -585,9 +586,7 @@ namespace WhatsAppSimHubPlugin.Core
                     }
 
                     // Check toggle timing
-                    int interval = effect.IsHue && effect.HueEffect == HueEffectType.Alternating
-                        ? HueAlternateIntervalMs
-                        : FlashIntervalMs;
+                    int interval = FlashIntervalMs;
 
                     if (now >= effect.NextToggle)
                     {

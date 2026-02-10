@@ -77,6 +77,9 @@ namespace WhatsAppSimHubPlugin.Models
         [DefaultValue(true)]
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
         public bool LedUrgentEnabled { get; set; } = true;
+        [DefaultValue(250)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        public int LedFlashIntervalMs { get; set; } = 250;
         public List<LedDeviceConfig> LedDevices { get; set; } = new List<LedDeviceConfig>();
 
         // Dependencies

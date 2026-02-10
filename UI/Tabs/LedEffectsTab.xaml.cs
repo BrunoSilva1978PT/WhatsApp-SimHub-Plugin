@@ -122,6 +122,10 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
             OnSettingsChanged?.Invoke();
         }
 
+        // Public accessors for slider
+        public Slider FlashSpeedSliderCtrl => FlashSpeedSlider;
+        public TextBlock FlashSpeedValueCtrl => FlashSpeedValue;
+
         // Toggle expand/collapse
         private void DeviceHeader_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
@@ -132,43 +136,22 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
                 hueVm.IsExpanded = !hueVm.IsExpanded;
         }
 
-        // Test button handlers
-        private void TestLedDevice_Click(object sender, RoutedEventArgs e)
+        // Test button handlers (shared across all device types)
+        private void TestNormal_Click(object sender, RoutedEventArgs e)
         {
             var deviceId = (sender as FrameworkElement)?.Tag as string;
             if (!string.IsNullOrEmpty(deviceId))
                 OnTestLedEffect?.Invoke(deviceId, "normal");
         }
 
-        private void TestMatrixDevice_Click(object sender, RoutedEventArgs e)
-        {
-            var deviceId = (sender as FrameworkElement)?.Tag as string;
-            if (!string.IsNullOrEmpty(deviceId))
-                OnTestLedEffect?.Invoke(deviceId, "normal");
-        }
-
-        private void TestArduinoDevice_Click(object sender, RoutedEventArgs e)
-        {
-            var deviceId = (sender as FrameworkElement)?.Tag as string;
-            if (!string.IsNullOrEmpty(deviceId))
-                OnTestLedEffect?.Invoke(deviceId, "normal");
-        }
-
-        private void TestHueNormal_Click(object sender, RoutedEventArgs e)
-        {
-            var deviceId = (sender as FrameworkElement)?.Tag as string;
-            if (!string.IsNullOrEmpty(deviceId))
-                OnTestLedEffect?.Invoke(deviceId, "normal");
-        }
-
-        private void TestHueVip_Click(object sender, RoutedEventArgs e)
+        private void TestVip_Click(object sender, RoutedEventArgs e)
         {
             var deviceId = (sender as FrameworkElement)?.Tag as string;
             if (!string.IsNullOrEmpty(deviceId))
                 OnTestLedEffect?.Invoke(deviceId, "vip");
         }
 
-        private void TestHueUrgent_Click(object sender, RoutedEventArgs e)
+        private void TestUrgent_Click(object sender, RoutedEventArgs e)
         {
             var deviceId = (sender as FrameworkElement)?.Tag as string;
             if (!string.IsNullOrEmpty(deviceId))

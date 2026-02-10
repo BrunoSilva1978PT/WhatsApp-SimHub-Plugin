@@ -338,6 +338,7 @@ namespace WhatsAppSimHubPlugin
 
             // Initialize LED effects manager
             _ledManager = new LedEffectsManager(PluginManager, _deviceDiscovery, WriteLog);
+            _ledManager.FlashIntervalMs = _settings.LedFlashIntervalMs;
 
             bool installed = _dashboardInstaller.InstallDashboard();
 
@@ -2324,6 +2325,15 @@ del ""%~f0""
         {
             if (_ledManager == null || config == null) return;
             _ledManager.TestEffect(config, priority, 10000);
+        }
+
+        /// <summary>
+        /// Updates the LED flash interval (ms) at runtime.
+        /// </summary>
+        public void SetLedFlashInterval(int intervalMs)
+        {
+            if (_ledManager != null)
+                _ledManager.FlashIntervalMs = intervalMs;
         }
 
         public void ShowTestMessage(string targetSerial = null)
