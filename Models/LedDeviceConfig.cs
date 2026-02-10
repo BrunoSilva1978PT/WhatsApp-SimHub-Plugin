@@ -66,7 +66,29 @@ namespace WhatsAppSimHubPlugin.Models
         public string HueColor2Vip { get; set; } = "#FFFFFF";
         public string HueColor2Urgent { get; set; } = "#0000FF";
 
-        // Hue-specific: selected light indices within the group
+        // Hue-specific: selected light indices per priority
+        public List<int> SelectedLightsNormal { get; set; } = new List<int>();
+        public List<int> SelectedLightsVip { get; set; } = new List<int>();
+        public List<int> SelectedLightsUrgent { get; set; } = new List<int>();
+
+        // Legacy: global selection (kept for backward compatibility on load)
         public List<int> SelectedLights { get; set; } = new List<int>();
+
+        /// <summary>
+        /// Migrates old global SelectedLights to per-priority lists if needed.
+        /// </summary>
+        public void MigrateSelectedLights()
+        {
+            if (SelectedLights != null && SelectedLights.Count > 0)
+            {
+                if (SelectedLightsNormal.Count == 0)
+                    SelectedLightsNormal = new List<int>(SelectedLights);
+                if (SelectedLightsVip.Count == 0)
+                    SelectedLightsVip = new List<int>(SelectedLights);
+                if (SelectedLightsUrgent.Count == 0)
+                    SelectedLightsUrgent = new List<int>(SelectedLights);
+                SelectedLights.Clear();
+            }
+        }
     }
 }

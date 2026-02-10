@@ -537,7 +537,7 @@ namespace WhatsAppSimHubPlugin.Core
                         MatrixMode = config.MatrixMode,
                         IsHue = isHue,
                         HueEffect = hueEffect,
-                        SelectedLights = isHue ? config.SelectedLights : null,
+                        SelectedLights = isHue ? GetSelectedLightsForPriority(config, priority) : null,
                         TotalLights = connection.LedCount,
                         StartTime = DateTime.Now,
                         DurationMs = durationMs,
@@ -667,7 +667,9 @@ namespace WhatsAppSimHubPlugin.Core
                 HueColor2Normal = config.HueColor2Normal,
                 HueColor2Vip = config.HueColor2Vip,
                 HueColor2Urgent = config.HueColor2Urgent,
-                SelectedLights = config.SelectedLights
+                SelectedLightsNormal = config.SelectedLightsNormal,
+                SelectedLightsVip = config.SelectedLightsVip,
+                SelectedLightsUrgent = config.SelectedLightsUrgent
             }};
 
             TriggerEffect(testConfig, priority, durationMs);
@@ -921,6 +923,16 @@ namespace WhatsAppSimHubPlugin.Core
                 case "urgent": return config.HueUrgentEffect;
                 case "vip": return config.HueVipEffect;
                 default: return config.HueNormalEffect;
+            }
+        }
+
+        private static List<int> GetSelectedLightsForPriority(LedDeviceConfig config, string priority)
+        {
+            switch (priority?.ToLower())
+            {
+                case "urgent": return config.SelectedLightsUrgent;
+                case "vip": return config.SelectedLightsVip;
+                default: return config.SelectedLightsNormal;
             }
         }
 

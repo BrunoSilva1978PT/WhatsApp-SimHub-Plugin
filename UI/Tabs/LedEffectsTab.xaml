@@ -529,41 +529,6 @@
                                     </Grid>
                                 </Border>
                                 <StackPanel Margin="14,10,14,14" Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}">
-                                    <!-- Select Lights -->
-                                    <TextBlock Text="Select Lights"
-                                               FontSize="13" FontWeight="SemiBold"
-                                               Foreground="#AAAAAA" Margin="0,0,0,8"/>
-                                    <ItemsControl ItemsSource="{Binding Lights}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <WrapPanel/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Background="#2D2D30"
-                                                        Padding="4,4,8,4"
-                                                        CornerRadius="3"
-                                                        Margin="0,0,8,8">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                                  VerticalAlignment="Center"
-                                                                  Margin="0,0,4,0"/>
-                                                        <TextBlock Text="{Binding Name}"
-                                                                   FontSize="11"
-                                                                   Foreground="#CCCCCC"
-                                                                   VerticalAlignment="Center"/>
-                                                    </StackPanel>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-
-                                    <!-- Effects per priority -->
-                                    <TextBlock Text="Effects"
-                                               FontSize="13" FontWeight="SemiBold"
-                                               Foreground="#AAAAAA" Margin="0,4,0,8"/>
-
                                     <!-- Normal -->
                                     <Border Background="#1E1E1E" Padding="8" CornerRadius="4" Margin="0,0,0,8">
                                         <StackPanel>
@@ -571,6 +536,22 @@
                                                 <Ellipse Width="8" Height="8" Fill="#4CAF50" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                                 <TextBlock Text="Normal" FontSize="12" FontWeight="SemiBold" Foreground="#AAAAAA"/>
                                             </StackPanel>
+                                            <TextBlock Text="Lights:" FontSize="11" Foreground="#858585" Margin="0,0,0,4"/>
+                                            <ItemsControl ItemsSource="{Binding LightsNormal}" Margin="0,0,0,8">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#2D2D30" Padding="4,4,8,4" CornerRadius="3" Margin="0,0,8,4">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                                <TextBlock Text="{Binding Name}" FontSize="11" Foreground="#CCCCCC" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                                 <TextBlock Text="Effect:" Width="70" FontSize="12" Foreground="#858585" VerticalAlignment="Center"/>
                                                 <ComboBox SelectedIndex="{Binding HueNormalEffectIndex, Mode=TwoWay}"
@@ -604,6 +585,22 @@
                                                 <Ellipse Width="8" Height="8" Fill="#FF9800" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                                 <TextBlock Text="VIP" FontSize="12" FontWeight="SemiBold" Foreground="#AAAAAA"/>
                                             </StackPanel>
+                                            <TextBlock Text="Lights:" FontSize="11" Foreground="#858585" Margin="0,0,0,4"/>
+                                            <ItemsControl ItemsSource="{Binding LightsVip}" Margin="0,0,0,8">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#2D2D30" Padding="4,4,8,4" CornerRadius="3" Margin="0,0,8,4">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                                <TextBlock Text="{Binding Name}" FontSize="11" Foreground="#CCCCCC" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                                 <TextBlock Text="Effect:" Width="70" FontSize="12" Foreground="#858585" VerticalAlignment="Center"/>
                                                 <ComboBox SelectedIndex="{Binding HueVipEffectIndex, Mode=TwoWay}"
@@ -637,6 +634,22 @@
                                                 <Ellipse Width="8" Height="8" Fill="#F44336" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                                 <TextBlock Text="Urgent" FontSize="12" FontWeight="SemiBold" Foreground="#AAAAAA"/>
                                             </StackPanel>
+                                            <TextBlock Text="Lights:" FontSize="11" Foreground="#858585" Margin="0,0,0,4"/>
+                                            <ItemsControl ItemsSource="{Binding LightsUrgent}" Margin="0,0,0,8">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#2D2D30" Padding="4,4,8,4" CornerRadius="3" Margin="0,0,8,4">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                                <TextBlock Text="{Binding Name}" FontSize="11" Foreground="#CCCCCC" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                                 <TextBlock Text="Effect:" Width="70" FontSize="12" Foreground="#858585" VerticalAlignment="Center"/>
                                                 <ComboBox SelectedIndex="{Binding HueUrgentEffectIndex, Mode=TwoWay}"

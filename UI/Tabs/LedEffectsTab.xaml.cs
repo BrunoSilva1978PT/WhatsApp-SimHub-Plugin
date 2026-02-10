@@ -340,7 +340,9 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
         public int LedCount { get; set; }
         public string LedCountText => $"{LedCount} lights";
 
-        public ObservableCollection<HueLightViewModel> Lights { get; set; } = new ObservableCollection<HueLightViewModel>();
+        public ObservableCollection<HueLightViewModel> LightsNormal { get; set; } = new ObservableCollection<HueLightViewModel>();
+        public ObservableCollection<HueLightViewModel> LightsVip { get; set; } = new ObservableCollection<HueLightViewModel>();
+        public ObservableCollection<HueLightViewModel> LightsUrgent { get; set; } = new ObservableCollection<HueLightViewModel>();
 
         public string ExpandArrow => _isExpanded ? "\u25BC" : "\u25B6";
 
@@ -420,13 +422,28 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
             DeviceName = discovered.DeviceName;
             LedCount = discovered.LedCount;
 
-            // Build light list
+            // Migrate old global SelectedLights to per-priority if needed
+            saved?.MigrateSelectedLights();
+
+            // Build per-priority light lists
             for (int i = 0; i < discovered.HueLightNames.Count; i++)
             {
-                bool isSelected = saved?.SelectedLights?.Contains(i) ?? true; // Default all selected
-                var light = new HueLightViewModel { Index = i, Name = discovered.HueLightNames[i], IsSelected = isSelected };
-                light.PropertyChanged += (s, e) => OnPropertyChanged("LightsChanged");
-                Lights.Add(light);
+                string name = discovered.HueLightNames[i];
+
+                bool normalSelected = saved?.SelectedLightsNormal?.Contains(i) ?? true;
+                var normalLight = new HueLightViewModel { Index = i, Name = name, IsSelected = normalSelected };
+                normalLight.PropertyChanged += (s, e) => OnPropertyChanged("LightsChanged");
+                LightsNormal.Add(normalLight);
+
+                bool vipSelected = saved?.SelectedLightsVip?.Contains(i) ?? true;
+                var vipLight = new HueLightViewModel { Index = i, Name = name, IsSelected = vipSelected };
+                vipLight.PropertyChanged += (s, e) => OnPropertyChanged("LightsChanged");
+                LightsVip.Add(vipLight);
+
+                bool urgentSelected = saved?.SelectedLightsUrgent?.Contains(i) ?? true;
+                var urgentLight = new HueLightViewModel { Index = i, Name = name, IsSelected = urgentSelected };
+                urgentLight.PropertyChanged += (s, e) => OnPropertyChanged("LightsChanged");
+                LightsUrgent.Add(urgentLight);
             }
 
             if (saved != null)
@@ -473,7 +490,9 @@ namespace WhatsAppSimHubPlugin.UI.Tabs
                 HueNormalEffect = HueNormalEffectIndex == 1 ? HueEffectType.Alternating : HueEffectType.Flash,
                 HueVipEffect = HueVipEffectIndex == 1 ? HueEffectType.Alternating : HueEffectType.Flash,
                 HueUrgentEffect = HueUrgentEffectIndex == 1 ? HueEffectType.Alternating : HueEffectType.Flash,
-                SelectedLights = Lights.Where(l => l.IsSelected).Select(l => l.Index).ToList()
+                SelectedLightsNormal = LightsNormal.Where(l => l.IsSelected).Select(l => l.Index).ToList(),
+                SelectedLightsVip = LightsVip.Where(l => l.IsSelected).Select(l => l.Index).ToList(),
+                SelectedLightsUrgent = LightsUrgent.Where(l => l.IsSelected).Select(l => l.Index).ToList()
             };
         }
 
