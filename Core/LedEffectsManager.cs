@@ -691,8 +691,18 @@ namespace WhatsAppSimHubPlugin.Core
 
             // Standard flash: all LEDs same color, toggle on/off
             string hexColor = effect.BlinkOn ? ToArgbHex(effect.Color) : "#FF000000";
+            var selectedLights = effect.SelectedLights;
+            bool hasSelection = effect.IsHue && selectedLights != null && selectedLights.Count > 0;
+
             for (int i = 0; i < effect.LedCount; i++)
+            {
+                if (hasSelection && !selectedLights.Contains(i))
+                {
+                    _slotColors[slot][i] = "#00000000";
+                    continue;
+                }
                 _slotColors[slot][i] = hexColor;
+            }
         }
 
         private void ApplyEnvelopeIcon(ActiveEffect effect)

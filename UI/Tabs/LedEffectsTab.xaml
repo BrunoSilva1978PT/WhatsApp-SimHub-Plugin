@@ -196,7 +196,7 @@
                                                           ColorMode="ColorPalette"/>
                                     </StackPanel>
                                     <!-- Test Buttons -->
-                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
                                         <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,0"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
@@ -326,7 +326,7 @@
                                                           ShowStandardColors="True" ShowRecentColors="False"
                                                           DisplayColorAndName="False" ColorMode="ColorPalette"/>
                                     </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
                                         <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,0"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
@@ -448,7 +448,7 @@
                                                           ShowStandardColors="True" ShowRecentColors="False"
                                                           DisplayColorAndName="False" ColorMode="ColorPalette"/>
                                     </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
                                         <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,0"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
@@ -666,7 +666,7 @@
                                     </Border>
 
                                     <!-- Test Buttons -->
-                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
                                         <styles:SHButtonPrimary Content="Test Normal" Height="28" Padding="12,0"
                                                                Margin="0,0,8,0"
                                                                Tag="{Binding DeviceId}"
