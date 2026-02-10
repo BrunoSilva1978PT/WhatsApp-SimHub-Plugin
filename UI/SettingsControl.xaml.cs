@@ -68,6 +68,7 @@ namespace WhatsAppSimHubPlugin.UI
             NotificationsTab.VipSoundComboBoxCtrl.SelectionChanged += VipSoundComboBox_SelectionChanged;
             NotificationsTab.UrgentSoundComboBoxCtrl.SelectionChanged += UrgentSoundComboBox_SelectionChanged;
         }
+        private bool _isLoadingSettings = false; // Flag to avoid saving during LoadSettings()
         private bool _isLoadingDevices = false; // Flag to avoid trigger during loading
         private HashSet<string> _knownDeviceIds = new HashSet<string>(); // Known VoCore devices
         private HashSet<string> _knownLedDeviceIds = new HashSet<string>(); // Known LED devices
@@ -738,6 +739,7 @@ namespace WhatsAppSimHubPlugin.UI
 
         private void LoadSettings()
         {
+            _isLoadingSettings = true;
             try
             {
                 // 🔧 Carregar Backend Mode
@@ -817,6 +819,10 @@ namespace WhatsAppSimHubPlugin.UI
             catch (Exception ex)
             {
                 ShowToast($"Error loading settings: {ex.Message}", "❌", 10);
+            }
+            finally
+            {
+                _isLoadingSettings = false;
             }
 
             // Check initial connection status
@@ -1129,14 +1135,14 @@ namespace WhatsAppSimHubPlugin.UI
 
         private void LedEffectsEnabled_Changed(object sender, RoutedEventArgs e)
         {
-            if (_settings == null) return;
+            if (_settings == null || _isLoadingSettings) return;
             _settings.LedEffectsEnabled = LedEffectsTab.LedEffectsEnabledCheckboxCtrl.IsChecked == true;
             _plugin?.SaveSettings();
         }
 
         private void LedPriorityToggle_Changed(object sender, RoutedEventArgs e)
         {
-            if (_settings == null) return;
+            if (_settings == null || _isLoadingSettings) return;
             _settings.LedNormalEnabled = LedEffectsTab.LedNormalCheckboxCtrl.IsChecked == true;
             _settings.LedVipEnabled = LedEffectsTab.LedVipCheckboxCtrl.IsChecked == true;
             _settings.LedUrgentEnabled = LedEffectsTab.LedUrgentCheckboxCtrl.IsChecked == true;
@@ -1145,14 +1151,14 @@ namespace WhatsAppSimHubPlugin.UI
 
         private void LedDeviceSettings_Changed()
         {
-            if (_settings == null) return;
+            if (_settings == null || _isLoadingSettings) return;
             _settings.LedDevices = LedEffectsTab.GetAllDeviceConfigs();
             _plugin?.SaveSettings();
         }
 
         private void FlashSpeedSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (_settings == null) return;
+            if (_settings == null || _isLoadingSettings) return;
             int value = (int)e.NewValue;
             _settings.LedFlashIntervalMs = value;
             LedEffectsTab.FlashSpeedValueCtrl.Text = $"{value}ms";
